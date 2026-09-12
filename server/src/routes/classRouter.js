@@ -10,7 +10,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 
 router.post("/", authMiddleware, createClass);
-router.get("/", authMiddleware, getClass);
+router.get("/", getClass);
 router.delete('/:id',authMiddleware, deleteClass)
 
 module.exports = router;

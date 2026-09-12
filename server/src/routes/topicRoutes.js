@@ -6,10 +6,11 @@ const {
     updateTopic,
     deleteTopic,
 } = require("../controllers/topicController");
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/", createTopic);
+router.post("/", authMiddleware, createTopic);
 router.get("/chapter/:chapterId", getTopicsByChapter);
-router.put("/:id", updateTopic);
-router.delete("/:id", deleteTopic);
+router.put("/:id", authMiddleware, updateTopic);
+router.delete("/:id", authMiddleware, deleteTopic);
 
 module.exports = router;

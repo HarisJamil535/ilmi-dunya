@@ -10,7 +10,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 
 router.post("/", authMiddleware, createBoard);
-router.get("/", authMiddleware, getBoards);
+router.get("/", getBoards);
 router.delete("/:id", authMiddleware, deleteBoard);
 
 module.exports = router;

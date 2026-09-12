@@ -6,10 +6,11 @@ const {
     updateChapter,
     deleteChapter,
 } = require("../controllers/chapterController");
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/", createChapter);
+router.post("/", authMiddleware, createChapter);
 router.get("/", getChapters);
-router.put("/:id", updateChapter);
-router.delete("/:id", deleteChapter);
+router.put("/:id", authMiddleware, updateChapter);
+router.delete("/:id", authMiddleware, deleteChapter);
 
 module.exports = router;

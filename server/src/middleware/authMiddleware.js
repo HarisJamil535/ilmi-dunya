@@ -19,9 +19,8 @@ const authMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
 
-        // Find admin in database
-        const admin = await Admin.findById(decoded.id);
-        console.log("Admin Found:", admin);
+        // Find admin in database without exposing password hash
+        const admin = await Admin.findById(decoded.id).select("-password");
         if (!admin) {
             return res.status(401).json({
                 success: false,

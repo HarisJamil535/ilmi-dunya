@@ -21,7 +21,6 @@ const createSuperAdmin = async () => {
     });
 
     if (adminExists) {
-      console.log("Super Admin already exists");
       process.exit();
     }
 
@@ -36,11 +35,8 @@ const createSuperAdmin = async () => {
       role: "super_admin",
     });
 
-    console.log("Super Admin Created Successfully");
-
     process.exit();
-  } catch (error) {
-    console.log(error.message);
+  } catch {
     process.exit(1);
   }
 };

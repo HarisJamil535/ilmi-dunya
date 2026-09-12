@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileText, BookOpen, Loader2 } from 'lucide-react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from '../../api/axios'; // Adjust path to your axios instance
 
 const Chapters = () => {
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-
     // 1. Extract Filter Parameters from URL
     const classParam = searchParams.get('class');
     const boardParam = searchParams.get('board');

@@ -7,7 +7,7 @@ const {createGroup, getGroup, deleteGroup} = require('../controllers/groupContro
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/',authMiddleware,createGroup);
-router.get('/', authMiddleware, getGroup);
+router.get('/', getGroup);
 router.delete('/:id', authMiddleware, deleteGroup)
 
 
