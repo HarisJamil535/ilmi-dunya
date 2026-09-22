@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import StudentLayout from "../student/layout/StudentLayout";
+import NotFound from '../shared/NotFound';
 import PageLoader from "../shared/PageLoader";
 import StudentProtectedRoute from "../student/components/StudentProtectedRoute";
 
@@ -60,7 +61,7 @@ const StudentRoutes = ({ initialData, initialView }) => {
             <Route path="/assessments/:id/take" element={<AssessmentPlayer />} />
             <Route path="/assessments/result/:attemptId" element={<AssessmentResult />} />
           </Route>
-          <Route path="*" element={<div className="mx-auto max-w-3xl px-6 py-20"><h1 className="text-3xl font-bold">Page not found</h1><p className="mt-4">The page may have moved. <a className="text-primary underline" href="/learn">Browse study resources</a>.</p></div>} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </Suspense>

@@ -4,6 +4,7 @@ import { Navigate, Routes, Route } from "react-router-dom";
 import AdminLayout from "../admin/layout/AdminLayout";
 import ProtectedRoutes from "../admin/components/ProtectedRoutes";
 import PageLoader from "../shared/PageLoader";
+import NotFound from '../shared/NotFound';
 
 const AdminLogin = lazy(() => import("../admin/pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("../admin/pages/AdminDashboard"));
@@ -54,7 +55,7 @@ const AdminRoutes = () => {
                     </Route>
                 </Route>
 
-                <Route path="/admin/*" element={<div>404 Not Found</div>} />
+                <Route path="/admin/*" element={<NotFound admin />} />
             </Routes>
         </Suspense>
     );

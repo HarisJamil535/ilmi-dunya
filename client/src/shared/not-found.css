@@ -1,0 +1,42 @@
+.not-found {
+  background: #fff;
+  padding: 56px 24px 72px;
+  min-height: 680px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  letter-spacing: 0;
+}
+.not-found-admin { min-height: 100svh; }
+.not-found-inner { width: 100%; max-width: 760px; animation: not-found-enter 450ms ease-out both; }
+.not-found-brand { display: inline-flex; align-items: center; gap: 9px; color: var(--brand-primary); font-size: 18px; font-weight: 800; }
+.not-found-brand img { object-fit: contain; }
+.not-found-number { display: flex; align-items: center; justify-content: center; gap: 14px; height: 194px; margin: 20px 0 8px; color: var(--brand-primary); font-size: 176px; line-height: 1; font-weight: 800; }
+.not-found-number span { display: grid; place-items: center; width: 126px; height: 126px; border: 1px solid var(--brand-primary-muted); border-radius: 50%; background: var(--brand-primary-soft); transform: rotate(-8deg); }
+.not-found-number svg { width: 72px; height: 72px; }
+.not-found-eyebrow { margin: 0 0 16px; color: var(--brand-primary); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.not-found h1 { margin: 0; color: var(--brand-dark); font-size: 40px; line-height: 1.2; font-weight: 800; letter-spacing: 0; }
+.not-found-description { max-width: 440px; margin: 20px auto 0; font-size: 16px; line-height: 1.8; color: var(--app-text-muted); }
+.not-found-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.not-found-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 13px 20px; min-height: 48px; border: 1px solid var(--brand-primary); border-radius: 8px; font-size: 14px; font-weight: 700; }
+.not-found-primary { background: var(--brand-primary); color: #fff; }
+.not-found-primary:hover { background: var(--brand-primary-dark); }
+.not-found-secondary { background: #fff; color: var(--brand-primary); }
+.not-found-secondary:hover { background: var(--brand-primary-soft); }
+.not-found-shortcuts { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px; border-top: 1px solid var(--app-border); margin-top: 40px; padding-top: 24px; }
+.not-found-shortcuts a { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; color: var(--app-text-muted); font-size: 13px; font-weight: 600; }
+.not-found-shortcuts a:hover { color: var(--brand-primary); }
+.not-found a:focus-visible { outline: 3px solid var(--brand-primary); outline-offset: 5px; }
+@keyframes not-found-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 480px) {
+  .not-found { padding: 36px 20px 48px; min-height: 620px; }
+  .not-found-admin { min-height: 100svh; }
+  .not-found-number { font-size: 112px; height: 140px; gap: 10px; }
+  .not-found-number span { width: 88px; height: 88px; }
+  .not-found-number svg { width: 50px; height: 50px; }
+  .not-found h1 { font-size: 28px; }
+  .not-found-description { font-size: 14px; }
+  .not-found-actions { flex-direction: column; }
+  .not-found-shortcuts { gap: 6px 18px; margin-top: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .not-found-inner { animation: none; } }
