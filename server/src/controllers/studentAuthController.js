@@ -108,7 +108,8 @@ const requestPasswordReset = async (req, res) => {
     try {
         const sent = await sendIlmiDunyaEmail({ to: student.email, subject: "Your IlmiDunya password reset code", html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#443dd7">Reset your password</h2><p>Use this verification code to continue:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p><p>Team IlmiDunya</p></div>` });
         if (!sent) return res.status(503).json({ success: false, message: "Email delivery is not configured on the server yet. Please contact the administrator." });
-    } catch {
+    } catch (error) {
+        console.error("Password reset email failed:", error.message);
         return res.status(503).json({ success: false, message: "We could not deliver the email right now. Please try again shortly." });
     }
     res.json(generic);
