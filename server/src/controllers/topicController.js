@@ -1,8 +1,9 @@
+const { publication, safeUrl, fail } = require("../services/publishing");
 const Topic = require("../models/Topic");
 const Chapter = require("../models/Chapter");
 
 // Create Topic
-const createTopic = async (req, res) => {
+const createTopic = async (req, res, next) => {
     try {
         const { name, topicNumber, chapterId, description, videoUrl } = req.body;
 
@@ -21,11 +22,19 @@ const createTopic = async (req, res) => {
             });
         }
 
-        const parsedTopicNum = Number(topicNumber) || 1;
+        if (videoUrl && !safeUrl(videoUrl)) fail("Enter a valid HTTP or HTTPS video URL.");
+        const parsedTopicNum = String(topicNumber || "1").trim();
+
+        if (!/^\d+(\.\d+)*$/.test(parsedTopicNum)) {
+            return res.status(400).json({
+                success: false,
+                message: "Use a topic number such as 2, 2.3 or 2.3.5.",
+            });
+        }
 
         const existingTopic = await Topic.findOne({
             chapterId,
-            topicNumber: parsedTopicNum,
+             $expr: { $eq: [{ $toString: "$topicNumber" }, parsedTopicNum] },
         });
 
         if (existingTopic) {
@@ -36,15 +45,16 @@ const createTopic = async (req, res) => {
         }
 
         const newTopic = new Topic({
+            ...publication(req.body),
             name: name.trim(),
             topicNumber: parsedTopicNum,
             description: description ? description.trim() : "",
             videoUrl: videoUrl ? videoUrl.trim() : "",
             chapterId: parentChapter._id,
-            subjectId: parentChapter.subjectId,
-            boardId: parentChapter.boardId,
-            classId: parentChapter.classId,
-            groupId: parentChapter.groupId,
+            subjectId: parentChapter.subject,
+            boardId: parentChapter.board,
+            classId: parentChapter.class,
+            groupId: parentChapter.group,
         });
 
         await newTopic.save();
@@ -55,20 +65,16 @@ const createTopic = async (req, res) => {
             topic: newTopic,
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Server Error",
-            error: error.message,
-        });
+        next(error);
     }
 };
 
 // Get Topics by Chapter ID
-const getTopicsByChapter = async (req, res) => {
+const getTopicsByChapter = async (req, res, next) => {
     try {
         const { chapterId } = req.params;
 
-        const chapter = await Chapter.findById(chapterId);
+        const chapter = await Chapter.findById(chapterId).populate(["board", "class", "group", "subject"]);
         if (!chapter) {
             return res.status(404).json({
                 success: false,
@@ -76,7 +82,8 @@ const getTopicsByChapter = async (req, res) => {
             });
         }
 
-        const topics = await Topic.find({ chapterId }).sort({ topicNumber: 1, createdAt: 1 });
+        const topics = await Topic.find({ chapterId });
+        topics.sort((a, b) => String(a.topicNumber).localeCompare(String(b.topicNumber), undefined, { numeric: true }));
 
         res.status(200).json({
             success: true,
@@ -84,16 +91,12 @@ const getTopicsByChapter = async (req, res) => {
             topics,
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Server Error",
-            error: error.message,
-        });
+        next(error);
     }
 };
 
 // Update Topic
-const updateTopic = async (req, res) => {
+const updateTopic = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { name, topicNumber, description, videoUrl } = req.body;
@@ -113,12 +116,20 @@ const updateTopic = async (req, res) => {
             });
         }
 
-        const parsedTopicNum = Number(topicNumber) || 1;
+        if (videoUrl && !safeUrl(videoUrl)) fail("Enter a valid HTTP or HTTPS video URL.");
+        const parsedTopicNum = String(topicNumber || "1").trim();
+
+        if (!/^\d+(\.\d+)*$/.test(parsedTopicNum)) {
+            return res.status(400).json({
+                success: false,
+                message: "Use a topic number such as 2, 2.3 or 2.3.5.",
+            });
+        }
 
         const duplicateTopic = await Topic.findOne({
             _id: { $ne: id },
             chapterId: topic.chapterId,
-            topicNumber: parsedTopicNum,
+             $expr: { $eq: [{ $toString: "$topicNumber" }, parsedTopicNum] },
         });
 
         if (duplicateTopic) {
@@ -128,6 +139,7 @@ const updateTopic = async (req, res) => {
             });
         }
 
+        Object.assign(topic, publication(req.body));
         topic.name = name.trim();
         topic.topicNumber = parsedTopicNum;
         topic.description = description ? description.trim() : "";
@@ -141,16 +153,12 @@ const updateTopic = async (req, res) => {
             topic,
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Server Error",
-            error: error.message,
-        });
+        next(error);
     }
 };
 
 // Delete Topic
-const deleteTopic = async (req, res) => {
+const deleteTopic = async (req, res, next) => {
     try {
         const { id } = req.params;
         const deletedTopic = await Topic.findByIdAndDelete(id);
@@ -167,11 +175,7 @@ const deleteTopic = async (req, res) => {
             message: "Topic deleted successfully",
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Server Error",
-            error: error.message,
-        });
+        next(error);
     }
 };
 

@@ -1,44 +1,42 @@
+import { useContext } from "react";
+import { AppContext } from "../../context/AppContext";
+import { studyPath } from "../../seo/studyLinks";
 import { Link } from "react-router-dom";
 import { Facebook, Instagram, Youtube } from "lucide-react";
 
 const quickLinks = [
   { label: "Home", to: "/" },
-  { label: "Classes", to: "/classes" },
+  { label: "Study Library", to: "/learn" },
+  { label: "Subjects", to: "/subjects" },
   { label: "Video Lectures", to: "/videos" },
-  { label: "Practice Tests", to: "/tests" },
-  { label: "Past Papers", to: "/papers" },
-];
-
-const boards = [
-  { label: "Federal Board", to: "/subjects?board=federal" },
-  { label: "Lahore Board", to: "/subjects?board=lahore" },
-  { label: "Gujranwala Board", to: "/subjects?board=gujranwala" },
-  { label: "Faisalabad Board", to: "/subjects?board=faisalabad" },
-  { label: "Rawalpindi Board", to: "/subjects?board=rawalpindi" },
-  { label: "Multan Board", to: "/subjects?board=multan" },
+  { label: "Past Papers", to: "/subjects" },
 ];
 
 const socialLinks = [
   {
     label: "Facebook",
-    url: "https://facebook.com/your-page",
+    url: import.meta.env.VITE_FACEBOOK_URL,
     icon: Facebook,
   },
   {
     label: "Instagram",
-    url: "https://instagram.com/your-page",
+    url: import.meta.env.VITE_INSTAGRAM_URL,
     icon: Instagram,
   },
   {
     label: "YouTube",
-    url: "https://youtube.com/@your-channel",
+    url: import.meta.env.VITE_YOUTUBE_URL,
     icon: Youtube,
   },
 ];
 
 const Footer = () => {
+  const { boards: availableBoards } = useContext(AppContext);
+  const boards = availableBoards.slice(0, 6).map(board => ({ label: board.name, to: studyPath("board", board) }));
+  const email = import.meta.env.VITE_CONTACT_EMAIL;
+  const legalLinks = [[import.meta.env.VITE_PRIVACY_URL, "Privacy Policy"], [import.meta.env.VITE_TERMS_URL, "Terms of Service"]].filter(([url]) => /^https:\/\//.test(url || ""));
   return (
-    <footer className="bg-[#1A1A2E] text-gray-300">
+    <footer className="relative z-10 bg-[#0f172a] text-gray-300">
 
       {/* Top Footer */}
       <div className="mx-auto max-w-7xl px-6 py-14">
@@ -53,7 +51,7 @@ const Footer = () => {
               className="inline-block text-3xl font-extrabold tracking-tight text-white"
             >
               Ilmi
-              <span className="text-indigo-400">Dunya</span>
+              <span className="text-primary-muted">Dunya</span>
             </Link>
 
             <p className="mt-5 max-w-sm text-sm leading-7 text-gray-400">
@@ -64,7 +62,7 @@ const Footer = () => {
 
             <div className="mt-8 flex items-center gap-4">
 
-              {socialLinks.map((social) => {
+              {socialLinks.filter(item => /^https:\/\//.test(item.url || "")).map((social) => {
                 const Icon = social.icon;
 
                 return (
@@ -74,7 +72,7 @@ const Footer = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Visit our ${social.label} page`}
-                    className="rounded-xl border border-white/10 p-3 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+                    className="rounded-xl border border-white/10 p-3 transition-all duration-300 hover:border-primary hover:bg-primary hover:text-white"
                   >
                     <Icon size={18} />
                   </a>
@@ -95,10 +93,10 @@ const Footer = () => {
             <ul className="space-y-3">
 
               {quickLinks.map((link) => (
-                <li key={link.to}>
+                <li key={link.label}>
                   <Link
                     to={link.to}
-                    className="text-sm text-gray-400 transition-colors duration-200 hover:text-indigo-400"
+                    className="text-sm text-gray-400 transition-colors duration-200 hover:text-primary-muted"
                   >
                     {link.label}
                   </Link>
@@ -122,7 +120,7 @@ const Footer = () => {
                 <li key={board.label}>
                   <Link
                     to={board.to}
-                    className="text-sm text-gray-400 transition-colors duration-200 hover:text-indigo-400"
+                    className="text-sm text-gray-400 transition-colors duration-200 hover:text-primary-muted"
                   >
                     {board.label}
                   </Link>
@@ -144,28 +142,8 @@ const Footer = () => {
 
               <ul className="space-y-4 text-sm text-gray-400">
 
-                <li>
-                  <a
-                    href="mailto:info@ilmidunya.pk"
-                    className="transition-colors hover:text-indigo-400"
-                  >
-                    info@ilmidunya.pk
-                  </a>
-                </li>
-
-                <li>
-                  <a
-                    href="tel:+923000000000"
-                    className="transition-colors hover:text-indigo-400"
-                  >
-                    +92 300 0000000
-                  </a>
-                </li>
-
-                <li>
-                  Lahore, Pakistan
-                </li>
-
+                {email && <li><a href={`mailto:${email}`} className="transition-colors hover:text-primary-muted">{email}</a></li>}
+                <li><Link to="/learn">Browse available study resources</Link></li>
               </ul>
 
             </address>
@@ -189,24 +167,7 @@ const Footer = () => {
 
             <ul className="flex flex-wrap items-center justify-center gap-6">
 
-              <li>
-                <Link
-                  to="/privacy"
-                  className="transition-colors hover:text-indigo-400"
-                >
-                  Privacy Policy
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  to="/terms"
-                  className="transition-colors hover:text-indigo-400"
-                >
-                  Terms of Service
-                </Link>
-              </li>
-
+              {legalLinks.map(([url, label]) => <li key={label}><a href={url} className="transition-colors hover:text-primary-muted">{label}</a></li>)}
             </ul>
 
           </nav>

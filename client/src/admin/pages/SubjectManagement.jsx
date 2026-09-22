@@ -8,6 +8,8 @@ import { SubjectEmptyState } from "../../admin/components/SubjectEmptyState";
 import SubjectModal from "../../admin/components/SubjectModal";
 import DeleteConfirmationModal from "../../admin/components/DeleteConfirmationModal";
 
+const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+
 const SubjectManagement = () => {
     const {
         boards,
@@ -46,9 +48,9 @@ const SubjectManagement = () => {
                     const response = await axiosInstance.get(
                         `/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`
                     );
-                    setSubjects(response.data.subjects || []);
-                } catch (error) {
-                    console.error("Failed to load subjects", error);
+                    setSubjects(sortByName(response.data.subjects || []));
+                } catch {
+                    setSubjects([]);
                 } finally {
                     setIsLoadingSubjects(false);
                 }
@@ -65,9 +67,9 @@ const SubjectManagement = () => {
 
     const handleSaveSuccess = (savedSubject, type) => {
         if (type === "update") {
-            setSubjects(subjects.map(sub => sub._id === savedSubject._id ? savedSubject : sub));
+            setSubjects(sortByName(subjects.map(sub => sub._id === savedSubject._id ? savedSubject : sub)));
         } else {
-            setSubjects([savedSubject, ...subjects]);
+            setSubjects(sortByName([savedSubject, ...subjects]));
         }
     };
 
@@ -88,8 +90,8 @@ const SubjectManagement = () => {
             await axiosInstance.delete(`/subjects/${subjectToDelete._id}`);
             setSubjects(subjects.filter((sub) => sub._id !== subjectToDelete._id));
             setSubjectToDelete(null);
-        } catch (error) {
-            console.error("Failed to delete subject", error);
+        } catch {
+            return;
         } finally {
             setIsDeleting(false);
         }
@@ -100,7 +102,7 @@ const SubjectManagement = () => {
             
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-gray-500 mb-8">
-                <span className="hover:text-[#443DD7] cursor-pointer transition-colors">Dashboard</span>
+                <span className="hover:text-primary cursor-pointer transition-colors">Dashboard</span>
                 <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />
                 <span className="font-semibold text-gray-800">Manage Subjects</span>
             </div>
@@ -108,7 +110,7 @@ const SubjectManagement = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white border border-indigo-100 shadow-sm rounded-xl text-[#443DD7]">
+                    <div className="p-3 bg-white border border-primary-soft shadow-sm rounded-xl text-primary">
                         <BookOpen className="w-7 h-7" />
                     </div>
                     <div>
@@ -122,7 +124,7 @@ const SubjectManagement = () => {
                     disabled={!isContextSelected}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
                         isContextSelected 
-                        ? "bg-[#443DD7] hover:bg-[#352EC0] text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
+                        ? "bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                 >
@@ -149,7 +151,7 @@ const SubjectManagement = () => {
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">2. Manage Subjects</h2>
                     {isContextSelected && subjects.length > 0 && (
-                        <span className="text-xs font-medium bg-indigo-100 text-[#443DD7] px-2.5 py-1 rounded-full">
+                        <span className="text-xs font-medium bg-primary-soft text-primary px-2.5 py-1 rounded-full">
                             {subjects.length} Subjects Found
                         </span>
                     )}
@@ -161,7 +163,7 @@ const SubjectManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingSubjects ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#443DD7]" />
+                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
                                 <p className="text-sm">Fetching subjects...</p>
                             </div>
                         ) : subjects.length === 0 ? (

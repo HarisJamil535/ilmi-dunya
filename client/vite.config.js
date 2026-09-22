@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  build: { manifest: true },
+  server: { proxy: { '/api': 'http://localhost:5000', '/uploads': 'http://localhost:5000', '/sitemap.xml': 'http://localhost:5000', '/sitemaps': 'http://localhost:5000', '/robots.txt': 'http://localhost:5000' } },
   plugins: [
     react(),
     tailwindcss(),

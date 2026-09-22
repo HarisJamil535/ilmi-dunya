@@ -8,8 +8,9 @@ const topicSchema = new mongoose.Schema(
             trim: true,
         },
         topicNumber: {
-            type: Number,
-            default: 1,
+            type: String,
+            match: /^\d+(\.\d+)*$/,
+            default: "1",
         },
         description: {
             type: String,
@@ -32,21 +33,31 @@ const topicSchema = new mongoose.Schema(
         subjectId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Subject",
+            required: [true, "Subject ID is required"],
         },
         boardId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Board",
+            required: [true, "Board ID is required"],
         },
         classId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Class",
+            required: [true, "Class ID is required"],
         },
         groupId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Group",
+            required: [true, "Group ID is required"],
         },
     },
     { timestamps: true }
 );
+
+topicSchema.index({ chapterId: 1, topicNumber: 1 }, { unique: true });
+topicSchema.index({ chapterId: 1, name: 1 }, { unique: true });
+topicSchema.index({ boardId: 1, classId: 1, groupId: 1, subjectId: 1, chapterId: 1 });
+
+topicSchema.add(require("./publicationFields"));
 
 module.exports = mongoose.model("Topic", topicSchema);

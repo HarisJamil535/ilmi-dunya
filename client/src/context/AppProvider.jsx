@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AppContext } from "./AppContext";
 import axiosInstance from "../api/axios";
 
-const AppProvider = ({ children }) => {
-    const [boards, setBoards] = useState([]);
-    const [classes, setClasses] = useState([]);
-    const [groups, setGroups] = useState([]);
+const sortByName = (items = []) => [...items].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" }));
+
+const AppProvider = ({ children, initialData }) => {
+    const [boards, setBoards] = useState(initialData?.boards || []);
+    const [classes, setClasses] = useState(initialData?.classes || []);
+    const [groups, setGroups] = useState(initialData?.groups || []);
     const [subjects, setSubjects] = useState([]);
 
     const [selectedBoard, setSelectedBoard] = useState("");
@@ -13,7 +15,7 @@ const AppProvider = ({ children }) => {
     const [selectedGroup, setSelectedGroup] = useState("");
     const [selectedSubject, setSelectedSubject] = useState("");
 
-    const [isLoadingContext, setIsLoadingContext] = useState(true);
+    const [isLoadingContext, setIsLoadingContext] = useState(!initialData);
 
     const fetchGlobalData = useCallback(async () => {
         try {
@@ -22,19 +24,21 @@ const AppProvider = ({ children }) => {
                 axiosInstance.get("/classes"),
                 axiosInstance.get("/groups"),
             ]);
-            setBoards(boardsRes.data.boards || []);
-            setClasses(classesRes.data.classes || []);
-            setGroups(groupsRes.data.groups || []);
-        } catch (error) {
-            console.error("Failed to load global academic context", error);
+            setBoards(sortByName(boardsRes.data.boards || []));
+            setClasses(sortByName(classesRes.data.classes || []));
+            setGroups(sortByName(groupsRes.data.groups || []));
+        } catch {
+            setBoards([]);
+            setClasses([]);
+            setGroups([]);
         } finally {
             setIsLoadingContext(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchGlobalData();
-    }, [fetchGlobalData]);
+        if (!initialData) fetchGlobalData();
+    }, [fetchGlobalData, initialData]);
 
     useEffect(() => {
         const fetchSubjectsForContext = async () => {
@@ -43,9 +47,8 @@ const AppProvider = ({ children }) => {
                     const response = await axiosInstance.get(
                         `/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`
                     );
-                    setSubjects(response.data.subjects || []);
-                } catch (error) {
-                    console.error("Failed to load subjects for global context", error);
+                    setSubjects(sortByName(response.data.subjects || []));
+                } catch {
                     setSubjects([]);
                 }
             } else {

@@ -2,31 +2,35 @@ import { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import logo from "../../assets/logo.png";
+import { useStudentSession } from "../../auth/useStudentSession";
 
 const navLinks = [
   { label: "Home", path: "/" },
   { label: "Subjects", path: "/subjects" },
-  { label: "Practice Tests", path: "/tests" },
+  { label: "MCQ Tests", path: "/tests" },
+  { label: "Leaderboard", path: "/leaderboard" },
   { label: "Video Lectures", path: "/videos" },
+  { label: "News", path: "/news" },
 ];
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isLoggedIn = useStudentSession();
 
   const navLinkClasses = ({ isActive }) =>
-    `transition-all duration-200 hover:text-indigo-600 hover:scale-105 ${
+    `transition-all duration-200 hover:text-primary hover:scale-105 ${
       isActive
-        ? "text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-1"
+        ? "text-primary font-semibold border-b-2 border-primary pb-1"
         : "text-gray-600"
     }`;
 
   return (
     <header className="sticky top-0 z-50">
       <nav
-        className="h-16 w-full border-b border-white/20 bg-white/40 backdrop-blur-lg shadow-[0_4px_30px_rgba(0,0,0,0.08)]"
+        className="h-16 w-full border-b border-slate-200/70 bg-white/90 shadow-sm backdrop-blur-xl"
         aria-label="Main navigation"
       >
-        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-6">
+        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
 
           {/* Logo */}
           <Link
@@ -37,15 +41,17 @@ const Navbar = () => {
             <img
               src={logo}
               alt="IlmiDunya logo"
+              width="48"
+              height="48"
               className="h-12 w-12 object-contain"
             />
-            <span className="text-xl font-bold tracking-tight text-indigo-700">
+            <span className="text-xl font-bold tracking-tight text-primary-dark">
               IlmiDunya
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <ul className="hidden items-center gap-8 md:flex">
+          <ul className="hidden items-center gap-6 xl:flex">
             {navLinks.map((link) => (
               <li key={link.path}>
                 <NavLink to={link.path} className={navLinkClasses} >
@@ -56,26 +62,30 @@ const Navbar = () => {
           </ul>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden items-center gap-3 md:flex">
-            <Link
-              to="/login"
-              className="font-medium text-indigo-600 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
-            >
-              Login
-            </Link>
-
-            <Link
-              to="/register"
-              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white shadow-md transition duration-200 hover:bg-indigo-700 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-              Get Started
-            </Link>
+          <div className="hidden items-center gap-3 xl:flex">
+            {isLoggedIn ? (
+              <Link
+                to="/dashboard"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-md shadow-primary-muted transition duration-200 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                  Login
+                </Link>
+                <Link to="/register" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-md shadow-primary-muted transition hover:-translate-y-0.5 hover:bg-primary-dark">
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
             type="button"
-            className="rounded-md p-2 text-gray-700 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 md:hidden"
+            className="rounded-md p-2 text-gray-700 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary xl:hidden"
             aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
@@ -89,7 +99,7 @@ const Navbar = () => {
         {menuOpen && (
           <div
             id="mobile-menu"
-            className="border-t border-white/20 bg-white/90 px-6 py-4 shadow-lg backdrop-blur-lg md:hidden"
+            className="max-h-[calc(100dvh-64px)] overflow-y-auto border-t border-slate-200 bg-white px-6 py-4 shadow-lg xl:hidden"
           >
             <ul className="flex flex-col gap-4">
               {navLinks.map((link) => (
@@ -101,8 +111,8 @@ const Navbar = () => {
                     className={({ isActive }) =>
                       `block font-medium transition ${
                         isActive
-                          ? "text-indigo-600"
-                          : "text-gray-700 hover:text-indigo-600"
+                          ? "text-primary"
+                          : "text-gray-700 hover:text-primary"
                       }`
                     }
                   >
@@ -115,21 +125,20 @@ const Navbar = () => {
             <hr className="my-4 border-gray-200" />
 
             <div className="flex flex-col gap-3">
-              <Link
-                to="/login"
-                onClick={() => setMenuOpen(false)}
-                className="font-medium text-indigo-600"
-              >
-                Login
-              </Link>
-
-              <Link
-                to="/register"
-                onClick={() => setMenuOpen(false)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-center font-medium text-white transition hover:bg-indigo-700"
-              >
-                Get Started
-              </Link>
+              {isLoggedIn ? (
+                <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="rounded-xl bg-primary px-4 py-2 text-center font-bold text-white transition hover:bg-primary-dark">
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMenuOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-center font-bold text-slate-700">
+                    Login
+                  </Link>
+                  <Link to="/register" onClick={() => setMenuOpen(false)} className="rounded-xl bg-primary px-4 py-2 text-center font-bold text-white transition hover:bg-primary-dark">
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

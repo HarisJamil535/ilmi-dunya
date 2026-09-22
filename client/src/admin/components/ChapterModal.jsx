@@ -1,17 +1,21 @@
+import PublishingFields from "./PublishingFields";
 import React, { useState, useEffect, useContext } from "react";
 import { X, Loader2, AlertCircle, Bookmark } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import { AppContext } from "../../context/AppContext";
 
 const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onSaveSuccess }) => {
-    const { boards, classes, groups, selectedBoard, selectedClass, selectedGroup } = useContext(AppContext);
+    const { selectedBoard, selectedClass, selectedGroup } = useContext(AppContext);
 
+    const [publishing, setPublishing] = useState({});
     const [name, setName] = useState("");
     const [chapterNumber, setChapterNumber] = useState(1);
     const [formError, setFormError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const maxNameLength = 120;
 
     useEffect(() => {
+        setPublishing(editingChapter || {});
         if (editingChapter) {
             setName(editingChapter.name || "");
             setChapterNumber(editingChapter.chapterNumber || 1);
@@ -28,16 +32,25 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
         e.preventDefault();
         setFormError("");
 
-        if (!name.trim()) {
+        const trimmedName = name.trim();
+        const parsedChapterNumber = Number(chapterNumber);
+
+        if (!trimmedName) {
             setFormError("Chapter name is required.");
             return;
         }
 
-        const boardObj = boards.find(b => b._id === selectedBoard);
-        const classObj = classes.find(c => c._id === selectedClass);
-        const groupObj = groups.find(g => g._id === selectedGroup);
+        if (trimmedName.length > maxNameLength) {
+            setFormError(`Chapter name must be ${maxNameLength} characters or fewer.`);
+            return;
+        }
 
-        if (!boardObj || !classObj || !groupObj || !selectedSubjectObj) {
+        if (!Number.isInteger(parsedChapterNumber) || parsedChapterNumber < 1) {
+            setFormError("Chapter number must be a whole number greater than 0.");
+            return;
+        }
+
+        if (!selectedBoard || !selectedClass || !selectedGroup || !selectedSubjectObj?._id) {
             setFormError("Invalid academic context selected.");
             return;
         }
@@ -45,12 +58,13 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
         setIsSubmitting(true);
         try {
             const payload = {
-                name: name.trim(),
-                chapterNumber: Number(chapterNumber) || 1,
-                board: boardObj.name,
-                class: classObj.name,
-                group: groupObj.name,
-                subject: selectedSubjectObj.name,
+                ...publishing,
+                name: trimmedName,
+                chapterNumber: parsedChapterNumber,
+                board: selectedBoard,
+                class: selectedClass,
+                group: selectedGroup,
+                subject: selectedSubjectObj._id,
             };
 
             if (editingChapter) {
@@ -86,7 +100,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                 </button>
 
                 <div className="flex items-center gap-3.5">
-                    <div className="p-3 rounded-full bg-indigo-50 text-[#443DD7] shrink-0">
+                    <div className="p-3 rounded-full bg-primary-soft text-primary shrink-0">
                         <Bookmark className="w-6 h-6" />
                     </div>
                     <div>
@@ -107,10 +121,12 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                             placeholder="e.g. Introduction to Programming" 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            maxLength={maxNameLength}
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             required
                             autoFocus
                         />
+                        <p className="mt-1 text-[11px] text-slate-400">{name.trim().length}/{maxNameLength}</p>
                     </div>
 
                     <div>
@@ -123,10 +139,11 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                             placeholder="e.g. 1" 
                             value={chapterNumber}
                             onChange={(e) => setChapterNumber(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                         />
                     </div>
 
+                    <PublishingFields value={publishing} title={name} required={false} onChange={patch => setPublishing(current => ({ ...current, ...patch }))} />
                     {formError && (
                         <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 p-3 rounded-xl border border-rose-100">
                             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -146,7 +163,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#443DD7] hover:bg-[#352EC0] rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
+                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                             {editingChapter ? "Update Changes" : "Save Chapter"}

@@ -8,6 +8,10 @@ import { TopicTable } from "../../admin/components/TopicTable";
 import TopicModal from "../../admin/components/TopicModal";
 import DeleteConfirmationModal from "../../admin/components/DeleteConfirmationModal";
 
+const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+const sortTopics = (items) => [...items].sort((a, b) => String(a.topicNumber || "").localeCompare(String(b.topicNumber || ""), undefined, { numeric: true, sensitivity: "base" }) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+
 const TopicManagement = () => {
     const { chapterId: urlChapterId } = useParams();
     const navigate = useNavigate();
@@ -93,9 +97,8 @@ const TopicManagement = () => {
                     const response = await axiosInstance.get(
                         `/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`
                     );
-                    setFilteredSubjects(response.data.subjects || response.data || []);
-                } catch (error) {
-                    console.error("Failed to load subjects:", error);
+                    setFilteredSubjects(sortByName(response.data.subjects || response.data || []));
+                } catch {
                     setFilteredSubjects([]);
                 } finally {
                     setIsLoadingSubjects(false);
@@ -119,9 +122,8 @@ const TopicManagement = () => {
                     const response = await axiosInstance.get(
                         `/chapters?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}&subjectId=${selectedSubject}`
                     );
-                    setChapters(response.data.chapters || response.data || []);
-                } catch (error) {
-                    console.error("Failed to load chapters:", error);
+                    setChapters(sortChapters(response.data.chapters || response.data || []));
+                } catch {
                     setChapters([]);
                 } finally {
                     setIsLoadingChapters(false);
@@ -142,9 +144,8 @@ const TopicManagement = () => {
                 try {
                     const response = await axiosInstance.get(`/topics/chapter/${selectedChapter}`);
                     setLoadedChapterInfo(response.data.chapter || null);
-                    setTopics(response.data.topics || []);
-                } catch (error) {
-                    console.error("Failed to load topics:", error);
+                    setTopics(sortTopics(response.data.topics || []));
+                } catch {
                     setTopics([]);
                     setLoadedChapterInfo(null);
                 } finally {
@@ -166,8 +167,7 @@ const TopicManagement = () => {
         } else {
             updatedTopics = [...topics, savedTopic];
         }
-        updatedTopics.sort((a, b) => (a.topicNumber || 1) - (b.topicNumber || 1));
-        setTopics(updatedTopics);
+        setTopics(sortTopics(updatedTopics));
     };
 
     const handleConfirmDelete = async () => {
@@ -177,8 +177,8 @@ const TopicManagement = () => {
             await axiosInstance.delete(`/topics/${topicToDelete._id}`);
             setTopics(topics.filter((t) => t._id !== topicToDelete._id));
             setTopicToDelete(null);
-        } catch (error) {
-            console.error("Failed to delete topic:", error);
+        } catch {
+            return;
         } finally {
             setIsDeleting(false);
         }
@@ -198,7 +198,7 @@ const TopicManagement = () => {
                 <div className="flex items-center text-sm text-gray-500">
                     <span 
                         onClick={() => navigate(isDirectMode ? "/admin/academic-structure/manage-chapters" : "/admin/dashboard")} 
-                        className="hover:text-[#443DD7] cursor-pointer transition-colors"
+                        className="hover:text-primary cursor-pointer transition-colors"
                     >
                         {isDirectMode ? "Manage Chapters" : "Dashboard"}
                     </span>
@@ -219,7 +219,7 @@ const TopicManagement = () => {
             {/* Overview Title Bar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white border border-indigo-100 shadow-sm rounded-xl text-[#443DD7]">
+                    <div className="p-3 bg-white border border-primary-soft shadow-sm rounded-xl text-primary">
                         <FileText className="w-7 h-7" />
                     </div>
                     <div>
@@ -239,7 +239,7 @@ const TopicManagement = () => {
                     disabled={!isContextReady}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
                         isContextReady 
-                        ? "bg-[#443DD7] hover:bg-[#352EC0] text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
+                        ? "bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                 >
@@ -325,7 +325,7 @@ const TopicManagement = () => {
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Topics List</h2>
                     {isContextReady && topics.length > 0 && (
-                        <span className="text-xs font-medium bg-indigo-100 text-[#443DD7] px-2.5 py-1 rounded-full">
+                        <span className="text-xs font-medium bg-primary-soft text-primary px-2.5 py-1 rounded-full">
                             {topics.length} Topics
                         </span>
                     )}
@@ -345,19 +345,19 @@ const TopicManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingTopics ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#443DD7]" />
+                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
                                 <p className="text-sm font-medium">Fetching topics from API...</p>
                             </div>
                         ) : topics.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-4">
-                                <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-                                    <FileText className="w-8 h-8 text-[#443DD7]" />
+                                <div className="w-16 h-16 bg-primary-soft rounded-full flex items-center justify-center mb-4">
+                                    <FileText className="w-8 h-8 text-primary" />
                                 </div>
                                 <h3 className="text-lg font-bold text-gray-800 mb-1">No Topics Found</h3>
                                 <p className="text-sm text-gray-500 mb-6">No topics have been added to this chapter yet.</p>
                                 <button 
                                     onClick={() => { setEditingTopic(null); setIsTopicModalOpen(true); }}
-                                    className="text-[#443DD7] font-semibold text-sm hover:underline cursor-pointer"
+                                    className="text-primary font-semibold text-sm hover:underline cursor-pointer"
                                 >
                                     + Add the first topic
                                 </button>

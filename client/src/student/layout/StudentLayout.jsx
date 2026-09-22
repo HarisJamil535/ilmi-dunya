@@ -6,7 +6,7 @@ const StudentLayout = () => {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <main className="client-main min-h-screen bg-slate-50">
 
         <Outlet />
       </main>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, Edit3 } from "lucide-react";
+import { DeleteButton, EditButton } from "./AdminUI";
 
 export const SubjectTable = ({ subjects, onEdit, onDelete }) => {
     return (
@@ -24,20 +24,8 @@ export const SubjectTable = ({ subjects, onEdit, onDelete }) => {
                                 </span>
                             </td>
                             <td className="px-6 py-4 flex justify-end gap-2 items-center">
-                                <button 
-                                    onClick={() => onEdit(subject)}
-                                    className="p-2 text-slate-400 hover:text-[#443DD7] hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Edit Subject"
-                                >
-                                    <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                    onClick={() => onDelete(subject)}
-                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Delete Subject"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <EditButton onClick={() => onEdit(subject)} />
+                                <DeleteButton onClick={() => onDelete(subject)} />
                             </td>
                         </tr>
                     ))}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Calculator,
   Atom,
@@ -67,32 +68,37 @@ const DEFAULT_SUBJECT = {
   color: { bg: "#F1F5F9", icon: "#64748B", text: "#334155" },
 };
 
-const SubjectCard = ({ subj = "English",onClick }) => {
+const SubjectCard = ({ subj = "English", onClick, to }) => {
   // Get subject data or use default
   const subjectName = typeof subj === 'string' ? subj.trim() : subj;
   const subject = SUBJECT_DATA[subjectName.toLowerCase()] || DEFAULT_SUBJECT;
   const Icon = subject.icon;
+  const Element = to ? Link : 'button';
 
   return (
-    <div onClick={onClick}
-      className="group flex flex-col gap-4 bg-white border border-gray-300 rounded-2xl p-5 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all duration-200"
+    <Element
+      to={to}
+      type={to ? undefined : "button"}
+      onClick={onClick}
+      className="group relative flex min-h-44 w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary-muted hover:shadow-xl hover:shadow-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
-      {/* Icon */}
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-sky-400 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        className="mb-5 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl ring-1 ring-inset ring-white/60"
         style={{ backgroundColor: subject.color.bg }}
       >
-        <Icon size={20} style={{ color: subject.color.icon }} strokeWidth={1.8} />
+        <Icon size={22} style={{ color: subject.color.icon }} strokeWidth={1.9} />
       </div>
 
-      {/* Title */}
-      <h3 className="text-[15px] font-semibold text-gray-900 leading-tight capitalize">
+      <h3 className="text-lg font-black leading-tight text-slate-950 capitalize">
         {subjectName}
       </h3>
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        Chapters, lectures, notes and papers organized for this subject.
+      </p>
 
-      {/* CTA */}
       <div
-        className="flex items-center gap-1.5 text-[13px] font-medium mt-auto"
+        className="mt-auto flex items-center gap-1.5 pt-5 text-sm font-black"
         style={{ color: subject.color.text }}
       >
         <span>Explore now</span>
@@ -102,7 +108,7 @@ const SubjectCard = ({ subj = "English",onClick }) => {
           className="group-hover:translate-x-0.5 transition-transform duration-150"
         />
       </div>
-    </div>
+    </Element>
   );
 };
 

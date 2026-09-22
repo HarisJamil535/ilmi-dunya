@@ -78,8 +78,8 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
     };
 
     return (
-        <div className="p-6 bg-[#F8F9FE] border-b border-indigo-100">
-            <div className="mb-3 text-xs font-bold text-[#443DD7] uppercase tracking-wider">
+        <div className="p-6 bg-[#F8F9FE] border-b border-primary-soft">
+            <div className="mb-3 text-xs font-bold text-primary uppercase tracking-wider">
                 {editingSubject ? `Editing: ${editingSubject.name}` : "Add New Subject"}
             </div>
             <form onSubmit={handleSubmit} className="max-w-4xl">
@@ -91,7 +91,7 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
                             placeholder="e.g. Computer Science" 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             autoFocus
                         />
                     </div>
@@ -102,14 +102,14 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
                             placeholder="e.g. CS-101" 
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
-                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                         />
                     </div>
                     <div className="flex gap-3 pt-6 w-full md:w-auto">
                         <button 
                             type="submit" 
                             disabled={isSubmitting}
-                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#443DD7] text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-[#352EC0] transition-colors disabled:opacity-70 cursor-pointer"
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-70 cursor-pointer"
                         >
                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingSubject ? "Update Changes" : "Save")}
                         </button>

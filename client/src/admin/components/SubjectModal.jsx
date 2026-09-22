@@ -1,17 +1,22 @@
+import PublishingFields from "./PublishingFields";
 import React, { useState, useEffect, useContext } from "react";
 import { X, Loader2, AlertCircle, BookOpen } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import { AppContext } from "../../context/AppContext";
 
 const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
-    const { boards, classes, groups, selectedBoard, selectedClass, selectedGroup } = useContext(AppContext);
+    const { selectedBoard, selectedClass, selectedGroup } = useContext(AppContext);
 
+    const [publishing, setPublishing] = useState({});
     const [name, setName] = useState("");
     const [code, setCode] = useState("");
     const [formError, setFormError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const maxNameLength = 80;
+    const maxCodeLength = 24;
 
     useEffect(() => {
+        setPublishing(editingSubject || {});
         if (editingSubject) {
             setName(editingSubject.name || "");
             setCode(editingSubject.code || "");
@@ -28,16 +33,25 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
         e.preventDefault();
         setFormError("");
 
-        if (!name.trim()) {
+        const trimmedName = name.trim();
+        const trimmedCode = code.trim();
+
+        if (!trimmedName) {
             setFormError("Subject name is required.");
             return;
         }
 
-        const boardObj = boards.find(b => b._id === selectedBoard);
-        const classObj = classes.find(c => c._id === selectedClass);
-        const groupObj = groups.find(g => g._id === selectedGroup);
+        if (trimmedName.length > maxNameLength) {
+            setFormError(`Subject name must be ${maxNameLength} characters or fewer.`);
+            return;
+        }
 
-        if (!boardObj || !classObj || !groupObj) {
+        if (trimmedCode.length > maxCodeLength) {
+            setFormError(`Subject code must be ${maxCodeLength} characters or fewer.`);
+            return;
+        }
+
+        if (!selectedBoard || !selectedClass || !selectedGroup) {
             setFormError("Invalid academic context selected.");
             return;
         }
@@ -45,11 +59,12 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
         setIsSubmitting(true);
         try {
             const payload = {
-                name: name.trim(),
-                code: code.trim(),
-                board: boardObj.name,
-                class: classObj.name,
-                group: groupObj.name,
+                ...publishing,
+                name: trimmedName,
+                code: trimmedCode,
+                board: selectedBoard,
+                class: selectedClass,
+                group: selectedGroup,
             };
 
             if (editingSubject) {
@@ -85,7 +100,7 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                 </button>
 
                 <div className="flex items-center gap-3.5">
-                    <div className="p-3 rounded-full bg-indigo-50 text-[#443DD7] shrink-0">
+                    <div className="p-3 rounded-full bg-primary-soft text-primary shrink-0">
                         <BookOpen className="w-6 h-6" />
                     </div>
                     <div>
@@ -106,10 +121,12 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                             placeholder="e.g. Computer Science" 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            maxLength={maxNameLength}
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             required
                             autoFocus
                         />
+                        <p className="mt-1 text-[11px] text-slate-400">{name.trim().length}/{maxNameLength}</p>
                     </div>
 
                     <div>
@@ -121,10 +138,12 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                             placeholder="e.g. CS-101" 
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            maxLength={maxCodeLength}
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                         />
                     </div>
 
+                    <PublishingFields value={publishing} title={name} required={false} onChange={patch => setPublishing(current => ({ ...current, ...patch }))} />
                     {formError && (
                         <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 p-3 rounded-xl border border-rose-100">
                             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -144,7 +163,7 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#443DD7] hover:bg-[#352EC0] rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
+                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                             {editingSubject ? "Update Changes" : "Save Subject"}

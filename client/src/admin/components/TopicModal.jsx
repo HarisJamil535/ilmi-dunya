@@ -1,16 +1,32 @@
+import PublishingFields from "./PublishingFields";
 import React, { useState, useEffect } from "react";
 import { X, Loader2, AlertCircle, FileText, Video } from "lucide-react";
 import axiosInstance from "../../api/axios";
 
 const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess }) => {
+    const [publishing, setPublishing] = useState({});
     const [name, setName] = useState("");
     const [topicNumber, setTopicNumber] = useState(1);
     const [description, setDescription] = useState("");
     const [videoUrl, setVideoUrl] = useState("");
     const [formError, setFormError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const maxNameLength = 120;
+    const maxDescriptionLength = 500;
+
+    const isValidYoutubeUrl = (url) => {
+        if (!url) return true;
+
+        try {
+            const parsedUrl = new URL(url);
+            return ["https:", "http:"].includes(parsedUrl.protocol) && ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"].includes(parsedUrl.hostname);
+        } catch {
+            return false;
+        }
+    };
 
     useEffect(() => {
+        setPublishing(editingTopic || {});
         if (editingTopic) {
             setName(editingTopic.name || "");
             setTopicNumber(editingTopic.topicNumber || 1);
@@ -31,8 +47,33 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
         e.preventDefault();
         setFormError("");
 
-        if (!name.trim()) {
+        const trimmedName = name.trim();
+        const trimmedDescription = description.trim();
+        const trimmedVideoUrl = videoUrl.trim();
+        const parsedTopicNumber = String(topicNumber).trim();
+
+        if (!trimmedName) {
             setFormError("Topic name is required.");
+            return;
+        }
+
+        if (trimmedName.length > maxNameLength) {
+            setFormError(`Topic name must be ${maxNameLength} characters or fewer.`);
+            return;
+        }
+
+        if (!/^\d+(\.\d+)*$/.test(parsedTopicNumber)) {
+            setFormError("Use a topic number such as 2, 2.3 or 2.3.5.");
+            return;
+        }
+
+        if (trimmedDescription.length > maxDescriptionLength) {
+            setFormError(`Description must be ${maxDescriptionLength} characters or fewer.`);
+            return;
+        }
+
+        if (!isValidYoutubeUrl(trimmedVideoUrl)) {
+            setFormError("Please enter a valid YouTube URL or leave the video link empty.");
             return;
         }
 
@@ -44,11 +85,12 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
         setIsSubmitting(true);
         try {
             const payload = {
-                name: name.trim(),
-                topicNumber: Number(topicNumber) || 1,
+                ...publishing,
+                name: trimmedName,
+                topicNumber: parsedTopicNumber,
                 chapterId,
-                description: description.trim(),
-                videoUrl: videoUrl.trim(),
+                description: trimmedDescription,
+                videoUrl: trimmedVideoUrl,
             };
 
             if (editingTopic) {
@@ -85,7 +127,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                 </button>
 
                 <div className="flex items-center gap-3.5">
-                    <div className="p-3 rounded-full bg-indigo-50 text-[#443DD7] shrink-0">
+                    <div className="p-3 rounded-full bg-primary-soft text-primary shrink-0">
                         <FileText className="w-6 h-6" />
                     </div>
                     <div>
@@ -106,10 +148,12 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                             placeholder="e.g. Flowcharts and Pseudocode" 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                            maxLength={maxNameLength}
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             required
                             autoFocus
                         />
+                        <p className="mt-1 text-[11px] text-slate-400">{name.trim().length}/{maxNameLength}</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -118,12 +162,12 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                                 Topic Number
                             </label>
                             <input 
-                                type="number" 
+                                type="text" 
                                 min="1"
-                                placeholder="e.g. 1" 
+                                placeholder="e.g. 2.3.5" 
                                 value={topicNumber}
                                 onChange={(e) => setTopicNumber(e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             />
                         </div>
 
@@ -137,7 +181,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                                 placeholder="https://youtube.com/watch?v=..." 
                                 value={videoUrl}
                                 onChange={(e) => setVideoUrl(e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
                             />
                         </div>
                     </div>
@@ -151,10 +195,13 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                             placeholder="Summary of concepts covered in this topic..." 
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all resize-none"
+                            maxLength={maxDescriptionLength}
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all resize-none"
                         />
+                        <p className="mt-1 text-[11px] text-slate-400">{description.trim().length}/{maxDescriptionLength}</p>
                     </div>
 
+                    <PublishingFields value={publishing} title={name} required={false} onChange={patch => setPublishing(current => ({ ...current, ...patch }))} />
                     {formError && (
                         <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 p-3 rounded-xl border border-rose-100">
                             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -174,7 +221,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#443DD7] hover:bg-[#352EC0] rounded-xl transition-colors disabled:opacity-70 cursor-pointer shadow-md"
+                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer shadow-md"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                             {editingTopic ? "Update Topic" : "Save Topic"}

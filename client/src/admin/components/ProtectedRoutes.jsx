@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import Loader from "../../shared/Loader";
 
 const ProtectedRoutes = () => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const location = useLocation();
 
     const token = localStorage.getItem("adminToken");
 
@@ -19,12 +20,19 @@ const ProtectedRoutes = () => {
 
             try {
                 // Axios interceptor automatically sends the token
-                await axiosInstance.get("/admin/me");
+                const response = await axiosInstance.get("/admin/me");
+                const admin = response.data?.admin;
 
+                if (!admin?.id) {
+                    localStorage.removeItem("adminToken");
+                    setIsAuthenticated(false);
+                    return;
+                }
+
+                localStorage.setItem("adminUser", JSON.stringify(admin));
                 setIsAuthenticated(true);
-            } catch (error) {
+            } catch {
                 localStorage.removeItem("adminToken");
-                console.error("Authentication Error:", error.response?.data?.message || error.message);
                 setIsAuthenticated(false);
             } finally {
                 setLoading(false);
@@ -41,7 +49,7 @@ const ProtectedRoutes = () => {
 
     // Redirect if not authenticated
     if (!isAuthenticated) {
-        return <Navigate to="/admin/login" replace />;
+        return <Navigate to="/admin/login" replace state={{ from: location }} />;
     }
 
     // Allow access

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Trash2, Edit3, ArrowRight, Search, Bookmark, Layers, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Search, Bookmark, Layers, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DeleteButton, EditButton } from "./AdminUI";
 
 export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
     const navigate = useNavigate();
@@ -33,6 +34,12 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
         setCurrentPage(1);
     };
 
+    const getDisplayName = (value) => {
+        if (!value) return "";
+        if (typeof value === "string") return value.length > 18 ? "Selected" : value;
+        return value.name || value.title || "";
+    };
+
     return (
         <div className="flex flex-col flex-1 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200/80">
             {/* Search Bar Toolbar */}
@@ -44,7 +51,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                         placeholder="Search chapters by name or number..."
                         value={searchTerm}
                         onChange={handleSearchChange}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#443DD7] focus:ring-4 focus:ring-indigo-50 outline-none transition-all shadow-2xs"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all shadow-2xs"
                     />
                     {searchTerm && (
                         <button
@@ -87,10 +94,10 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                     key={chapter._id} 
                                     className={`transition-colors group ${
                                         index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'
-                                    } hover:bg-indigo-50/40`}
+                                    } hover:bg-primary-soft/40`}
                                 >
                                     <td className="px-6 py-4 align-middle">
-                                        <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-indigo-50 text-[#443DD7] font-extrabold font-mono text-md border border-indigo-100 shadow-2xs">
+                                        <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-soft text-primary font-extrabold font-mono text-md border border-primary-soft shadow-2xs">
                                             {chapter.chapterNumber || 1}
                                         </div>
                                     </td>
@@ -98,29 +105,29 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                     <td className="px-6 py-4 align-middle">
                                         <div className="space-y-2">
                                             <div className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                                                <Bookmark className="w-4 h-4 text-[#443DD7] shrink-0" />
+                                                <Bookmark className="w-4 h-4 text-primary shrink-0" />
                                                 <span className="truncate">{chapter.name}</span>
                                             </div>
                                             
                                             <div className="flex flex-wrap items-center gap-2">
                                                 {chapter.board && (
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-2xs">
-                                                        Board: {chapter.board}
+                                                        Board: {getDisplayName(chapter.board)}
                                                     </span>
                                                 )}
                                                 {chapter.class && (
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60 shadow-2xs">
-                                                        Class: {chapter.class}
+                                                        Class: {getDisplayName(chapter.class)}
                                                     </span>
                                                 )}
                                                 {chapter.group && (
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60 shadow-2xs">
-                                                        Group: {chapter.group}
+                                                        Group: {getDisplayName(chapter.group)}
                                                     </span>
                                                 )}
                                                 {chapter.subject && (
                                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200/60 shadow-2xs">
-                                                        <Layers className="w-3 h-3" /> {chapter.subject}
+                                                        <Layers className="w-3 h-3" /> {getDisplayName(chapter.subject)}
                                                     </span>
                                                 )}
                                             </div>
@@ -131,26 +138,13 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                         <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => navigate(`/admin/chapters/${chapter._id}/topics`)}
-                                                className="inline-flex items-center gap-1.5 bg-indigo-50 text-[#443DD7] hover:bg-[#443DD7] hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+                                                className="inline-flex items-center gap-1.5 bg-primary-soft text-primary hover:bg-primary hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
                                             >
                                                 Manage Topics <ArrowRight className="w-3.5 h-3.5" />
                                             </button>
                                             
-                                            <button 
-                                                onClick={() => onEdit(chapter)}
-                                                className="p-2  text-white bg-green-400 hover:text-white rounded-xl transition-all cursor-pointer border border-amber-200/60 shadow-2xs"
-                                                title="Edit Chapter"
-                                            >
-                                                <Edit3 className="w-4 h-4" />
-                                            </button>
-
-                                            <button 
-                                                onClick={() => onDelete(chapter)}
-                                                className="p-2 text-white  bg-rose-500 hover:text-white rounded-xl transition-all cursor-pointer border border-rose-200/60 shadow-2xs"
-                                                title="Delete Chapter"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <EditButton onClick={() => onEdit(chapter)} />
+                                            <DeleteButton onClick={() => onDelete(chapter)} />
                                         </div>
                                     </td>
                                 </tr>
@@ -185,7 +179,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                     onClick={() => setCurrentPage(page)}
                                     className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                                         effectivePage === page
-                                            ? "bg-[#443DD7] text-white shadow-sm"
+                                            ? "bg-primary text-white shadow-sm"
                                             : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
                                     }`}
                                 >

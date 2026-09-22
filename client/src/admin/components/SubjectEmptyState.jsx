@@ -18,14 +18,14 @@ export const SubjectEmptyState = ({ type, onAction }) => {
 
     return (
         <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-4">
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-                <BookOpen className="w-8 h-8 text-[#443DD7]" />
+            <div className="w-16 h-16 bg-primary-soft rounded-full flex items-center justify-center mb-4">
+                <BookOpen className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-bold text-gray-800 mb-1">No Subjects Found</h3>
             <p className="text-sm text-gray-500 mb-6">There are no subjects configured for this academic context yet.</p>
             <button 
                 onClick={onAction}
-                className="text-[#443DD7] font-medium text-sm hover:underline cursor-pointer"
+                className="text-primary font-medium text-sm hover:underline cursor-pointer"
             >
                 + Add the first subject
             </button>

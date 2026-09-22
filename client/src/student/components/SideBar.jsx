@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { GraduationCap, Building2, Users, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { GraduationCap, Building2, Users, Loader2, SlidersHorizontal } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
 
@@ -26,8 +26,10 @@ const SideBar = () => {
         setBoards(boardsRes.data.boards || boardsRes.data || []);
         setClasses(classesRes.data.classes || classesRes.data || []);
         setGroups(groupsRes.data.groups || groupsRes.data || []);
-      } catch (error) {
-        console.error("Failed to load sidebar filters from database:", error);
+      } catch {
+        setBoards([]);
+        setClasses([]);
+        setGroups([]);
       } finally {
         setIsLoading(false);
       }
@@ -37,14 +39,17 @@ const SideBar = () => {
   }, []);
 
   // 2. Format dynamic database records into UI filter structure
-  const filterCategories = [
+  const filterCategories = useMemo(() => [
     {
       id: "class",
       label: "CLASS",
       icon: GraduationCap,
       options: classes.map((c) => {
         const val = c.classNumber ? String(c.classNumber) : c.name || String(c);
-        return val.replace(/class\s*/i, "").trim(); // Normalizes e.g. "Class 9" -> "9"
+        return {
+          id: c._id,
+          label: val.replace(/class\s*/i, "").trim(),
+        };
       }),
     },
     {
@@ -53,7 +58,10 @@ const SideBar = () => {
       icon: Building2,
       options: boards.map((b) => {
         const name = b.name || String(b);
-        return name.replace(/\s*board/i, "").trim(); // Normalizes e.g. "Federal Board" -> "Federal"
+        return {
+          id: b._id,
+          label: name.replace(/\s*board/i, "").trim(),
+        };
       }),
     },
     {
@@ -61,34 +69,48 @@ const SideBar = () => {
       label: "GROUP",
       icon: Users,
       options: [
-        "All",
+        { id: "", label: "All" },
         ...groups.map((g) => {
           const name = g.name || String(g);
-          return name.replace(/\s*group/i, "").trim(); // Normalizes e.g. "Science Group" -> "Science"
+          return {
+            id: g._id,
+            label: name.replace(/\s*group/i, "").trim(),
+          };
         }),
       ],
     },
-  ];
+  ], [boards, classes, groups]);
 
   // Helper function to update search params
-  const updateParams = (key, value) => {
+  const updateParams = (key, option) => {
     const newParams = new URLSearchParams(searchParams);
+    const value = option.label;
+    const idKey = `${key}Id`;
 
     if (key === "group") {
       if (value === "All") {
         newParams.delete(key);
+        newParams.delete(idKey);
       } else {
-        newParams.set(key, value);
+        newParams.set(key, value.toLowerCase());
+        if (option.id) newParams.set(idKey, option.id);
       }
     } else {
       newParams.set(key, value.toLowerCase());
+      if (option.id) newParams.set(idKey, option.id);
     }
     setSearchParams(newParams);
   };
 
   // Helper to determine if a chip is selected
-  const isChipSelected = (category, value) => {
+  const isChipSelected = (category, option) => {
     const currentValue = searchParams.get(category);
+    const currentId = searchParams.get(`${category}Id`);
+    const value = option.label;
+
+    if (currentId && option.id) {
+      return currentId === option.id;
+    }
 
     if (category === "group") {
       if (currentValue) {
@@ -103,7 +125,7 @@ const SideBar = () => {
       return (
         categoryData &&
         categoryData.options.length > 0 &&
-        categoryData.options[0].toLowerCase() === value.toLowerCase()
+        categoryData.options[0].label.toLowerCase() === value.toLowerCase()
       );
     }
     return currentValue.toLowerCase() === value.toLowerCase();
@@ -114,61 +136,50 @@ const SideBar = () => {
   const ACTIVE_CHIP_TEXT_COLOR = "white";
 
   return (
-    <aside
-      className="sticky top-16 w-[260px] h-[calc(100vh-64px)] p-6 border-r flex flex-col font-sans overflow-y-auto select-none flex-shrink-0"
-      style={{
-        background: "white",
-        borderColor: "rgb(235, 238, 241)",
-      }}
-    >
+    <aside className="w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start">
+      <div className="flex h-full flex-col rounded-none border-b border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-5 lg:max-h-[calc(100vh-96px)] lg:rounded-3xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-xl lg:shadow-slate-200/60">
       {/* Title */}
-      <h2
-        className="text-2xl font-bold mb-10 flex-shrink-0"
-        style={{
-          color: "rgb(15, 23, 42)",
-          fontFamily: "var(--font-heading)",
-        }}
-      >
-        Filters
-      </h2>
+      <div className="mb-5 flex items-center justify-between gap-3 lg:mb-8">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Study Filters</p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950" style={{ fontFamily: "var(--font-heading)" }}>
+            Find content
+          </h2>
+        </div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+          <SlidersHorizontal className="h-5 w-5" />
+        </div>
+      </div>
 
       {/* Main Filter Sections */}
       {isLoading ? (
-        <div className="flex-grow flex flex-col items-center justify-center text-gray-400 gap-2">
-          <Loader2 className="w-6 h-6 animate-spin text-[#4F46E5]" />
-          <span className="text-xs font-medium">Loading filters...</span>
+        <div className="flex min-h-40 flex-grow flex-col items-center justify-center gap-3 rounded-2xl border border-primary-soft bg-primary-soft/40 text-gray-400">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="text-xs font-bold text-slate-500">Loading filters...</span>
         </div>
       ) : (
-        <div className="flex-grow space-y-10 pb-6">
+        <div className="flex-grow space-y-4 overflow-visible pb-2 lg:overflow-y-auto lg:pr-1">
           {filterCategories.map((category) => (
-            <div key={category.id}>
+            <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
               {/* Category Header (Icon + Label) */}
-              <div className="flex items-center gap-2 mb-4">
-                <div
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-100"
-                  style={{
-                    color: "rgb(79, 70, 229)",
-                  }}
-                >
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary-soft bg-white text-primary shadow-sm">
                   <category.icon size={20} strokeWidth={1.5} />
                 </div>
-                <h3
-                  className="font-semibold text-sm tracking-wider"
-                  style={{ color: "rgb(148, 163, 184)" }}
-                >
+                <h3 className="text-sm font-black tracking-wider text-slate-500">
                   {category.label}
                 </h3>
               </div>
 
               {/* Filter Chips */}
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2">
                 {category.options.map((option) => {
                   const isActive = isChipSelected(category.id, option);
                   return (
                     <button
-                      key={option}
+                      key={option.id || option.label}
                       onClick={() => updateParams(category.id, option)}
-                      className="px-4 cursor-pointer py-2 text-sm font-medium rounded-full transition duration-150 ease-in-out border hover:bg-gray-50 active:scale-95 capitalize"
+                      className="cursor-pointer rounded-full border px-4 py-2 text-sm font-bold capitalize transition duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
                       style={{
                         backgroundColor: isActive ? ACTIVE_CHIP_BG_COLOR : "white",
                         color: isActive
@@ -179,7 +190,7 @@ const SideBar = () => {
                           : "rgb(235, 238, 241)",
                       }}
                     >
-                      {category.id === "class" ? `Class ${option}` : option}
+                      {category.id === "class" ? `Class ${option.label}` : option.label}
                     </button>
                   );
                 })}
@@ -188,6 +199,7 @@ const SideBar = () => {
           ))}
         </div>
       )}
+      </div>
     </aside>
   );
 };
