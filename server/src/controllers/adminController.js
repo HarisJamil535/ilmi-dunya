@@ -236,10 +236,11 @@ const requestAdminPasswordReset = async (req, res) => {
         const sent = await sendIlmiDunyaEmail({
             to: admin.email,
             subject: "Your IlmiDunya admin password reset code",
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#443dd7">Reset your admin password</h2><p>Use this secure verification code:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If this was not you, contact the super admin immediately.</p><p>Team IlmiDunya</p></div>`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#623fcd">Reset your admin password</h2><p>Use this secure verification code:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If this was not you, contact the super admin immediately.</p><p>Team IlmiDunya</p></div>`,
         });
         if (!sent) return res.status(503).json({ success: false, message: "Email delivery is not configured on the server yet." });
-    } catch {
+    } catch (error) {
+        console.error("Admin password reset email failed:", error.code || "EMAIL_DELIVERY_FAILED", error.message);
         return res.status(503).json({ success: false, message: "We could not deliver the email right now. Please try again shortly." });
     }
 

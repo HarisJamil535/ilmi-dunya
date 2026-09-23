@@ -59,7 +59,7 @@ const registerStudent = async (req, res) => {
         sendIlmiDunyaEmail({
             to: student.email,
             subject: "Welcome to IlmiDunya - your learning journey begins",
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h1 style="color:#443dd7">Congratulations, ${escapeHtml(student.name)}!</h1><p>Your IlmiDunya student account is ready. You can now explore board-aligned resources, practise MCQ tests and track your progress.</p><p>We are excited to be part of your learning journey.</p><p>Keep learning,<br><strong>Team IlmiDunya</strong></p></div>`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h1 style="color:#623fcd">Congratulations, ${escapeHtml(student.name)}!</h1><p>Your IlmiDunya student account is ready. You can now explore board-aligned resources, practise MCQ tests and track your progress.</p><p>We are excited to be part of your learning journey.</p><p>Keep learning,<br><strong>Team IlmiDunya</strong></p></div>`,
         }).catch(() => {});
         res.status(201).json({ success: true, token, student: safeStudent(student) });
     } catch {
@@ -106,10 +106,10 @@ const requestPasswordReset = async (req, res) => {
     student.passwordResetAttempts = 0;
     await student.save();
     try {
-        const sent = await sendIlmiDunyaEmail({ to: student.email, subject: "Your IlmiDunya password reset code", html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#443dd7">Reset your password</h2><p>Use this verification code to continue:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p><p>Team IlmiDunya</p></div>` });
+        const sent = await sendIlmiDunyaEmail({ to: student.email, subject: "Your IlmiDunya password reset code", html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#623fcd">Reset your password</h2><p>Use this verification code to continue:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p><p>Team IlmiDunya</p></div>` });
         if (!sent) return res.status(503).json({ success: false, message: "Email delivery is not configured on the server yet. Please contact the administrator." });
     } catch (error) {
-        console.error("Password reset email failed:", error.message);
+        console.error("Password reset email failed:", error.code || "EMAIL_DELIVERY_FAILED", error.message);
         return res.status(503).json({ success: false, message: "We could not deliver the email right now. Please try again shortly." });
     }
     res.json(generic);

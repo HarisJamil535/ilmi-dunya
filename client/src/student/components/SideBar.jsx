@@ -155,7 +155,13 @@ const SideBar = () => {
       </button>
 
       {/* Main Filter Sections */}
-      <div id="study-filter-options" className={`${isMobileOpen ? "mt-4 block" : "hidden"} lg:mt-0 lg:block`}>
+      <div
+        id="study-filter-options"
+        className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:mt-0 lg:grid-rows-[1fr] lg:opacity-100 ${
+          isMobileOpen ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+        }`}
+      >
+      <div className="min-h-0 overflow-hidden lg:overflow-visible">
       {isLoading ? (
         <div className="flex min-h-40 flex-grow flex-col items-center justify-center gap-3 rounded-2xl border border-primary-soft bg-primary-soft/40 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -203,6 +209,7 @@ const SideBar = () => {
           ))}
         </div>
       )}
+      </div>
       </div>
       </div>
     </aside>

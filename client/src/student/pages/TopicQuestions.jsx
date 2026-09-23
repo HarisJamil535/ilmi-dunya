@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Loader2, Moon, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const questionTypes = [
   {
@@ -158,6 +159,10 @@ export default function TopicQuestions() {
     <main className="min-h-[70vh] bg-slate-50">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10">
+          <Breadcrumbs className="mb-4" items={[
+            { label: "Chapters", to: `/chapters?${back}` },
+            { label: topicName },
+          ]} />
           <Link
             to={`/chapters?${back}`}
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary/30 hover:text-primary"

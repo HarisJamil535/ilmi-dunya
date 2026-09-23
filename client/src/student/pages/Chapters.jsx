@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from "../../api/axios";
 import ChapterTopics from "../components/ChapterTopics";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const setMetaDescription = (content) => {
   let meta = document.querySelector('meta[name="description"]');
@@ -137,6 +138,10 @@ const Chapters = () => {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 font-sans sm:px-6 lg:px-10">
       <section className="mx-auto flex max-w-6xl flex-col gap-8">
+        <Breadcrumbs items={[
+          { label: "Subjects", to: `/subjects?${searchParams.toString()}` },
+          { label: pageContext.subject || "Chapters" },
+        ]} />
         <header className="flex flex-col gap-6 border-b border-slate-200 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Download, FileText, Loader2, PlayCircle, SearchX, Video } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const setMetaDescription = (content) => {
   let meta = document.querySelector('meta[name="description"]');
@@ -145,6 +146,10 @@ const Videos = () => {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 font-sans sm:px-6 lg:px-10">
       <section className="mx-auto flex max-w-7xl flex-col gap-8">
+        <Breadcrumbs items={[
+          { label: pageContext.subject || "Subject", to: `/chapters?${searchParams.toString()}` },
+          { label: chapter?.name || (mode === "notes" ? "Notes" : "Videos") },
+        ]} />
         <header className="flex flex-col gap-4 border-b border-slate-200 pb-8">
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
             {mode === "notes" ? <FileText className="h-4 w-4" /> : <Video className="h-4 w-4" />}

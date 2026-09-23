@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Award, ArrowRight, CheckCircle2, Clock3, Loader2, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
+import { Award, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Loader2, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { formatDuration, formatScore } from "../utils/resultFormat";
 import "./learning-experience.css";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const AssessmentResult = () => {
   const { attemptId } = useParams();
@@ -48,7 +49,11 @@ const AssessmentResult = () => {
   return (
     <main className="learning-page result-page">
       <div className="learning-wrap learning-enter">
-        <Link to="/dashboard" className="result-back">Back to dashboard</Link>
+        <Breadcrumbs className="result-breadcrumbs" items={[
+          { label: "Tests", to: "/tests" },
+          { label: "Result" },
+        ]} />
+        <Link to="/dashboard" className="result-back"><ArrowLeft size={15} /> Back to dashboard</Link>
         <header className="result-hero">
           <div className="result-copy">
             <div className="learning-eyebrow"><Award size={17} /> Test complete</div>
