@@ -5,6 +5,7 @@ import axiosInstance from "../../api/axios"; // Adjust path to your axios instan
 
 const SideBar = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Dynamic filter state from DB
   const [boards, setBoards] = useState([]);
@@ -131,27 +132,30 @@ const SideBar = () => {
     return currentValue.toLowerCase() === value.toLowerCase();
   };
 
-  // Color schemes
-  const ACTIVE_CHIP_BG_COLOR = "rgba(79, 70, 229, 0.9)";
-  const ACTIVE_CHIP_TEXT_COLOR = "white";
-
   return (
     <aside className="w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start">
-      <div className="flex h-full flex-col rounded-none border-b border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-5 lg:max-h-[calc(100vh-96px)] lg:rounded-3xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-xl lg:shadow-slate-200/60">
+      <div className="flex h-full flex-col border-b border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4 lg:max-h-[calc(100vh-96px)] lg:rounded-3xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-xl lg:shadow-slate-200/60">
       {/* Title */}
-      <div className="mb-5 flex items-center justify-between gap-3 lg:mb-8">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 rounded-xl p-1 text-left lg:pointer-events-none lg:mb-7"
+        aria-expanded={isMobileOpen}
+        aria-controls="study-filter-options"
+        onClick={() => setIsMobileOpen((open) => !open)}
+      >
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Study Filters</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950" style={{ fontFamily: "var(--font-heading)" }}>
-            Find content
+          <h2 className="mt-0.5 text-base font-black text-slate-950 sm:text-lg lg:mt-1 lg:text-2xl" style={{ fontFamily: "var(--font-heading)" }}>
+            {isMobileOpen ? "Choose your filters" : "Tap to filter content"}
           </h2>
         </div>
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform lg:h-11 lg:w-11 lg:rounded-2xl ${isMobileOpen ? "rotate-180" : ""}`}>
           <SlidersHorizontal className="h-5 w-5" />
         </div>
-      </div>
+      </button>
 
       {/* Main Filter Sections */}
+      <div id="study-filter-options" className={`${isMobileOpen ? "mt-4 block" : "hidden"} lg:mt-0 lg:block`}>
       {isLoading ? (
         <div className="flex min-h-40 flex-grow flex-col items-center justify-center gap-3 rounded-2xl border border-primary-soft bg-primary-soft/40 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -181,12 +185,12 @@ const SideBar = () => {
                       onClick={() => updateParams(category.id, option)}
                       className="cursor-pointer rounded-full border px-4 py-2 text-sm font-bold capitalize transition duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
                       style={{
-                        backgroundColor: isActive ? ACTIVE_CHIP_BG_COLOR : "white",
+                        backgroundColor: isActive ? "var(--brand-primary)" : "white",
                         color: isActive
-                          ? ACTIVE_CHIP_TEXT_COLOR
+                          ? "white"
                           : "rgb(55, 65, 81)",
                         borderColor: isActive
-                          ? ACTIVE_CHIP_BG_COLOR
+                          ? "var(--brand-primary)"
                           : "rgb(235, 238, 241)",
                       }}
                     >
@@ -199,6 +203,7 @@ const SideBar = () => {
           ))}
         </div>
       )}
+      </div>
       </div>
     </aside>
   );

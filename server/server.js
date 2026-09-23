@@ -36,6 +36,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS) || false);
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     contentSecurityPolicy: { directives: { "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])], "frame-src": ["'self'", "https:"], "connect-src": ["'self'", "https:"] } },
 }));
 app.use(compression());

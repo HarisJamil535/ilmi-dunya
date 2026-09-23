@@ -126,7 +126,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                                     </span>
                                                 )}
                                                 {chapter.subject && (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200/60 shadow-2xs">
+                                                    <span className="inline-flex items-center gap-1 rounded-md border border-primary-muted bg-primary-soft px-2.5 py-1 text-[11px] font-bold text-primary-dark shadow-2xs">
                                                         <Layers className="w-3 h-3" /> {getDisplayName(chapter.subject)}
                                                     </span>
                                                 )}

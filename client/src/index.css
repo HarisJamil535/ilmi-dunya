@@ -34,10 +34,10 @@
     Change these brand values once and the whole application follows.
     Keep status colors separate so success/error/warning states remain recognizable.
   */
-  --brand-primary: #443dd7;
-  --brand-primary-dark: #352ec0;
-  --brand-primary-soft: #eef2ff;
-  --brand-primary-muted: #c7d2fe;
+  --brand-primary: #623fcd;
+  --brand-primary-dark: #4d2faf;
+  --brand-primary-soft: #f2effc;
+  --brand-primary-muted: #d8cdf7;
   --brand-dark: #0f172a;
   --brand-panel: #1a1a2e;
 

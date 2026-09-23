@@ -26,21 +26,41 @@ const getYoutubeEmbedUrl = (url) => {
 
     if (parsedUrl.hostname.includes("youtu.be")) {
       const videoId = parsedUrl.pathname.replace("/", "");
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+      return videoId ? buildYoutubeEmbedUrl(videoId) : "";
     }
 
     if (parsedUrl.hostname.includes("youtube.com")) {
       const videoId = parsedUrl.searchParams.get("v");
-      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+      if (videoId) return buildYoutubeEmbedUrl(videoId);
 
-      const embedMatch = parsedUrl.pathname.match(/\/embed\/([^/?]+)/);
-      if (embedMatch?.[1]) return `https://www.youtube.com/embed/${embedMatch[1]}`;
+      const embedMatch = parsedUrl.pathname.match(/\/(?:embed|shorts|live)\/([^/?]+)/);
+      if (embedMatch?.[1]) return buildYoutubeEmbedUrl(embedMatch[1]);
     }
   } catch {
     return "";
   }
 
   return "";
+};
+
+const buildYoutubeEmbedUrl = (videoId) => {
+  const params = new URLSearchParams({
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
+  });
+
+  if (typeof window !== "undefined" && window.location.origin) {
+    params.set("origin", window.location.origin);
+  }
+
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params}`;
+};
+
+const getYoutubeWatchUrl = (url) => {
+  const embedUrl = getYoutubeEmbedUrl(url);
+  const videoId = embedUrl.match(/\/embed\/([^?]+)/)?.[1];
+  return videoId ? `https://www.youtube.com/watch?v=${videoId}` : "";
 };
 
 const Videos = () => {
@@ -71,6 +91,7 @@ const Videos = () => {
 
   const selectedTopic = topics.find((topic) => topic._id === selectedTopicId) || topics[0] || null;
   const selectedEmbedUrl = getYoutubeEmbedUrl(selectedTopic?.videoUrl);
+  const selectedWatchUrl = getYoutubeWatchUrl(selectedTopic?.videoUrl);
 
   useEffect(() => {
     const readableMode = mode === "notes" ? "Notes" : "Video Lectures";
@@ -222,6 +243,7 @@ const Videos = () => {
                     src={selectedEmbedUrl}
                     className="h-full w-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                   />
                 ) : (
@@ -239,6 +261,16 @@ const Videos = () => {
                 <h2 className="mt-1 text-xl font-black text-slate-950">{selectedTopic?.name}</h2>
                 {selectedTopic?.description && (
                   <p className="mt-2 text-sm leading-6 text-slate-500">{selectedTopic.description}</p>
+                )}
+                {selectedWatchUrl && (
+                  <a
+                    href={selectedWatchUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary-dark"
+                  >
+                    <PlayCircle className="h-4 w-4" /> Watch on YouTube
+                  </a>
                 )}
                 {selectedTopic?._id && (
                   <Link

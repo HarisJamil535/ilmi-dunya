@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Using your primary logo purple for accents
-const PRIMARY_PURPLE = '#7c3aed'; // A vibrant violet that matches your brand
+const PRIMARY_PURPLE = 'var(--brand-primary)';
 
 const Loader = () => {
   return (
@@ -35,7 +35,8 @@ const Loader = () => {
                   animationDelay: `${index * 0.15}s`, // Stagger the layers
                   zIndex: 5 - index,
                   // Vary the purples
-                  background: index === 0 ? PRIMARY_PURPLE : `rgba(124, 58, 237, ${0.9 - (index * 0.15)})`
+                  background: PRIMARY_PURPLE,
+                  opacity: 0.9 - (index * 0.15),
                 }}
               />
             ))}
@@ -184,7 +185,7 @@ const styles = {
   progressBar: {
     width: '160px',
     height: '4px',
-    backgroundColor: '#ede9fe', // Very light purple
+    backgroundColor: 'var(--brand-primary-soft)',
     borderRadius: '10px',
     overflow: 'hidden',
     position: 'relative',
