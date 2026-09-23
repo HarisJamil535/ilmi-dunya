@@ -14,8 +14,23 @@ export default function ForgotPassword() {
 
   const submitEmail = async (event) => {
     event.preventDefault(); setBusy(true); setError("");
-    try { const response = await axiosInstance.post("/students/forgot-password", { email: form.email }); setMessage(response.data.message); setStep("reset"); }
-    catch (err) { setError(err.response?.data?.message || "Unable to send the code right now."); }
+    try {
+      const response = await axiosInstance.post(
+        "/students/forgot-password",
+        { email: form.email.trim().toLowerCase() },
+        { timeout: 60000 }
+      );
+      setMessage(response.data.message);
+      setStep("reset");
+    } catch (err) {
+      if (err.code === "ECONNABORTED") {
+        setError("The server is taking longer than expected to wake up. Please wait a moment, then try once more.");
+      } else if (!err.response) {
+        setError("The server could not be reached. Check your connection and try again in a moment.");
+      } else {
+        setError(err.response?.data?.message || "Unable to send the code right now.");
+      }
+    }
     finally { setBusy(false); }
   };
   const reset = async (event) => {
