@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
+const LeaderboardState = require("../models/LeaderboardState");
+const Student = require("../models/Student");
 
 const toObjectId = (value) => {
     if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
@@ -19,9 +21,12 @@ const getLeaderboard = async (req, res) => {
     const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 15, 1), 50);
     if (["board", "class", "group", "subject"].some((key) => req.query[key] && !toObjectId(req.query[key]))) return res.status(400).json({ message: "Choose valid leaderboard filters." });
     const assessmentMatch = buildAssessmentMatch(req.query);
+    const state = await LeaderboardState.findOne({ key: "global" }).lean();
+    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null } };
+    if (state?.resetAt) attemptMatch.submittedAt.$gte = state.resetAt;
 
     const leaders = await AssessmentAttempt.aggregate([
-        { $match: { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null } } },
+        { $match: attemptMatch },
         { $lookup: { from: "assessments", localField: "assessment", foreignField: "_id", as: "assessment" } },
         { $unwind: "$assessment" },
         ...(Object.keys(assessmentMatch).length ? [{ $match: assessmentMatch }] : []),
@@ -78,7 +83,48 @@ const getLeaderboard = async (req, res) => {
             tieBreaker: "Equal points use total completion time across counted tests. Exact ties share a rank.",
         },
         generatedAt: new Date(),
+        cycleStartedAt: state?.resetAt || null,
     });
 };
 
-module.exports = { getLeaderboard };
+const getLeaderboardAdminSummary = async (req, res) => {
+    const state = await LeaderboardState.findOne({ key: "global" }).populate("resetBy", "name email").lean();
+    const attemptFilter = { status: { $in: ["submitted", "timed_out"] }, submittedAt: { $ne: null } };
+    if (state?.resetAt) attemptFilter.submittedAt.$gte = state.resetAt;
+
+    const [students, activeStudents, participants, attempts] = await Promise.all([
+        Student.countDocuments(),
+        Student.countDocuments({ status: "active" }),
+        AssessmentAttempt.distinct("student", attemptFilter),
+        AssessmentAttempt.countDocuments(attemptFilter),
+    ]);
+
+    res.set("Cache-Control", "no-store");
+    res.json({
+        success: true,
+        summary: {
+            students,
+            activeStudents,
+            participants: participants.length,
+            attempts,
+            resetAt: state?.resetAt || null,
+            resetBy: state?.resetBy || null,
+        },
+    });
+};
+
+const resetLeaderboard = async (req, res) => {
+    const resetAt = new Date();
+    await LeaderboardState.findOneAndUpdate(
+        { key: "global" },
+        { $set: { resetAt, resetBy: req.admin._id } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+        success: true,
+        message: "A new leaderboard cycle has started. Student test history was preserved.",
+        resetAt,
+    });
+};
+
+module.exports = { getLeaderboard, getLeaderboardAdminSummary, resetLeaderboard };

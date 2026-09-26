@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const AssessmentAttempt = require("../src/models/AssessmentAttempt");
 const Question = require("../src/models/Question");
+const LeaderboardState = require("../src/models/LeaderboardState");
 const { saveAnswer } = require("../src/controllers/attemptController");
 const { getLeaderboard } = require("../src/controllers/leaderboardController");
 
@@ -18,6 +19,7 @@ test("flagging a question preserves its selected answer and requires an unexpire
 });
 
 test("equal points and exact times share rank; subsequent ranks skip ties", async (t) => {
+    t.mock.method(LeaderboardState, "findOne", () => ({ lean: async () => null }));
     t.mock.method(AssessmentAttempt, "aggregate", async () => [
         { studentId: "a", points: 1000, totalTimeSeconds: 20.001 },
         { studentId: "b", points: 1000, totalTimeSeconds: 20.001 },

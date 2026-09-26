@@ -267,7 +267,9 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       <ConfirmModal
         isOpen={showSubmitConfirm}
         title="Submit MCQ test?"
-        description={`You still have ${unanswered} unanswered question(s). Once submitted, your result will be calculated and this attempt cannot be edited.`}
+        description={unanswered > 0
+          ? `You still have ${unanswered} unanswered ${unanswered === 1 ? "question" : "questions"}. You can review them before submitting, or submit now.`
+          : "All questions are answered. Submit now to calculate your result. You will not be able to change this attempt afterward."}
         confirmLabel="Submit Test"
         cancelLabel="Keep Solving"
         isLoading={submitting}

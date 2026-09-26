@@ -12,6 +12,7 @@ const {
     resetAdminPassword,
 } = require("../controllers/adminController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { getLeaderboardAdminSummary, resetLeaderboard } = require("../controllers/leaderboardController");
 
 const router = express.Router();
 
@@ -22,6 +23,8 @@ router.post("/reset-password", resetAdminPassword);
 router.get("/me", authMiddleware, getLoggedInAdmin);
 router.post("/logout", authMiddleware, logoutAdmin);
 router.get("/dashboard", authMiddleware, getDashboard);
+router.get("/leaderboard", authMiddleware.requireSuperAdmin, getLeaderboardAdminSummary);
+router.post("/leaderboard/reset", authMiddleware.requireSuperAdmin, resetLeaderboard);
 
 router.get("/admins", authMiddleware.requireSuperAdmin, listAdmins);
 router.post("/admins", authMiddleware.requireSuperAdmin, createAdmin);

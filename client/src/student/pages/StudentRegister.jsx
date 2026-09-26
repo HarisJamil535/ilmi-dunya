@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
 
 const StudentRegister = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ name: "", email: "", phone: "", city: "", school: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const requestedPath = location.state?.from || sessionStorage.getItem("studentReturnTo") || "/dashboard";
+  const returnTo = requestedPath.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/dashboard";
 
   const submit = async (event) => {
     event.preventDefault();
@@ -21,7 +24,8 @@ const StudentRegister = () => {
       localStorage.setItem("studentName", response.data.student.name);
       localStorage.setItem("studentSchool", response.data.student.school);
       notifyStudentAuthChanged();
-      navigate("/dashboard", { replace: true });
+      sessionStorage.removeItem("studentReturnTo");
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed.");
     } finally {
@@ -53,7 +57,7 @@ const StudentRegister = () => {
           </button>
         </form>
         <p className="mt-5 text-center text-sm text-slate-500">
-          Already registered? <Link to="/login" className="font-black text-primary">Login</Link>
+          Already registered? <Link to="/login" state={{ from: returnTo }} className="font-black text-primary">Login</Link>
         </p>
       </section>
     </main>

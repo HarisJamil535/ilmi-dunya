@@ -5,7 +5,9 @@ const StudentProtectedRoute = () => {
   const token = localStorage.getItem("studentToken");
 
   if (!token) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    const returnTo = location.pathname + location.search;
+    sessionStorage.setItem("studentReturnTo", returnTo);
+    return <Navigate to="/login" replace state={{ from: returnTo }} />;
   }
 
   return <Outlet />;

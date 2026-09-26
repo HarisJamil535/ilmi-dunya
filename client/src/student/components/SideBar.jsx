@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { GraduationCap, Building2, Users, Loader2, SlidersHorizontal } from "lucide-react";
+import { GraduationCap, Building2, Users, Loader2, SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
 
@@ -38,6 +38,13 @@ const SideBar = () => {
 
     fetchFilters();
   }, []);
+
+  useEffect(() => {
+    if (!isMobileOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isMobileOpen]);
 
   // 2. Format dynamic database records into UI filter structure
   const filterCategories = useMemo(() => [
@@ -134,11 +141,32 @@ const SideBar = () => {
 
   return (
     <aside className="w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start">
-      <div className="flex h-full flex-col border-b border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4 lg:max-h-[calc(100vh-96px)] lg:rounded-3xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-xl lg:shadow-slate-200/60">
+      <button
+        type="button"
+        onClick={() => setIsMobileOpen(true)}
+        aria-expanded={isMobileOpen}
+        aria-controls="study-filter-options"
+        className="mx-4 my-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-2xl border border-primary-muted bg-white px-4 py-3 text-left shadow-sm lg:hidden"
+      >
+        <span className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary"><SlidersHorizontal className="h-5 w-5" /></span>
+          <span><strong className="block text-sm font-black text-slate-950">Filter study content</strong><small className="mt-0.5 block text-xs font-semibold text-slate-500">Class, board and group</small></span>
+        </span>
+        <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-black text-white">Open</span>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Close study filters"
+        onClick={() => setIsMobileOpen(false)}
+        className={`fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden ${isMobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+      />
+
+      <div className={`fixed inset-x-3 bottom-3 z-[60] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-y-0 lg:rounded-3xl lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60 ${isMobileOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[110%] opacity-0 lg:pointer-events-auto"}`}>
       {/* Title */}
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 rounded-xl p-1 text-left lg:pointer-events-none lg:mb-7"
+        className="mb-4 flex w-full shrink-0 items-center justify-between gap-3 rounded-xl p-1 text-left lg:pointer-events-none lg:mb-7"
         aria-expanded={isMobileOpen}
         aria-controls="study-filter-options"
         onClick={() => setIsMobileOpen((open) => !open)}
@@ -146,29 +174,27 @@ const SideBar = () => {
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Study Filters</p>
           <h2 className="mt-0.5 text-base font-black text-slate-950 sm:text-lg lg:mt-1 lg:text-2xl" style={{ fontFamily: "var(--font-heading)" }}>
-            {isMobileOpen ? "Choose your filters" : "Tap to filter content"}
+            Find content
           </h2>
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform lg:h-11 lg:w-11 lg:rounded-2xl ${isMobileOpen ? "rotate-180" : ""}`}>
-          <SlidersHorizontal className="h-5 w-5" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary lg:h-11 lg:w-11 lg:rounded-2xl">
+          <X className="h-5 w-5 lg:hidden" />
+          <SlidersHorizontal className="hidden h-5 w-5 lg:block" />
         </div>
       </button>
 
       {/* Main Filter Sections */}
       <div
         id="study-filter-options"
-        className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:mt-0 lg:grid-rows-[1fr] lg:opacity-100 ${
-          isMobileOpen ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
-        }`}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
       >
-      <div className="min-h-0 overflow-hidden lg:overflow-visible">
       {isLoading ? (
         <div className="flex min-h-40 flex-grow flex-col items-center justify-center gap-3 rounded-2xl border border-primary-soft bg-primary-soft/40 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <span className="text-xs font-bold text-slate-500">Loading filters...</span>
         </div>
       ) : (
-        <div className="flex-grow space-y-4 overflow-visible pb-2 lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-3 pb-2 lg:space-y-4">
           {filterCategories.map((category) => (
             <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
               {/* Category Header (Icon + Label) */}
@@ -210,7 +236,7 @@ const SideBar = () => {
         </div>
       )}
       </div>
-      </div>
+      <button type="button" onClick={() => setIsMobileOpen(false)} className="mt-3 w-full shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white lg:hidden">Show results</button>
       </div>
     </aside>
   );

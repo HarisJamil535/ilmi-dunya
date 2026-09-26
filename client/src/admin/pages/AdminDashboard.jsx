@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, ClipboardCheck, FileText, GraduationCap, Layers, Newspaper, Users } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, FileText, GraduationCap, Layers, Newspaper, RotateCcw, ShieldCheck, Trophy, Users } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AdminLoader, AdminPageHeader } from "../components/AdminUI";
+import ConfirmModal from "../../shared/ConfirmModal";
 
 const useAnimatedNumber = (value = 0, duration = 850) => {
   const [display, setDisplay] = useState(0);
@@ -32,6 +33,10 @@ const AnimatedCount = ({ value }) => {
 
 const AdminDashboard = () => {
   const [state, setState] = useState({ loading: true, error: "", counts: {}, recent: [] });
+  const [leaderboard, setLeaderboard] = useState(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [notice, setNotice] = useState("");
   const adminUser = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("adminUser") || "null"); } catch { return null; }
   }, []);
@@ -40,13 +45,17 @@ const AdminDashboard = () => {
     const loadDashboard = async () => {
       setState((current) => ({ ...current, loading: true, error: "" }));
       try {
-        const response = await axiosInstance.get("/admin/dashboard");
+        const [response, leaderboardResponse] = await Promise.all([
+          axiosInstance.get("/admin/dashboard"),
+          adminUser?.role === "super_admin" ? axiosInstance.get("/admin/leaderboard") : Promise.resolve(null),
+        ]);
         setState({
           loading: false,
           error: "",
           counts: response.data.counts || {},
           recent: response.data.recentQuestions || [],
         });
+        setLeaderboard(leaderboardResponse?.data?.summary || null);
       } catch (error) {
         setState((current) => ({
           ...current,
@@ -56,7 +65,23 @@ const AdminDashboard = () => {
       }
     };
     loadDashboard();
-  }, []);
+  }, [adminUser?.role]);
+
+  const resetLeaderboard = async () => {
+    setResetting(true);
+    setNotice("");
+    try {
+      const response = await axiosInstance.post("/admin/leaderboard/reset");
+      const summaryResponse = await axiosInstance.get("/admin/leaderboard");
+      setLeaderboard(summaryResponse.data.summary);
+      setNotice(response.data.message);
+      setShowReset(false);
+    } catch (error) {
+      setNotice(error.response?.data?.message || "Leaderboard could not be reset.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const cards = [
     { title: "Boards", value: state.counts.boards, icon: Layers, tone: "bg-primary-soft text-primary" },
@@ -69,6 +94,7 @@ const AdminDashboard = () => {
     { title: "Past Papers", value: state.counts.papers, icon: FileText, tone: "bg-rose-50 text-rose-600" },
     { title: "Questions", value: state.counts.questions, icon: ClipboardCheck, tone: "bg-lime-50 text-lime-700" },
     { title: "News", value: state.counts.news, icon: Newspaper, tone: "bg-orange-50 text-orange-600" },
+    { title: "Students", value: state.counts.students, icon: Users, tone: "bg-teal-50 text-teal-600" },
   ];
   const maxCardValue = Math.max(...cards.map((card) => Number(card.value) || 0), 1);
   const contentBars = [
@@ -148,6 +174,24 @@ const AdminDashboard = () => {
               <BarChart title="Resource Library" items={resourceBars} />
             </section>
 
+            {adminUser?.role === "super_admin" && leaderboard && (
+              <section className="overflow-hidden rounded-3xl border border-primary-muted bg-white shadow-sm">
+                <div className="flex flex-col gap-5 bg-primary-soft p-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20"><Trophy className="h-6 w-6" /></span>
+                    <div><p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Leaderboard control</p><h2 className="mt-1 text-xl font-black text-slate-950">Current ranking cycle</h2><p className="mt-1 text-sm leading-6 text-slate-600">Start a fresh ranking cycle without deleting student accounts or test history.</p></div>
+                  </div>
+                  <button type="button" onClick={() => setShowReset(true)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-rose-700"><RotateCcw className="h-4 w-4" />Reset leaderboard</button>
+                </div>
+                <div className="grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-4">
+                  {[["Signed up", leaderboard.students], ["Active students", leaderboard.activeStudents], ["Participants", leaderboard.participants], ["Attempts this cycle", leaderboard.attempts]].map(([label, value]) => <div key={label} className="bg-white p-5"><p className="text-2xl font-black text-slate-950">{Number(value || 0).toLocaleString()}</p><p className="mt-1 text-xs font-bold text-slate-500">{label}</p></div>)}
+                </div>
+                <div className="flex items-center gap-2 border-t border-slate-100 px-6 py-4 text-xs font-semibold text-slate-500"><ShieldCheck className="h-4 w-4 text-primary" />{leaderboard.resetAt ? `Current cycle started ${new Date(leaderboard.resetAt).toLocaleString()}` : "Leaderboard has never been reset."}</div>
+              </section>
+            )}
+
+            {notice && <p className="rounded-2xl border border-primary-muted bg-primary-soft p-4 text-sm font-bold text-primary-dark">{notice}</p>}
+
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-black text-slate-950">Recent Questions</h2>
               <div className="mt-4 divide-y divide-slate-100">
@@ -163,6 +207,7 @@ const AdminDashboard = () => {
           </>
         )}
       </div>
+      <ConfirmModal isOpen={showReset} title="Start a new leaderboard cycle?" description="Current rankings will clear immediately. Student accounts, assessment results and learning history will remain safely stored." confirmLabel="Reset leaderboard" cancelLabel="Keep current rankings" tone="danger" isLoading={resetting} onClose={() => setShowReset(false)} onConfirm={resetLeaderboard} />
     </div>
   );
 };

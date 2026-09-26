@@ -11,6 +11,8 @@ const StudentLogin = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const requestedPath = location.state?.from || sessionStorage.getItem("studentReturnTo") || "/dashboard";
+  const returnTo = requestedPath.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/dashboard";
 
   const submit = async (event) => {
     event.preventDefault();
@@ -22,7 +24,8 @@ const StudentLogin = () => {
       localStorage.setItem("studentName", response.data.student.name);
       localStorage.setItem("studentSchool", response.data.student.school || "");
       notifyStudentAuthChanged();
-      navigate(location.state?.from || "/dashboard", { replace: true });
+      sessionStorage.removeItem("studentReturnTo");
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Login failed.");
     } finally {
@@ -51,7 +54,7 @@ const StudentLogin = () => {
         </form>
         <Link to="/forgot-password" className="mt-4 block text-center text-sm font-bold text-primary hover:text-primary-dark">Forgot password?</Link>
         <p className="mt-5 text-center text-sm text-slate-500">
-          New student? <Link to="/register" className="font-black text-primary">Create account</Link>
+          New student? <Link to="/register" state={{ from: returnTo }} className="font-black text-primary">Create account</Link>
         </p>
       </section>
     </main>
