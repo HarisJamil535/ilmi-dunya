@@ -1,5 +1,4 @@
-import PublishingFields from "./PublishingFields";
-import ModalViewport from "../../shared/ModalViewport";
+import InlineEditor from "./InlineEditor";
 import React, { useState, useEffect, useContext } from "react";
 import { X, Loader2, AlertCircle, Bookmark } from "lucide-react";
 import axiosInstance from "../../api/axios";
@@ -8,7 +7,6 @@ import { AppContext } from "../../context/AppContext";
 const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onSaveSuccess }) => {
     const { selectedBoard, selectedClass, selectedGroup } = useContext(AppContext);
 
-    const [publishing, setPublishing] = useState({});
     const [name, setName] = useState("");
     const [chapterNumber, setChapterNumber] = useState(1);
     const [formError, setFormError] = useState("");
@@ -16,7 +14,6 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
     const maxNameLength = 120;
 
     useEffect(() => {
-        setPublishing(editingChapter || {});
         if (editingChapter) {
             setName(editingChapter.name || "");
             setChapterNumber(editingChapter.chapterNumber || 1);
@@ -59,7 +56,6 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
         setIsSubmitting(true);
         try {
             const payload = {
-                ...publishing,
                 name: trimmedName,
                 chapterNumber: parsedChapterNumber,
                 board: selectedBoard,
@@ -89,8 +85,8 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
     };
 
     return (
-        <ModalViewport onClose={onClose} busy={isSubmitting}>
-            <div className="admin-form-modal relative w-full max-w-2xl bg-white rounded-2xl shadow-xl">
+        <InlineEditor>
+            <div className="admin-inline-editor relative w-full bg-white">
                 <button
                     type="button"
                     onClick={onClose}
@@ -144,7 +140,6 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                         />
                     </div>
 
-                    <PublishingFields value={publishing} title={name} required={false} onChange={patch => setPublishing(current => ({ ...current, ...patch }))} />
                     {formError && (
                         <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 p-3 rounded-xl border border-rose-100">
                             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -172,7 +167,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                     </div>
                 </form>
             </div>
-        </ModalViewport>
+        </InlineEditor>
     );
 };
 

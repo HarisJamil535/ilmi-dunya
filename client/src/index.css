@@ -530,3 +530,34 @@ a[href],
 @media (prefers-reduced-motion: reduce) {
   .client-main > * { animation: none; }
 }
+.admin-inline-editor-section {
+  margin-top: 24px;
+  scroll-margin-top: 24px;
+  border-top: 2px solid var(--app-primary, #623fcd);
+  animation: admin-editor-enter 220ms ease-out;
+}
+.admin-inline-editor > div:first-of-type {
+  padding: 24px 56px 20px 24px;
+  border-bottom: 1px solid var(--app-border);
+}
+.admin-inline-editor > form {
+  padding: 24px;
+  max-width: 900px;
+  margin-inline: auto;
+}
+.admin-inline-editor > form > div:last-child {
+  border-top: 1px solid var(--app-border);
+  padding-top: 20px;
+  flex-wrap: wrap;
+}
+@keyframes admin-editor-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 639px) {
+  .admin-inline-editor > form { padding: 16px; }
+  .admin-inline-editor > div:first-of-type { padding: 20px 48px 20px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-inline-editor-section { animation: none; }
+}

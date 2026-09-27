@@ -1,11 +1,9 @@
-import PublishingFields from "./PublishingFields";
-import ModalViewport from "../../shared/ModalViewport";
+import InlineEditor from "./InlineEditor";
 import React, { useState, useEffect } from "react";
 import { X, Loader2, AlertCircle, FileText, Video } from "lucide-react";
 import axiosInstance from "../../api/axios";
 
 const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess }) => {
-    const [publishing, setPublishing] = useState({});
     const [name, setName] = useState("");
     const [topicNumber, setTopicNumber] = useState(1);
     const [description, setDescription] = useState("");
@@ -27,7 +25,6 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
     };
 
     useEffect(() => {
-        setPublishing(editingTopic || {});
         if (editingTopic) {
             setName(editingTopic.name || "");
             setTopicNumber(editingTopic.topicNumber || 1);
@@ -86,7 +83,6 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
         setIsSubmitting(true);
         try {
             const payload = {
-                ...publishing,
                 name: trimmedName,
                 topicNumber: parsedTopicNumber,
                 chapterId,
@@ -116,8 +112,8 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
     };
 
     return (
-        <ModalViewport onClose={onClose} busy={isSubmitting}>
-            <div className="admin-form-modal relative w-full max-w-2xl bg-white rounded-2xl shadow-xl">
+        <InlineEditor>
+            <div className="admin-inline-editor relative w-full bg-white">
                 <button
                     type="button"
                     onClick={onClose}
@@ -202,7 +198,6 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                         <p className="mt-1 text-[11px] text-slate-400">{description.trim().length}/{maxDescriptionLength}</p>
                     </div>
 
-                    <PublishingFields value={publishing} title={name} required={false} onChange={patch => setPublishing(current => ({ ...current, ...patch }))} />
                     {formError && (
                         <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 p-3 rounded-xl border border-rose-100">
                             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -230,7 +225,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                     </div>
                 </form>
             </div>
-        </ModalViewport>
+        </InlineEditor>
     );
 };
 
