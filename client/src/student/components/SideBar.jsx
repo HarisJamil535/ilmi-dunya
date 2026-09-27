@@ -12,6 +12,7 @@ const SideBar = ({ drawerMode = false }) => {
   const [classes, setClasses] = useState([]);
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const activeFilterCount = ["class", "board", "group"].filter((key) => searchParams.get(key)).length;
 
   // 1. Fetch Boards, Classes, and Groups from backend database
   useEffect(() => {
@@ -132,19 +133,17 @@ const SideBar = ({ drawerMode = false }) => {
   };
 
   return (
-    <aside className={drawerMode ? "w-full font-sans" : "w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start"}>
+    <aside className={drawerMode ? "flex w-full justify-end px-4 font-sans sm:px-6" : "flex w-full flex-shrink-0 justify-end px-4 font-sans sm:px-6 lg:sticky lg:top-20 lg:block lg:w-72 lg:self-start lg:px-0"}>
       <button
         type="button"
         onClick={() => setIsMobileOpen(true)}
         aria-expanded={isMobileOpen}
         aria-controls="study-filter-options"
-        className={`my-3 flex w-full items-center justify-between rounded-2xl border border-primary-muted bg-white px-4 py-3 text-left shadow-sm ${drawerMode ? "" : "mx-4 w-[calc(100%-2rem)] lg:hidden"}`}
+        className={`my-3 inline-flex min-h-11 w-auto items-center gap-2 rounded-xl border border-primary-muted bg-white px-3.5 py-2.5 text-left text-sm font-black text-slate-800 shadow-sm shadow-primary/5 hover:border-primary hover:bg-primary-soft ${drawerMode ? "" : "lg:hidden"}`}
       >
-        <span className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary"><SlidersHorizontal className="h-5 w-5" /></span>
-          <span><strong className="block text-sm font-black text-slate-950">Filter study content</strong><small className="mt-0.5 block text-xs font-semibold text-slate-500">Class, board and group</small></span>
-        </span>
-        <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-black text-white">Open</span>
+        <SlidersHorizontal className="h-4.5 w-4.5 text-primary" />
+        <span>{activeFilterCount ? "Change filters" : "Choose filters"}</span>
+        {activeFilterCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{activeFilterCount}</span>}
       </button>
 
       <button
@@ -154,7 +153,7 @@ const SideBar = ({ drawerMode = false }) => {
         className={`fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 ${drawerMode ? "" : "lg:hidden"} ${isMobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
       />
 
-      <div className={`fixed inset-x-3 bottom-3 z-[60] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${drawerMode ? "sm:inset-x-auto sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2" : "lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-x-0 lg:translate-y-0 lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60"} ${isMobileOpen ? `${drawerMode ? "sm:-translate-x-1/2" : ""} translate-y-0 opacity-100` : `pointer-events-none translate-y-[110%] opacity-0 ${drawerMode ? "sm:-translate-x-1/2" : "lg:pointer-events-auto"}`}`}>
+      <div className={`fixed inset-x-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[60] flex max-h-[min(82dvh,680px)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${drawerMode ? "sm:inset-x-auto sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2" : "lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-x-0 lg:translate-y-0 lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60"} ${isMobileOpen ? `${drawerMode ? "sm:-translate-x-1/2" : ""} translate-y-0 opacity-100` : `pointer-events-none translate-y-[110%] opacity-0 ${drawerMode ? "sm:-translate-x-1/2" : "lg:pointer-events-auto"}`}`}>
       {/* Title */}
       <button
         type="button"
