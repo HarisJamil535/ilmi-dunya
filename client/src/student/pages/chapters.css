@@ -1,0 +1,35 @@
+.chapters-page { padding-block: 28px 64px; }
+.chapters-page section { gap: 24px; }
+.chapters-header { padding-block: 12px 28px; }
+.chapters-header h1 { font-size: 36px; line-height: 1.2; letter-spacing: 0; }
+.chapters-header > div:first-child { min-width: 0; }
+.chapter-context { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 14px; }
+.chapter-context span { padding: 6px 11px; border-radius: 6px; background: var(--brand-primary-soft); color: var(--brand-primary-dark); font-size: 12px; font-weight: 700; }
+.chapter-resources a { min-height: 46px; border-radius: 8px; text-transform: none; letter-spacing: 0; font-size: 13px; }
+.chapter-resources a:first-child { background: var(--brand-primary); border-color: var(--brand-primary); color: white; }
+.chapter-resources a:last-child { background: white; border-color: var(--brand-primary-muted); color: var(--brand-primary-dark); }
+.chapter-resources a:hover { background: var(--brand-primary-dark); border-color: var(--brand-primary-dark); color: white; }
+.chapter-list-heading { display: flex; align-items: center; justify-content: space-between; }
+.chapter-list-heading h2 { font-size: 18px; font-weight: 800; color: var(--app-text-primary); }
+.chapter-list-heading > span { font-size: 12px; color: var(--app-text-muted); }
+.chapter-item { border-radius: 8px; box-shadow: 0 2px 5px rgb(15 23 42 / 3%); }
+.chapter-item.is-expanded { border-color: var(--brand-primary-muted); box-shadow: 0 4px 16px rgb(98 63 205 / 6%); }
+.chapter-actions a { min-height: 40px; text-transform: none; letter-spacing: 0; }
+.chapter-actions a:last-child { background: var(--brand-primary); }
+.chapter-item ol > li { transition: background-color 180ms ease; }
+.chapter-item ol > li:hover { background: var(--brand-primary-soft); }
+.chapter-item ol > li > a { min-width: 0; }
+@media (max-width: 1023px) {
+  .chapter-actions { width: 100%; }
+  .chapter-item ol > li { padding-inline: 4px; }
+}
+@media (max-width: 639px) {
+  .chapters-page { padding-block: 20px 40px; }
+  .chapters-header h1 { font-size: 28px; }
+  .chapters-header { gap: 20px; padding-block: 4px 24px; }
+  .chapter-resources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chapter-item h2 { font-size: 15px; }
+  .chapter-item ol > li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .chapter-item ol > li > div { justify-self: end; }
+  .chapter-item ol > li > a { width: 100%; }
+}

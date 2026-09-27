@@ -5,6 +5,7 @@ import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from "../../api/axios";
 import ChapterTopics from "../components/ChapterTopics";
 import Breadcrumbs from "../components/Breadcrumbs";
+import "./chapters.css";
 
 const setMetaDescription = (content) => {
   let meta = document.querySelector('meta[name="description"]');
@@ -136,13 +137,13 @@ const Chapters = () => {
   const toggleChapter = (chapterId) => setExpandedChapter(current => current === chapterId ? null : chapterId);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 font-sans sm:px-6 lg:px-10">
+    <main className="chapters-page min-h-screen bg-slate-50 px-4 py-10 font-sans sm:px-6 lg:px-10">
       <section className="mx-auto flex max-w-6xl flex-col gap-8">
         <Breadcrumbs items={[
           { label: "Subjects", to: `/subjects?${searchParams.toString()}` },
           { label: pageContext.subject || "Chapters" },
         ]} />
-        <header className="flex flex-col gap-6 border-b border-slate-200 pb-8 lg:flex-row lg:items-end lg:justify-between">
+        <header className="chapters-header flex flex-col gap-6 border-b border-slate-200 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
               <Layers className="h-4 w-4" />
@@ -153,21 +154,20 @@ const Chapters = () => {
               <h1 className="max-w-4xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">
                 {hasRequiredContext ? (
                   <>
-                    <span className="capitalize text-primary">{pageContext.subject}</span> chapters for Class{" "}
-                    <span className="text-primary">{pageContext.grade}</span>,{" "}
-                    <span className="capitalize">{pageContext.board}</span> Board
+                    <span className="capitalize">{pageContext.subject}</span>
                   </>
                 ) : (
                   "Select a subject to view its chapters"
                 )}
               </h1>
+              {hasRequiredContext && <div className="chapter-context"><span>Class {pageContext.grade}</span><span className="capitalize">{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>{pageContext.group && <span className="capitalize">{pageContext.group}</span>}</div>}
               <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
                 Follow the chapter sequence, watch topic videos, download notes and continue into practice when available.
               </p>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
+          <div className="chapter-resources grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
             <Link
               to={buildResourceLink({
                 path: "/book",
@@ -238,6 +238,7 @@ const Chapters = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            <div className="chapter-list-heading"><h2>Chapters</h2><span>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</span></div>
             {chapters.map((chapter) => {
               const chapterNumStr = String(chapter.chapterNumber || 1).padStart(2, "0");
               const chapterTitle = chapter.name || chapter.title || `Chapter ${chapter.chapterNumber || 1}`;
@@ -257,7 +258,7 @@ const Chapters = () => {
               return (
                 <article
                   key={chapter._id || chapter.chapterNumber}
-                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-primary-muted hover:shadow-md sm:p-5"
+                  className={`chapter-item group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-primary-muted hover:shadow-md sm:p-5 ${expandedChapter === chapter._id ? "is-expanded" : ""}`}
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                     <button type="button" aria-expanded={expandedChapter === chapter._id} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="flex min-w-0 flex-1 items-center gap-4 text-left focus-visible:outline-primary">
@@ -277,7 +278,7 @@ const Chapters = () => {
                       <ChevronDown aria-hidden="true" className={`ml-auto h-5 w-5 shrink-0 transition-transform ${expandedChapter === chapter._id ? "rotate-180" : ""}`} />
                     </button>
 
-                    <div className="ml-auto grid shrink-0 grid-cols-3 gap-2">
+                    <div className="chapter-actions ml-auto grid shrink-0 grid-cols-3 gap-2">
                       <Link
                         to={videoLink}
                         title={`Watch ${chapterTitle} videos`}
