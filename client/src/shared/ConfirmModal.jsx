@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2, X } from "lucide-react";
+import ModalViewport from "./ModalViewport";
 
 const ConfirmModal = ({
   isOpen,
@@ -19,8 +20,8 @@ const ConfirmModal = ({
   const iconClass = tone === "danger" ? "bg-rose-50 text-rose-600" : "bg-primary-soft text-primary";
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+    <ModalViewport onClose={onClose} busy={isLoading}>
+      <div className="relative max-h-full overflow-y-auto w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <button
           type="button"
           onClick={onClose}
@@ -61,7 +62,7 @@ const ConfirmModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalViewport>
   );
 };
 

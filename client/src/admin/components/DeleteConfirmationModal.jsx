@@ -1,4 +1,5 @@
 import React from "react";
+import ModalViewport from "../../shared/ModalViewport";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 const DeleteConfirmationModal = ({
@@ -13,8 +14,8 @@ const DeleteConfirmationModal = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-4">
+        <ModalViewport onClose={onClose} busy={isDeleting}>
+            <div className="relative max-h-full overflow-y-auto w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-4">
                 <div className="flex items-center gap-3.5">
                     <div className="p-3 rounded-full bg-rose-50 text-rose-600 shrink-0">
                         <AlertTriangle className="w-6 h-6" />
@@ -50,7 +51,7 @@ const DeleteConfirmationModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalViewport>
     );
 };
 

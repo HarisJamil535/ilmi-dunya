@@ -1,4 +1,5 @@
 import PublishingFields from "./PublishingFields";
+import ModalViewport from "../../shared/ModalViewport";
 import React, { useState, useEffect } from "react";
 import { X, Loader2, AlertCircle, FileText, Video } from "lucide-react";
 import axiosInstance from "../../api/axios";
@@ -115,8 +116,8 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 space-y-5">
+        <ModalViewport onClose={onClose} busy={isSubmitting}>
+            <div className="admin-form-modal relative w-full max-w-2xl bg-white rounded-2xl shadow-xl">
                 <button
                     type="button"
                     onClick={onClose}
@@ -229,7 +230,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalViewport>
     );
 };
 
