@@ -76,6 +76,24 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
 
+@keyframes student-toast-enter {
+  from { opacity: 0; transform: translateY(-14px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes student-toast-leave {
+  to { opacity: 0; transform: translateY(-10px) scale(.97); }
+}
+@keyframes student-toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.student-toast { animation: student-toast-enter 360ms cubic-bezier(.22, 1, .36, 1) both; }
+.student-toast-leaving { animation: student-toast-leave 260ms ease-in both; }
+.student-toast-progress { animation: student-toast-progress 4.1s linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .student-toast, .student-toast-leaving, .student-toast-progress { animation: none; }
+}
+
 button:not(:disabled),
 a[href],
 [role="button"],

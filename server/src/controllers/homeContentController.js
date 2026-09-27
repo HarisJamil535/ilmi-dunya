@@ -1,15 +1,27 @@
 const Testimonial = require("../models/Testimonial");
 const HomeStat = require("../models/HomeStat");
+const SiteMetric = require("../models/SiteMetric");
 
 const sortByDisplayOrder = { displayOrder: 1, createdAt: -1 };
 
 const getPublicHomeContent = async (req, res) => {
-    const [testimonials, stats] = await Promise.all([
+    const [testimonials, stats, visitMetric] = await Promise.all([
         Testimonial.find({ isActive: true }).sort(sortByDisplayOrder).lean(),
         HomeStat.find({ isActive: true }).sort(sortByDisplayOrder).lean(),
+        SiteMetric.findOne({ key: "site-visits" }).lean(),
     ]);
 
-    res.json({ success: true, testimonials, stats });
+    const visitStat = { label: "Site visits", value: Number(visitMetric?.total || 0).toLocaleString("en-US"), description: "Learning visits to IlmiDunya", isLive: true };
+    res.json({ success: true, testimonials, stats: [visitStat, ...stats].slice(0, 4) });
+};
+
+const recordVisit = async (req, res) => {
+    const metric = await SiteMetric.findOneAndUpdate(
+        { key: "site-visits" },
+        { $inc: { total: 1 }, $set: { lastRecordedAt: new Date() }, $setOnInsert: { key: "site-visits" } },
+        { upsert: true, new: true, runValidators: true }
+    ).lean();
+    res.status(201).json({ success: true, total: metric.total });
 };
 
 const getTestimonials = async (req, res) => {
@@ -115,4 +127,5 @@ module.exports = {
     createStat,
     updateStat,
     deleteStat,
+    recordVisit,
 };

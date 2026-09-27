@@ -11,9 +11,11 @@ const {
     createStat,
     updateStat,
     deleteStat,
+    recordVisit,
 } = require("../controllers/homeContentController");
 
 router.get("/", getPublicHomeContent);
+router.post("/visit", recordVisit);
 
 router.get("/testimonials", authMiddleware, getTestimonials);
 router.post("/testimonials", authMiddleware, createTestimonial);

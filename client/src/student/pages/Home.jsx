@@ -35,12 +35,23 @@ export default function Home({ initialData }) {
     const siteUrl = document.querySelector('link[rel="canonical"]')?.href;
     if (siteUrl) document.querySelector('meta[property="og:url"]')?.setAttribute("content", siteUrl);
     const controller = new AbortController();
-    if (seed?.home) return () => controller.abort();
-    axiosInstance.get("/home-content", { signal: controller.signal })
-      .then(({ data }) => setContent({ stats: data.stats || [], testimonials: data.testimonials || [] }))
-      .catch(() => {})
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    axiosInstance.get("/news/featured", { signal: controller.signal }).then(({ data }) => setNews(data.articles || [])).catch(() => {});
+    const recordVisit = !sessionStorage.getItem("ilmidunyaVisitRecorded");
+    if (recordVisit) {
+      sessionStorage.setItem("ilmidunyaVisitRecorded", "pending");
+      axiosInstance.post("/home-content/visit", {}, { signal: controller.signal })
+        .then(({ data }) => {
+          sessionStorage.setItem("ilmidunyaVisitRecorded", "yes");
+          setContent((current) => ({ ...current, stats: [{ label: "Site visits", value: Number(data.total || 0).toLocaleString("en-US"), isLive: true }, ...(current.stats || []).filter((stat) => stat.label !== "Site visits")].slice(0, 4) }));
+        })
+        .catch(() => sessionStorage.removeItem("ilmidunyaVisitRecorded"));
+    }
+    if (!seed?.home) {
+      axiosInstance.get("/home-content", { signal: controller.signal })
+        .then(({ data }) => setContent({ stats: data.stats || [], testimonials: data.testimonials || [] }))
+        .catch(() => {})
+        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      axiosInstance.get("/news/featured", { signal: controller.signal }).then(({ data }) => setNews(data.articles || [])).catch(() => {});
+    }
     return () => controller.abort();
   }, [seed]);
 

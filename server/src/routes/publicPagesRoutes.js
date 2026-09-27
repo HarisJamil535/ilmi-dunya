@@ -10,6 +10,7 @@ const ClassModel = require("../models/Class");
 const Group = require("../models/Group");
 const Testimonial = require("../models/Testimonial");
 const HomeStat = require("../models/HomeStat");
+const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
 async function cached(key, load) {
@@ -43,8 +44,9 @@ async function dataFor(req) {
         if (!article) throw Object.assign(new Error("Article not found"), { status: 404 });
         return { type: "article", requestPath, article, meta: { ...meta(article.title, article.excerpt, `/news/${encodeURIComponent(article.slug)}`, article.excerpt.length >= 60 && article.content.length >= 160), image: article.coverImage, article: true } };
     }
-    const [boards, classes, groups, testimonials, stats, news] = await Promise.all([Board.find().sort({name:1}).lean(), ClassModel.find().sort({name:1}).lean(), Group.find().sort({name:1}).lean(), Testimonial.find({ isActive: true }).sort({ displayOrder: 1 }).limit(12).lean(), HomeStat.find({isActive:true}).sort({displayOrder:1}).limit(4).lean(), NewsArticle.find({isPublished:true,isFeatured:true}).sort({publishedAt:-1}).limit(5).select("title slug excerpt coverImage imageAlt category publishedAt").lean()]);
-    return { type: "home", requestPath, context: { boards, classes, groups }, home: { testimonials, stats }, news, meta: meta("IlmiDunya - Notes, Books, Past Papers and MCQ Practice", "Prepare for Pakistani board exams with class-wise notes, textbooks, past papers, video lessons and chapter and topic MCQ practice.", "/") };
+    const [boards, classes, groups, testimonials, stats, visitMetric, news] = await Promise.all([Board.find().sort({name:1}).lean(), ClassModel.find().sort({name:1}).lean(), Group.find().sort({name:1}).lean(), Testimonial.find({ isActive: true }).sort({ displayOrder: 1 }).limit(12).lean(), HomeStat.find({isActive:true}).sort({displayOrder:1}).limit(4).lean(), SiteMetric.findOne({ key: "site-visits" }).lean(), NewsArticle.find({isPublished:true,isFeatured:true}).sort({publishedAt:-1}).limit(5).select("title slug excerpt coverImage imageAlt category publishedAt").lean()]);
+    const publicStats = [{ label: "Site visits", value: Number(visitMetric?.total || 0).toLocaleString("en-US"), description: "Learning visits to IlmiDunya", isLive: true }, ...stats].slice(0, 4);
+    return { type: "home", requestPath, context: { boards, classes, groups }, home: { testimonials, stats: publicStats }, news, meta: meta("IlmiDunya - Notes, Books, Past Papers and MCQ Practice", "Prepare for Pakistani board exams with class-wise notes, textbooks, past papers, video lessons and chapter and topic MCQ practice.", "/") };
 }
 
 function publicRoutes() {

@@ -50,7 +50,7 @@ app.use('/api', cors({
 app.use(express.json({ limit: "1mb" }));
 app.use('/api', requestSafety);
 app.use('/api', (req, res, next) => {
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) res.on('finish', () => { if (res.statusCode < 400) invalidatePublicPages(); });
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.path !== '/home-content/visit') res.on('finish', () => { if (res.statusCode < 400) invalidatePublicPages(); });
     next();
 });
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {

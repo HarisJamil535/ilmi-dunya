@@ -4,6 +4,8 @@ const Student = require("../models/Student");
 const crypto = require("node:crypto");
 const { sendIlmiDunyaEmail } = require("../utils/mailer");
 const { escapeHtml } = require('../services/seoDocument');
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phonePattern = /^\+?[0-9][0-9\s-]{8,16}$/;
 
 const signStudentToken = (student) =>
     jwt.sign(
@@ -33,23 +35,29 @@ const registerStudent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Name, email, phone, city, school and password are required." });
         }
 
-        if (password.length < 6 || Buffer.byteLength(password, 'utf8') > 72) {
-            return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+        const normalizedEmail = email.toLowerCase().trim();
+        if (!emailPattern.test(normalizedEmail)) return res.status(400).json({ success: false, message: "Enter a valid email address." });
+        if (!phonePattern.test(phone.trim())) return res.status(400).json({ success: false, message: "Enter a valid phone number." });
+        if (name.trim().length < 2 || name.trim().length > 80 || city.trim().length < 2 || school.trim().length < 2) {
+            return res.status(400).json({ success: false, message: "Enter a valid name, city and school or Private Candidate." });
+        }
+        if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password) || Buffer.byteLength(password, 'utf8') > 72) {
+            return res.status(400).json({ success: false, message: "Password must be at least 8 characters and include a letter and number." });
         }
 
-        const existing = await Student.findOne({ email: email.toLowerCase().trim() });
+        const existing = await Student.findOne({ email: normalizedEmail });
         if (existing) {
             return res.status(409).json({ success: false, message: "A student with this email already exists." });
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
         const student = await Student.create({
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             password: hashedPassword,
-            phone,
-            city,
-            school,
+            phone: phone.trim(),
+            city: city.trim(),
+            school: school.trim(),
             board: board || undefined,
             class: classId || undefined,
             group: group || undefined,
