@@ -7,14 +7,12 @@ import Breadcrumbs from "../components/Breadcrumbs";
 const questionTypes = [
   {
     value: "long_question",
-    label: "Long Questions",
-    shortLabel: "Long",
+    shortLabel:" Long Questions",
     description: "Detailed board-style questions for full answer practice.",
   },
   {
     value: "short_question",
-    label: "Short Questions",
-    shortLabel: "Short",
+    shortLabel: "Short Questions",
     description: "Quick questions for focused topic revision.",
   },
 ];
