@@ -3,7 +3,7 @@ import { GraduationCap, Building2, Users, Loader2, SlidersHorizontal, X } from "
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
 
-const SideBar = () => {
+const SideBar = ({ drawerMode = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -127,26 +127,18 @@ const SideBar = () => {
       return value === "All";
     }
 
-    const categoryData = filterCategories.find((f) => f.id === category);
-
-    if (!currentValue) {
-      return (
-        categoryData &&
-        categoryData.options.length > 0 &&
-        categoryData.options[0].label.toLowerCase() === value.toLowerCase()
-      );
-    }
+    if (!currentValue) return false;
     return currentValue.toLowerCase() === value.toLowerCase();
   };
 
   return (
-    <aside className="w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start">
+    <aside className={drawerMode ? "w-full font-sans" : "w-full flex-shrink-0 font-sans lg:sticky lg:top-20 lg:w-72 lg:self-start"}>
       <button
         type="button"
         onClick={() => setIsMobileOpen(true)}
         aria-expanded={isMobileOpen}
         aria-controls="study-filter-options"
-        className="mx-4 my-3 flex w-[calc(100%-2rem)] items-center justify-between rounded-2xl border border-primary-muted bg-white px-4 py-3 text-left shadow-sm lg:hidden"
+        className={`my-3 flex w-full items-center justify-between rounded-2xl border border-primary-muted bg-white px-4 py-3 text-left shadow-sm ${drawerMode ? "" : "mx-4 w-[calc(100%-2rem)] lg:hidden"}`}
       >
         <span className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary"><SlidersHorizontal className="h-5 w-5" /></span>
@@ -159,10 +151,10 @@ const SideBar = () => {
         type="button"
         aria-label="Close study filters"
         onClick={() => setIsMobileOpen(false)}
-        className={`fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden ${isMobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 ${drawerMode ? "" : "lg:hidden"} ${isMobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
       />
 
-      <div className={`fixed inset-x-3 bottom-3 z-[60] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-y-0 lg:rounded-3xl lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60 ${isMobileOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[110%] opacity-0 lg:pointer-events-auto"}`}>
+      <div className={`fixed inset-x-3 bottom-3 z-[60] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${drawerMode ? "sm:inset-x-auto sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2" : "lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-x-0 lg:translate-y-0 lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60"} ${isMobileOpen ? `${drawerMode ? "sm:-translate-x-1/2" : ""} translate-y-0 opacity-100` : `pointer-events-none translate-y-[110%] opacity-0 ${drawerMode ? "sm:-translate-x-1/2" : "lg:pointer-events-auto"}`}`}>
       {/* Title */}
       <button
         type="button"
@@ -178,8 +170,8 @@ const SideBar = () => {
           </h2>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary lg:h-11 lg:w-11 lg:rounded-2xl">
-          <X className="h-5 w-5 lg:hidden" />
-          <SlidersHorizontal className="hidden h-5 w-5 lg:block" />
+          <X className={`h-5 w-5 ${drawerMode ? "" : "lg:hidden"}`} />
+          {!drawerMode && <SlidersHorizontal className="hidden h-5 w-5 lg:block" />}
         </div>
       </button>
 
@@ -236,7 +228,7 @@ const SideBar = () => {
         </div>
       )}
       </div>
-      <button type="button" onClick={() => setIsMobileOpen(false)} className="mt-3 w-full shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white lg:hidden">Show results</button>
+      <button type="button" onClick={() => setIsMobileOpen(false)} className={`mt-3 w-full shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white ${drawerMode ? "" : "lg:hidden"}`}>Show results</button>
       </div>
     </aside>
   );

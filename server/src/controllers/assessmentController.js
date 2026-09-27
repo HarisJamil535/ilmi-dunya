@@ -50,7 +50,7 @@ const getAssessments = async (req, res) => {
     });
     ["board", "class", "group", "subject", "chapter", "topic"].forEach((key) => {
         const idKey = `${key}Id`;
-        if (!filter[key] && req.query[idKey]) filter[key] = req.query[idKey];
+        if (req.query[idKey]) filter[key] = req.query[idKey];
     });
 
     if (!req.admin) filter.status = "published";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, GraduationCap, Loader2, SearchX } from "lucide-react";
+import { BookOpen, Building2, GraduationCap, Loader2, SearchX, Users } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import SubjectCard from "../components/SubjectCard";
@@ -115,10 +115,21 @@ const Subjects = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-0 lg:flex-row lg:items-start lg:px-6 lg:py-8">
-        <SideBar />
+        {!hasRequiredContext && <SideBar />}
 
         <main className="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-0 lg:py-0">
           <section className="mx-auto flex max-w-6xl flex-col gap-8">
+            {hasRequiredContext && (
+              <div className="rounded-2xl border border-primary-muted bg-white p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-5">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="mr-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">Your study path</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-bold text-primary-dark"><GraduationCap size={14} />Class {pageContext.grade}</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-bold capitalize text-primary-dark"><Building2 size={14} />{pageContext.board} Board</span>
+                  {pageContext.group && <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold capitalize text-slate-600"><Users size={14} />{pageContext.group}</span>}
+                </div>
+                <div className="mt-3 shrink-0 sm:mt-0"><SideBar drawerMode /></div>
+              </div>
+            )}
             <header className="flex flex-col gap-3 border-b border-slate-200 pb-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <GraduationCap className="h-4 w-4" />
@@ -129,19 +140,14 @@ const Subjects = () => {
                 <h1 className="max-w-3xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl">
                   {hasRequiredContext ? (
                     <>
-                      Subjects for{" "}
-                      <span className="capitalize text-primary">{pageContext.board} Board</span>, Class{" "}
-                      <span className="text-primary">{pageContext.grade}</span>
-                      {pageContext.group && (
-                        <span className="capitalize text-slate-500"> ({pageContext.group})</span>
-                      )}
+                      Choose your <span className="text-primary">subject</span>
                     </>
                   ) : (
                     "Choose your class and board to explore subjects"
                   )}
                 </h1>
                 <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
-                  Select a subject to continue into chapters, video lectures, notes and practice resources.
+                  {hasRequiredContext ? `Showing subjects available for Class ${pageContext.grade}, ${pageContext.board} Board${pageContext.group ? `, ${pageContext.group} group` : ""}.` : "Select a subject to continue into chapters, video lectures, notes and practice resources."}
                 </p>
               </div>
             </header>
