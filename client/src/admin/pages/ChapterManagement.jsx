@@ -38,6 +38,11 @@ const ChapterManagement = () => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
+        setIsChapterModalOpen(false);
+        setEditingChapter(null);
+    }, [selectedBoard, selectedClass, selectedGroup, selectedSubject]);
+
+    useEffect(() => {
         refreshContext();
     }, [refreshContext]);
 
@@ -125,7 +130,7 @@ const ChapterManagement = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F4F5F9] p-6 md:p-8 font-sans text-gray-800">
+        <div className="min-h-screen bg-[#F4F5F9] p-3 sm:p-6 md:p-8 font-sans text-gray-800">
             <div className="flex items-center text-sm text-gray-500 mb-8">
                 <span className="hover:text-primary cursor-pointer transition-colors">Dashboard</span>
                 <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />
@@ -177,6 +182,14 @@ const ChapterManagement = () => {
                     />
                 </div>
             </div>
+
+            <ChapterModal
+                isOpen={isChapterModalOpen}
+                onClose={() => setIsChapterModalOpen(false)}
+                editingChapter={editingChapter}
+                selectedSubjectObj={selectedSubjectObj}
+                onSaveSuccess={handleSaveSuccess}
+            />
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -230,13 +243,6 @@ const ChapterManagement = () => {
                 )}
             </div>
 
-            <ChapterModal
-                isOpen={isChapterModalOpen}
-                onClose={() => setIsChapterModalOpen(false)}
-                editingChapter={editingChapter}
-                selectedSubjectObj={selectedSubjectObj}
-                onSaveSuccess={handleSaveSuccess}
-            />
 
             <DeleteConfirmationModal
                 isOpen={Boolean(chapterToDelete)}

@@ -531,7 +531,7 @@ a[href],
   .client-main > * { animation: none; }
 }
 .admin-inline-editor-section {
-  margin-top: 24px;
+  margin-block: 24px;
   scroll-margin-top: 24px;
   border-top: 2px solid var(--app-primary, #623fcd);
   animation: admin-editor-enter 220ms ease-out;

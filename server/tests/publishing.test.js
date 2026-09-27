@@ -6,6 +6,12 @@ const { unsafeKeys, errorHandler } = require('../src/middleware/requestSafety');
 const { imageExtension } = require('../src/services/imageUpload');
 const summary = 'A teacher-written guide to Class 10 Physics, covering motion definitions, worked examples and revision questions for board exam preparation.';
 
+test('resource forms can omit publishing metadata without erasing saved metadata', () => {
+    assert.deepEqual(publication({ title: 'Class 10 Physics', pdfUrl: 'https://example.com/book.pdf' }, {
+        existing: { summary, slug: 'class-10-physics' },
+    }), {});
+});
+
 test('publishing normalizes tags and rejects thin or unsafe resources', () => {
     assert.deepEqual(publication({ summary, tags: 'Physics, physics, FBISE' }, { requireSummary: true }).tags, ['physics', 'fbise']);
     assert.throws(() => publication({ summary: 'Download' }, { requireSummary: true }), /useful summary/);

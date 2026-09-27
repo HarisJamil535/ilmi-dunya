@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import PublishingFields from "../components/PublishingFields";
 import { BookOpen, ExternalLink, Filter, Loader2, Plus, Save, SearchX, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "@/context/AppContext";
@@ -82,7 +81,7 @@ const BookManagement = () => {
     loadBooks();
   }, [loadBooks]);
 
-  const canSave = form.board && form.class && form.group && form.subject && form.title.trim() && form.pdfUrl.trim();
+  const canSave = form.board && form.class && form.group && form.subject && form.title.trim() && form.title.trim().length <= 180 && isValidUrl(form.pdfUrl.trim());
   const isEditing = Boolean(form.id);
 
   const selectedFilterCount = useMemo(() => Object.values(filter).filter(Boolean).length, [filter]);
@@ -134,7 +133,7 @@ const BookManagement = () => {
         await axiosInstance.post("/resources/books", payload);
       }
       setMessage(isEditing ? "Book updated successfully." : "Book added successfully.");
-      resetForm();
+      setForm(blankForm);
       await loadBooks();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save book.");
@@ -184,7 +183,7 @@ const BookManagement = () => {
           </div>
         </header>
 
-        <form onSubmit={handleSave} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form onSubmit={handleSave} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-xl font-black text-slate-950">{isEditing ? "Update Book" : "Add New Book"}</h2>
@@ -214,7 +213,6 @@ const BookManagement = () => {
             </Field>
           </div>
 
-          <PublishingFields kind="book" value={form} title={form.title} onChange={(patch) => setForm(current => ({ ...current, ...patch }))} />
           {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-600">{error}</p>}
           {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
 
@@ -226,7 +224,7 @@ const BookManagement = () => {
           </div>
         </form>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="mb-5 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
               <div className="flex items-center gap-2 text-sm font-black text-primary">

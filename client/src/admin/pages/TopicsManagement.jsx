@@ -46,6 +46,11 @@ const TopicManagement = () => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
+        setIsTopicModalOpen(false);
+        setEditingTopic(null);
+    }, [selectedBoard, selectedClass, selectedGroup, selectedSubject, selectedChapter]);
+
+    useEffect(() => {
         refreshContext();
     }, [refreshContext]);
 
@@ -192,7 +197,7 @@ const TopicManagement = () => {
     const isContextReady = Boolean(selectedChapter);
 
     return (
-        <div className="min-h-screen bg-[#F4F5F9] p-6 md:p-8 font-sans text-gray-800">
+        <div className="min-h-screen bg-[#F4F5F9] p-3 sm:p-6 md:p-8 font-sans text-gray-800">
             {/* Header & Breadcrumb */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center text-sm text-gray-500">
@@ -320,6 +325,14 @@ const TopicManagement = () => {
                 </div>
             )}
 
+            <TopicModal
+                isOpen={isTopicModalOpen}
+                onClose={() => setIsTopicModalOpen(false)}
+                editingTopic={editingTopic}
+                chapterId={selectedChapter}
+                onSaveSuccess={handleSaveSuccess}
+            />
+
             {/* Topics Workspace Table */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[420px] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -346,7 +359,7 @@ const TopicManagement = () => {
                         {isLoadingTopics ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
                                 <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
-                                <p className="text-sm font-medium">Fetching topics from API...</p>
+                                <p className="text-sm font-medium">Loading topics...</p>
                             </div>
                         ) : topics.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-4">
@@ -374,13 +387,6 @@ const TopicManagement = () => {
             </div>
 
             {/* Modals */}
-            <TopicModal
-                isOpen={isTopicModalOpen}
-                onClose={() => setIsTopicModalOpen(false)}
-                editingTopic={editingTopic}
-                chapterId={selectedChapter}
-                onSaveSuccess={handleSaveSuccess}
-            />
 
             <DeleteConfirmationModal
                 isOpen={Boolean(topicToDelete)}

@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import PublishingFields from "../components/PublishingFields";
 import { FileText, Loader2, Plus } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "@/context/AppContext";
@@ -30,6 +29,13 @@ const PastPaperManagement = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        setEditingId("");
+        setForm(initialForm);
+        setPapers([]);
+        setError("");
+    }, [selectedBoard, selectedClass, selectedGroup, selectedSubject]);
 
     useEffect(() => { refreshContext(); }, [refreshContext]);
 
@@ -65,8 +71,9 @@ const PastPaperManagement = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError("");
+        if (!selectedBoard || !selectedClass || !selectedGroup || !selectedSubject) return setError("Select board, class, group and subject first.");
         if (!form.title.trim()) return setError("Title is required.");
-        if (!Number(form.year)) return setError("Year is required.");
+        if (!Number.isInteger(Number(form.year)) || Number(form.year) < 1990 || Number(form.year) > new Date().getFullYear()) return setError("Enter a year between 1990 and this year.");
         if (!isValidUrl(form.pdfUrl.trim())) return setError("Enter a valid PDF URL.");
         setSaving(true);
         try {
@@ -85,6 +92,7 @@ const PastPaperManagement = () => {
     const handleEdit = (paper) => {
         setEditingId(paper._id);
         setForm({ ...paper, title: paper.title, year: paper.year, session: paper.session, pdfUrl: paper.pdfUrl });
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const handleDelete = async (paperId) => {
@@ -102,7 +110,7 @@ const PastPaperManagement = () => {
     const canManage = selectedBoard && selectedClass && selectedGroup && selectedSubject;
 
     return (
-        <div className="min-h-screen bg-slate-50/60 p-6 md:p-8 text-slate-800">
+        <div className="min-h-screen bg-slate-50/60 p-3 sm:p-6 md:p-8 text-slate-800">
             <div className="mx-auto max-w-6xl space-y-6">
                 <header className="rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-muted p-6 text-white shadow-md">
                     <div className="flex items-center gap-3">
@@ -114,8 +122,8 @@ const PastPaperManagement = () => {
                     </div>
                 </header>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="grid gap-4 md:grid-cols-4">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <CustomSelect label="Board" value={selectedBoard} onChange={setSelectedBoard} options={boards} placeholder="Select Board" isLoading={isLoadingContext} />
                         <CustomSelect label="Class" value={selectedClass} onChange={setSelectedClass} options={classes} placeholder="Select Class" isLoading={isLoadingContext} />
                         <CustomSelect label="Group" value={selectedGroup} onChange={setSelectedGroup} options={groups} placeholder="Select Group" isLoading={isLoadingContext} />
@@ -123,9 +131,10 @@ const PastPaperManagement = () => {
                     </div>
                 </section>
 
-                <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h2 className="mb-4 text-lg font-black text-slate-900">{editingId ? "Edit Past Paper" : "Add Past Paper"}</h2>
-                    <div className="grid gap-4 md:grid-cols-[1fr_120px_150px_1fr]">
+                <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                    <h2 className="mb-2 text-lg font-black text-slate-900">{editingId ? "Edit Past Paper" : "Add Past Paper"}</h2>
+                    <p className="mb-4 text-sm text-slate-500">Select the subject above, then enter the paper title, exam year, session and PDF link. All four fields are required.</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <Field label="Paper Title" helper="Example: BISE Lahore Class 10 Physics 2025 Morning - Subjective.">
                             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Paper title" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
                         </Field>
@@ -139,11 +148,10 @@ const PastPaperManagement = () => {
                             <input value={form.pdfUrl} onChange={(e) => setForm({ ...form, pdfUrl: e.target.value })} placeholder="https://example.com/paper.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
                         </Field>
                     </div>
-                    <PublishingFields kind="past-paper" value={form} title={form.title} onChange={(patch) => setForm(current => ({ ...current, ...patch }))} />
                     {error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p>}
                     <div className="mt-5 flex justify-end gap-3">
                         {editingId && <button type="button" onClick={resetForm} className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button>}
-                        <button disabled={!canManage || saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+                        <button disabled={!canManage || saving || !form.title.trim() || form.title.trim().length > 180 || !isValidUrl(form.pdfUrl.trim()) || !Number.isInteger(Number(form.year)) || Number(form.year) < 1990 || Number(form.year) > new Date().getFullYear()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {editingId ? "Update Paper" : "Add Paper"}
                         </button>
                     </div>

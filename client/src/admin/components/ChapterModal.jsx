@@ -24,6 +24,8 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
         setFormError("");
     }, [editingChapter, isOpen]);
 
+    const canSave = Boolean(name.trim() && name.trim().length <= maxNameLength && Number.isInteger(Number(chapterNumber)) && Number(chapterNumber) > 0 && selectedSubjectObj?._id && selectedBoard && selectedClass && selectedGroup);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
@@ -109,6 +111,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <p className="text-sm leading-6 text-slate-500">Enter the chapter title and its whole-number position in the textbook, for example 2.</p>
                     <div>
                         <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
                             Chapter Name <span className="text-rose-500">*</span>
@@ -158,7 +161,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !canSave}
                             className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

@@ -39,6 +39,8 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
         setFormError("");
     }, [editingTopic, isOpen]);
 
+    const canSave = Boolean(name.trim() && name.trim().length <= maxNameLength && /^\d+(\.\d+)*$/.test(String(topicNumber).trim()) && description.trim().length <= maxDescriptionLength && isValidYoutubeUrl(videoUrl.trim()) && chapterId);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
@@ -136,6 +138,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <p className="text-sm leading-6 text-slate-500">Use the textbook topic number, such as 2.3 or 2.3.5. Description and YouTube link are optional.</p>
                     <div>
                         <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
                             Topic Name <span className="text-rose-500">*</span>
@@ -216,7 +219,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !canSave}
                             className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer shadow-md"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

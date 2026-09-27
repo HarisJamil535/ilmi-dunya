@@ -34,6 +34,11 @@ const SubjectManagement = () => {
     const [subjectToDelete, setSubjectToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    useEffect(() => {
+        setIsSubjectModalOpen(false);
+        setEditingSubject(null);
+    }, [selectedBoard, selectedClass, selectedGroup]);
+
     // Refresh global context data (boards, classes, groups) on component mount
     useEffect(() => {
         refreshContext();
@@ -98,7 +103,7 @@ const SubjectManagement = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F4F5F9] p-6 md:p-8 font-sans text-gray-800">
+        <div className="min-h-screen bg-[#F4F5F9] p-3 sm:p-6 md:p-8 font-sans text-gray-800">
             
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-gray-500 mb-8">
@@ -146,6 +151,13 @@ const SubjectManagement = () => {
                 </div>
             </div>
 
+            <SubjectModal
+                isOpen={isSubjectModalOpen}
+                onClose={() => setIsSubjectModalOpen(false)}
+                editingSubject={editingSubject}
+                onSaveSuccess={handleSaveSuccess}
+            />
+
             {/* Content Area */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -180,12 +192,6 @@ const SubjectManagement = () => {
             </div>
 
             {/* Add / Edit Subject Modal */}
-            <SubjectModal
-                isOpen={isSubjectModalOpen}
-                onClose={() => setIsSubjectModalOpen(false)}
-                editingSubject={editingSubject}
-                onSaveSuccess={handleSaveSuccess}
-            />
 
             {/* Delete Confirmation Modal */}
             <DeleteConfirmationModal

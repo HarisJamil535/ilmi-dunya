@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import PublishingFields from "../components/PublishingFields";
 import { FileText, Loader2, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "@/context/AppContext";
@@ -70,6 +69,7 @@ const NotesManagement = () => {
 
     const saveNote = async (noteType) => {
         setError("");
+        if (!selectedChapter || !metadata[noteType]?.title?.trim()) return setError("Choose a chapter and enter a notes title.");
         const pdfUrl = urls[noteType]?.trim();
         if (!isValidUrl(pdfUrl)) return setError("Enter a valid PDF URL.");
         setSavingType(noteType);
@@ -104,7 +104,7 @@ const NotesManagement = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50/60 p-6 md:p-8 text-slate-800">
+        <div className="min-h-screen bg-slate-50/60 p-3 sm:p-6 md:p-8 text-slate-800">
             <div className="mx-auto max-w-6xl space-y-6">
                 <header className="rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-muted p-6 text-white shadow-md">
                     <div className="flex items-center gap-3">
@@ -116,8 +116,8 @@ const NotesManagement = () => {
                     </div>
                 </header>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="grid gap-4 md:grid-cols-5">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                         <CustomSelect label="Board" value={selectedBoard} onChange={setSelectedBoard} options={boards} placeholder="Select Board" isLoading={isLoadingContext} />
                         <CustomSelect label="Class" value={selectedClass} onChange={setSelectedClass} options={classes} placeholder="Select Class" isLoading={isLoadingContext} />
                         <CustomSelect label="Group" value={selectedGroup} onChange={setSelectedGroup} options={groups} placeholder="Select Group" isLoading={isLoadingContext} />
@@ -128,15 +128,16 @@ const NotesManagement = () => {
 
                 {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p>}
 
+                {!selectedChapter && <p className="text-sm text-slate-500">Choose a board, class, group, subject and chapter above to manage its notes.</p>}
                 <section className="grid gap-5">
                     {Object.entries(noteTypeLabels).map(([noteType, label]) => {
                         const existingNote = notes.find((note) => note.noteType === noteType);
                         return (
                             <div key={noteType} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <h2 className="text-lg font-black text-slate-900">{label}</h2>
-                                <p className="mt-1 text-xs text-slate-500">Add a PDF URL students can view and download.</p>
+                                <p className="mt-1 text-xs text-slate-500">Enter a clear title and a public PDF link. Save each notes type separately.</p>
                                 <label className="mt-4 block text-sm font-semibold">Notes title
-                                    <input className="input" value={metadata[noteType]?.title || ""} placeholder="FBISE Class 10 Physics - Chapter 2 Short Questions" onChange={e => setMetadata(current => ({ ...current, [noteType]: { ...current[noteType], title: e.target.value } }))} />
+                                    <input maxLength={180} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" value={metadata[noteType]?.title || ""} placeholder="FBISE Class 10 Physics - Chapter 2 Short Questions" onChange={e => setMetadata(current => ({ ...current, [noteType]: { ...current[noteType], title: e.target.value } }))} />
                                 </label>
                                 <input
                                     aria-label={`${label} PDF URL`}
@@ -145,13 +146,12 @@ const NotesManagement = () => {
                                     placeholder="https://example.com/notes.pdf"
                                     className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary"
                                 />
-                                <PublishingFields kind="notes" value={metadata[noteType] || {}} title={metadata[noteType]?.title || label} onChange={patch => setMetadata(current => ({ ...current, [noteType]: { ...current[noteType], ...patch } }))} />
                                 <div className="mt-4 flex gap-2">
                                     {existingNote && <a href={existingNote.pdfUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">View</a>}
-                                    <button disabled={!selectedChapter || savingType === noteType} onClick={() => saveNote(noteType)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+                                    <button disabled={!selectedChapter || Boolean(savingType) || !isValidUrl(urls[noteType]?.trim()) || !metadata[noteType]?.title?.trim() || metadata[noteType].title.trim().length > 180} onClick={() => saveNote(noteType)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
                                         {savingType === noteType ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
                                     </button>
-                                    {existingNote && <DeleteButton onClick={() => deleteNote(noteType)} disabled={savingType === noteType} />}
+                                    {existingNote && <DeleteButton onClick={() => deleteNote(noteType)} disabled={Boolean(savingType)} />}
                                 </div>
                             </div>
                         );

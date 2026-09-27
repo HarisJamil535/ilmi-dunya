@@ -25,6 +25,8 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
         setFormError("");
     }, [editingSubject, isOpen]);
 
+    const canSave = Boolean(name.trim() && name.trim().length <= maxNameLength && code.trim().length <= maxCodeLength && selectedBoard && selectedClass && selectedGroup);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
@@ -109,6 +111,7 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <p className="text-sm leading-6 text-slate-500">Enter the subject name as it appears in the syllabus. The code is optional.</p>
                     <div>
                         <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
                             Subject Name <span className="text-rose-500">*</span>
@@ -158,7 +161,7 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !canSave}
                             className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors disabled:opacity-70 cursor-pointer"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

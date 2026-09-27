@@ -34,7 +34,7 @@ module.exports = kind => async (req, res, next) => {
             const duplicate = await PastPaper.exists({ ...(existing ? { _id: { $ne: existing._id } } : {}), board: req.body.board, class: req.body.class, group: req.body.group, subject: req.body.subject, year, session: req.body.session, title: String(req.body.title || '').trim() });
             if (duplicate) fail('This past paper already exists. Edit that paper or distinguish its paper/part in the title.', 409);
         }
-        req.publication = publication(req.body, { existing: existing || {}, requireSummary: true });
+        req.publication = publication(req.body, { existing: existing || {} });
         next();
     } catch (error) { next(error); }
 };
