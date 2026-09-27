@@ -112,7 +112,7 @@ function QuestionList({ topic, type, onTopicName }) {
                 {String(index + 1).padStart(2, "0")}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="whitespace-pre-wrap text-base font-semibold leading-8 text-slate-900">
+                <p dir={question.language === "ur" ? "rtl" : "ltr"} lang={question.language === "ur" ? "ur" : "en"} className={`whitespace-pre-wrap text-base font-semibold leading-8 text-slate-900 ${question.language === "ur" ? "urdu-content text-xl" : ""}`}>
                   {question.questionText}
                 </p>
                 {(question.examYear || question.examSession) && (

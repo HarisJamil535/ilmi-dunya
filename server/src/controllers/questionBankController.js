@@ -81,6 +81,7 @@ const cleanQuestionPayload = (body, adminId) => {
         .filter((option) => option.key && option.text);
 
     payload.correctOption = String(payload.correctOption || "").trim().toUpperCase();
+    payload.language = body.language === "ur" ? "ur" : "en";
     payload.marks = Number(payload.marks || 1);
     payload.estimatedTimeSeconds = Number(payload.estimatedTimeSeconds || 60);
     payload.negativeMarks = Number(payload.negativeMarks || 0);
@@ -284,12 +285,14 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
         const scenarioDoc = await QuestionScenario.findOneAndUpdate({
             title: scenarioTitle,
             scenarioText,
+            language: row.language === "ur" ? "ur" : "en",
             subject: values.subject,
             chapter: values.chapter,
             topic: values.topic,
         }, {
             title: scenarioTitle,
             scenarioText,
+            language: row.language === "ur" ? "ur" : "en",
             subject: values.subject,
             chapter: values.chapter,
             topic: values.topic,
@@ -306,6 +309,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
         examSession: row.examSession,
         type: row.type || "standard_mcq",
         questionText: row.questionText,
+        language: row.language === "ur" ? "ur" : "en",
         options: [
             { key: "A", text: row.optionA },
             { key: "B", text: row.optionB },
@@ -355,7 +359,7 @@ const getPublicTopicQuestions = async (req, res) => {
         if (!["long_question", "short_question"].includes(contentType)) return res.status(400).json({ message: "Choose long or short questions." });
         const questions = await Question.find({ ...filter, status: "published", contentType })
             .sort({ examYear: -1, _id: 1 })
-            .select("questionText contentType examYear examSession")
+            .select("questionText language contentType examYear examSession")
             .lean();
         res.json({ success: true, questions, topic: { name: topic.name, chapter: chapter._id } });
     } catch (error) {
@@ -449,6 +453,7 @@ const normalizeImportRow = (source, kind) => {
     row.type = row.contentType === "mcq" ? kind || row.type || "standard_mcq" : "standard_mcq";
     row.correctOption = String(row.correctOption || "").toUpperCase();
     row.examSession = String(row.examSession || "").toLowerCase();
+    row.language = String(row.language || "en").toLowerCase();
     delete row.scenario;
     return row;
 };
@@ -456,6 +461,7 @@ const normalizeImportRow = (source, kind) => {
 const validateImportRow = (row, context) => {
     const errors = [];
     if (!String(row.questionText || "").trim()) errors.push("Question text is required.");
+    if (!['en', 'ur'].includes(row.language)) errors.push('Language must be en or ur.');
     if (!["mcq", "short_question", "long_question"].includes(row.contentType)) errors.push("Invalid question type.");
     if (row.contentType === "mcq") {
         if (!["standard_mcq", "scenario_mcq"].includes(row.type)) errors.push("Invalid MCQ type.");
@@ -544,12 +550,12 @@ const downloadImportTemplate = async (req, res) => {
     const kind = req.query?.kind || "standard_mcq";
     if (!importKinds.includes(kind)) return res.status(400).json({ message: "Choose a valid question type." });
     const written = ["short_question", "long_question"].includes(kind);
-    const simpleHeaders = written ? ["questionText", "examYear", "examSession"] : ["questionText", "optionA", "optionB", "optionC", "optionD", "correctOption", "explanation"];
+    const simpleHeaders = written ? ["questionText", "examYear", "examSession", "language"] : ["questionText", "optionA", "optionB", "optionC", "optionD", "correctOption", "explanation", "language"];
     let sampleRows = [
-        ["What type of motion repeats after equal intervals of time?", "Periodic motion", "Random motion", "Linear motion", "Projectile motion", "A", "Periodic motion repeats after equal intervals of time."],
-        ["What is the time taken for one complete oscillation called?", "Frequency", "Time period", "Amplitude", "Speed", "B", "The time period is the time taken to complete one oscillation."],
+        ["What type of motion repeats after equal intervals of time?", "Periodic motion", "Random motion", "Linear motion", "Projectile motion", "A", "Periodic motion repeats after equal intervals of time.", "en"],
+        ["What is the time taken for one complete oscillation called?", "Frequency", "Time period", "Amplitude", "Speed", "B", "The time period is the time taken to complete one oscillation.", "en"],
     ];
-    if (written) sampleRows = [[kind === "short_question" ? "Define periodic motion." : "Explain periodic motion with examples and describe the time period of a pendulum.", 2025, "morning"], [kind === "short_question" ? "What is one oscillation?" : "Describe an experiment to measure the time period of a pendulum.", "", ""]];
+    if (written) sampleRows = [[kind === "short_question" ? "Define periodic motion." : "Explain periodic motion with examples and describe the time period of a pendulum.", 2025, "morning", "en"], [kind === "short_question" ? "What is one oscillation?" : "Describe an experiment to measure the time period of a pendulum.", "", "", "en"]];
     if (kind === "scenario_mcq") {
         simpleHeaders.push("scenarioTitle", "scenarioText");
         sampleRows = sampleRows.map((row) => [...row, "Pendulum experiment", "A student observes a pendulum moving back and forth at regular intervals. Read this passage and answer the related questions."]);

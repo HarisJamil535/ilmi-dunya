@@ -180,7 +180,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           </div>
 
           {scenario && (
-            <div className="mb-6 rounded-2xl border border-primary-soft bg-primary-soft p-4">
+            <div dir={question?.language === "ur" ? "rtl" : "ltr"} lang={question?.language === "ur" ? "ur" : "en"} className={`mb-6 rounded-2xl border border-primary-soft bg-primary-soft p-4 ${question?.language === "ur" ? "urdu-content" : ""}`}>
               <p className="mb-2 text-sm font-bold text-primary-dark">Read this scenario and answer {scenarioIndices.length === 1 ? "the following question" : `the following ${scenarioIndices.length} questions`}.</p>
               <h2 className="font-black text-primary-dark">{scenario.title}</h2>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-primary-dark">{scenario.scenarioText}</p>
@@ -189,7 +189,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           )}
 
           <p className="text-sm font-black text-primary">Question {currentIndex + 1} of {answers.length}</p>
-          <h2 className="mt-3 text-xl font-black leading-8 text-slate-950">{question?.questionText}</h2>
+          <h2 dir={question?.language === "ur" ? "rtl" : "ltr"} lang={question?.language === "ur" ? "ur" : "en"} className={`mt-3 text-xl font-black leading-8 text-slate-950 ${question?.language === "ur" ? "urdu-content text-2xl" : ""}`}>{question?.questionText}</h2>
 
           <div className="mt-6 grid gap-3">
             {question?.options?.map((option) => {
@@ -200,7 +200,9 @@ const AssessmentPlayer = ({ chapter, topic }) => {
                   disabled={saving || submitting || remaining <= 0}
                   aria-pressed={active}
                   onClick={() => saveAnswer({ selectedOption: option.key, skipped: false })}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                  dir={question?.language === "ur" ? "rtl" : "ltr"}
+                  lang={question?.language === "ur" ? "ur" : "en"}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 transition ${question?.language === "ur" ? "urdu-content text-right" : "text-left"} ${
                     active ? "border-primary-muted bg-primary-soft text-primary-dark" : "border-slate-200 bg-white hover:border-primary-muted hover:bg-slate-50"
                   }`}
                 >

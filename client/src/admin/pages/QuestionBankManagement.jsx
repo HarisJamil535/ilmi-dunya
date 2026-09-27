@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Download, FileSpreadsheet, Loader2, Plus, Save, SearchX, Upload, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, Download, FileSpreadsheet, Languages, Loader2, Plus, Save, SearchX, Upload, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -14,6 +14,7 @@ const defaultForm = {
   type: "standard_mcq",
   contentType: "mcq",
   questionText: "",
+  language: "en",
   options: optionKeys.map((key) => ({ key, text: "" })),
   correctOption: "A",
   explanation: "",
@@ -69,6 +70,7 @@ const normalizeQuestionForForm = (question) => {
     contentType,
     type: question.type || "standard_mcq",
     questionText: question.questionText || "",
+    language: question.language || "en",
     options: optionKeys.map((key) => ({ key, text: optionMap.get(key) || "" })),
     correctOption: question.correctOption || "A",
     explanation: question.explanation || "",
@@ -111,6 +113,7 @@ const QuestionBankManagement = () => {
   const [error, setError] = useState("");
 
   const isMcq = form.mode === "mcq";
+  const isUrdu = form.language === "ur";
   const isEditing = Boolean(form.id);
   const writtenImport = ["short_question", "long_question"].includes(importKind);
   const canImportQuestions = Boolean(form.board && form.class && form.group && form.subject && form.chapter && (!writtenImport || form.topic));
@@ -277,6 +280,7 @@ const QuestionBankManagement = () => {
       const response = await axiosInstance.post("/questions/scenarios", {
         title: form.scenarioTitle.trim(),
         scenarioText: form.scenarioText.trim(),
+        language: form.language,
         subject: form.subject,
         chapter: form.chapter || undefined,
         topic: form.topic || undefined,
@@ -331,6 +335,7 @@ const QuestionBankManagement = () => {
         subject: form.subject,
         chapter: form.chapter,
         topic: form.topic,
+        language: form.language,
       });
       await loadQuestions();
     } catch (err) {
@@ -519,6 +524,17 @@ const QuestionBankManagement = () => {
             )}
           </div>
 
+          <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-primary-muted bg-primary-soft/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-primary shadow-sm"><Languages className="h-5 w-5" /></span>
+              <div><p className="text-sm font-black text-slate-950">Question language</p><p className="mt-1 text-xs font-semibold leading-5 text-slate-500">Choose Urdu to enable right-to-left writing and the Urdu reading font for students.</p></div>
+            </div>
+            <div className="inline-flex shrink-0 rounded-xl border border-primary-muted bg-white p-1" role="group" aria-label="Question language">
+              <button type="button" aria-pressed={!isUrdu} onClick={() => setForm({ ...form, language: "en" })} className={`rounded-lg px-4 py-2 text-sm font-black ${!isUrdu ? "bg-primary text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"}`}>English</button>
+              <button type="button" aria-pressed={isUrdu} onClick={() => setForm({ ...form, language: "ur" })} className={`urdu-content rounded-lg px-5 py-2 text-base font-bold ${isUrdu ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>اردو</button>
+            </div>
+          </div>
+
           {!isMcq && (
             <div className="mb-5">
               <Field label="Exam Year" helper="Optional. Example: 2025">
@@ -559,16 +575,16 @@ const QuestionBankManagement = () => {
                 )}
               </div>
               {form.scenario ? (
-                <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
+                <p dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-4 whitespace-pre-wrap rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700 ${isUrdu ? "urdu-content text-right" : ""}`}>
                   {scenarios.find((item) => item._id === form.scenario)?.scenarioText || "Scenario selected."}
                 </p>
               ) : (
                 <div className="mt-4 grid gap-4">
                   <Field label="New Scenario Title" helper="Example: Read the passage about force and motion.">
-                    <input className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary" value={form.scenarioTitle} onChange={(event) => setForm({ ...form, scenarioTitle: event.target.value })} placeholder="Scenario title" />
+                    <input dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary ${isUrdu ? "urdu-content text-right" : ""}`} value={form.scenarioTitle} onChange={(event) => setForm({ ...form, scenarioTitle: event.target.value })} placeholder={isUrdu ? "عنوان لکھیں" : "Scenario title"} />
                   </Field>
                   <Field label="Scenario Passage" helper="Write the shared passage, case or diagram description.">
-                    <textarea className="min-h-28 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary" value={form.scenarioText} onChange={(event) => setForm({ ...form, scenarioText: event.target.value })} placeholder="Scenario passage" />
+                    <textarea dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`min-h-28 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary ${isUrdu ? "urdu-content text-right" : ""}`} value={form.scenarioText} onChange={(event) => setForm({ ...form, scenarioText: event.target.value })} placeholder={isUrdu ? "عبارت یہاں لکھیں" : "Scenario passage"} />
                   </Field>
                 </div>
               )}
@@ -577,7 +593,7 @@ const QuestionBankManagement = () => {
 
           <div className="mt-5">
             <Field label="Question Text" helper="Write exactly what the student will see.">
-              <textarea required className="mt-2 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft" value={form.questionText} onChange={(event) => setForm({ ...form, questionText: event.target.value })} placeholder="Question text" />
+              <textarea required dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.questionText} onChange={(event) => setForm({ ...form, questionText: event.target.value })} placeholder={isUrdu ? "سوال یہاں لکھیں" : "Question text"} />
             </Field>
           </div>
 
@@ -586,7 +602,7 @@ const QuestionBankManagement = () => {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {form.options.map((option, index) => (
                   <Field key={option.key} label={`Option ${option.key}`} helper={index < 2 ? "Required" : "Optional"}>
-                    <input className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft" value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={`Option ${option.key}`} />
+                    <input dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={isUrdu ? `جواب ${option.key}` : `Option ${option.key}`} />
                   </Field>
                 ))}
               </div>
@@ -607,7 +623,7 @@ const QuestionBankManagement = () => {
               </div>
 
               <Field label="Explanation" helper="Shown after result. Keep it short and helpful.">
-                <textarea className="mt-2 min-h-20 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft" value={form.explanation} onChange={(event) => setForm({ ...form, explanation: event.target.value })} placeholder="Why is this answer correct?" />
+                <textarea dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-20 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.explanation} onChange={(event) => setForm({ ...form, explanation: event.target.value })} placeholder={isUrdu ? "صحیح جواب کی وضاحت لکھیں" : "Why is this answer correct?"} />
               </Field>
             </>
           ) : (
@@ -717,10 +733,11 @@ const QuestionBankManagement = () => {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span>
+                        {question.language === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
                         <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
                         {question.scenario?.title && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Scenario: {question.scenario.title}</span>}
                       </div>
-                      <p className="mt-2 font-black leading-7 text-slate-950">{question.questionText}</p>
+                      <p dir={question.language === "ur" ? "rtl" : "ltr"} lang={question.language === "ur" ? "ur" : "en"} className={`mt-2 font-black leading-7 text-slate-950 ${question.language === "ur" ? "urdu-content text-xl" : ""}`}>{question.questionText}</p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-wider text-slate-400">
                         {question.subject?.name || "Subject"} / {question.chapter?.name || "Chapter"}{question.topic?.name ? ` / ${question.topic.name}` : ""} / {question.marks || 1} marks
                       </p>
