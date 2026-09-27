@@ -94,7 +94,7 @@ const AssessmentResult = () => {
         </div>
         {!visible.length && <p className="py-8 text-center learning-muted">No questions in this category.</p>}
         {visible.map(({ answer, index }) => (
-          <article key={answer.question?._id || index} dir={answer.question?.language === "ur" ? "rtl" : "ltr"} lang={answer.question?.language === "ur" ? "ur" : "en"} className={`learning-question ${category(answer)} ${answer.question?.language === "ur" ? "urdu-content" : ""}`}>
+          <article key={answer.question?._id || index} dir={answer.question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={answer.question?.contentLanguage === "ur" ? "ur" : "en"} className={`learning-question ${category(answer)} ${answer.question?.contentLanguage === "ur" ? "urdu-content" : ""}`}>
             <div className="learning-question-meta"><span>QUESTION {index + 1} · {category(answer) === "wrong" ? "Incorrect" : category(answer) === "unanswered" ? "Unanswered" : "Correct"}</span><span>{formatScore(answer.marksAwarded)} marks earned</span></div>
             {answer.question?.scenario && <div className="learning-scenario"><strong>{answer.question.scenario.title}</strong><p>{answer.question.scenario.scenarioText}</p></div>}
             <h3>{answer.question?.questionText || "This question is no longer available."}</h3>

@@ -70,7 +70,7 @@ const normalizeQuestionForForm = (question) => {
     contentType,
     type: question.type || "standard_mcq",
     questionText: question.questionText || "",
-    language: question.language || "en",
+    language: question.contentLanguage || "en",
     options: optionKeys.map((key) => ({ key, text: optionMap.get(key) || "" })),
     correctOption: question.correctOption || "A",
     explanation: question.explanation || "",
@@ -280,7 +280,7 @@ const QuestionBankManagement = () => {
       const response = await axiosInstance.post("/questions/scenarios", {
         title: form.scenarioTitle.trim(),
         scenarioText: form.scenarioText.trim(),
-        language: form.language,
+        contentLanguage: form.language,
         subject: form.subject,
         chapter: form.chapter || undefined,
         topic: form.topic || undefined,
@@ -733,11 +733,11 @@ const QuestionBankManagement = () => {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span>
-                        {question.language === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
+                        {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
                         <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
                         {question.scenario?.title && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Scenario: {question.scenario.title}</span>}
                       </div>
-                      <p dir={question.language === "ur" ? "rtl" : "ltr"} lang={question.language === "ur" ? "ur" : "en"} className={`mt-2 font-black leading-7 text-slate-950 ${question.language === "ur" ? "urdu-content text-xl" : ""}`}>{question.questionText}</p>
+                      <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`mt-2 font-black leading-7 text-slate-950 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>{question.questionText}</p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-wider text-slate-400">
                         {question.subject?.name || "Subject"} / {question.chapter?.name || "Chapter"}{question.topic?.name ? ` / ${question.topic.name}` : ""} / {question.marks || 1} marks
                       </p>

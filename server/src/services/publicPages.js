@@ -74,7 +74,7 @@ async function publicPage(path, query = {}) {
         sections.push({ title: "Topics", links: topics.map(item => ({ ...link("topic", item), title: `${item.topicNumber} ${item.name}` })) }, { title: "Chapter notes", links: notes.map(item => link("notes", item)) }, { title: "MCQ tests", links: tests.map(item => link("mcqs", item)) });
         actions.push({ title: "Practise chapter MCQs", href: `/tests/start?chapter=${doc._id}` });
     } else if (kind === "topic") {
-        const rows = await Question.find({ topic: doc._id, status: "published", contentType: { $in: ["short_question", "long_question"] } }).select("questionText language contentType examYear examSession").sort({ contentType: 1, _id: 1 }).skip((page - 1) * size).limit(size + 1).lean();
+        const rows = await Question.find({ topic: doc._id, status: "published", contentType: { $in: ["short_question", "long_question"] } }).select("questionText contentLanguage contentType examYear examSession").sort({ contentType: 1, _id: 1 }).skip((page - 1) * size).limit(size + 1).lean();
         questions = rows.slice(0, size);
         hasNext = rows.length > size;
         actions.push({ title: "Practise topic MCQs", href: `/tests/start?topic=${doc._id}` });

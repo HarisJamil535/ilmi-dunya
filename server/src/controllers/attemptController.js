@@ -4,7 +4,7 @@ const Question = require("../models/Question");
 const LearningActivity = require("../models/LearningActivity");
 const { gradeAttempt } = require("../services/assessmentScoring");
 
-const attemptQuestionSelect = "type questionText language options difficulty marks estimatedTimeSeconds scenario";
+const attemptQuestionSelect = "type questionText contentLanguage options difficulty marks estimatedTimeSeconds scenario";
 
 const startAttempt = async (req, res) => {
     const { assessmentId, chapter, topic } = req.body;
@@ -77,7 +77,7 @@ const getAttemptById = async (req, res, id = req.params.id) => {
         .populate({
             path: "answers.question",
             select: attemptSelect(req),
-            populate: { path: "scenario", select: "title scenarioText language" },
+            populate: { path: "scenario", select: "title scenarioText contentLanguage" },
         })
         .lean();
 
@@ -172,7 +172,7 @@ const getResult = async (req, res) => {
         .populate("assessment", "title type totalMarks passingMarks showCorrectAnswers")
         .populate({
             path: "answers.question",
-            populate: { path: "scenario", select: "title scenarioText language" },
+            populate: { path: "scenario", select: "title scenarioText contentLanguage" },
         })
         .lean();
 

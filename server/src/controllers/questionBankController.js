@@ -81,7 +81,8 @@ const cleanQuestionPayload = (body, adminId) => {
         .filter((option) => option.key && option.text);
 
     payload.correctOption = String(payload.correctOption || "").trim().toUpperCase();
-    payload.language = body.language === "ur" ? "ur" : "en";
+    payload.contentLanguage = body.contentLanguage === "ur" || body.language === "ur" ? "ur" : "en";
+    delete payload.language;
     payload.marks = Number(payload.marks || 1);
     payload.estimatedTimeSeconds = Number(payload.estimatedTimeSeconds || 60);
     payload.negativeMarks = Number(payload.negativeMarks || 0);
@@ -285,14 +286,14 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
         const scenarioDoc = await QuestionScenario.findOneAndUpdate({
             title: scenarioTitle,
             scenarioText,
-            language: row.language === "ur" ? "ur" : "en",
+            contentLanguage: row.language === "ur" ? "ur" : "en",
             subject: values.subject,
             chapter: values.chapter,
             topic: values.topic,
         }, {
             title: scenarioTitle,
             scenarioText,
-            language: row.language === "ur" ? "ur" : "en",
+            contentLanguage: row.language === "ur" ? "ur" : "en",
             subject: values.subject,
             chapter: values.chapter,
             topic: values.topic,
@@ -309,7 +310,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
         examSession: row.examSession,
         type: row.type || "standard_mcq",
         questionText: row.questionText,
-        language: row.language === "ur" ? "ur" : "en",
+        contentLanguage: row.language === "ur" ? "ur" : "en",
         options: [
             { key: "A", text: row.optionA },
             { key: "B", text: row.optionB },
@@ -359,7 +360,7 @@ const getPublicTopicQuestions = async (req, res) => {
         if (!["long_question", "short_question"].includes(contentType)) return res.status(400).json({ message: "Choose long or short questions." });
         const questions = await Question.find({ ...filter, status: "published", contentType })
             .sort({ examYear: -1, _id: 1 })
-            .select("questionText language contentType examYear examSession")
+            .select("questionText contentLanguage contentType examYear examSession")
             .lean();
         res.json({ success: true, questions, topic: { name: topic.name, chapter: chapter._id } });
     } catch (error) {

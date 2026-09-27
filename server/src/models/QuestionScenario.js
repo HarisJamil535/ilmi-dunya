@@ -4,7 +4,7 @@ const questionScenarioSchema = new mongoose.Schema(
     {
         title: { type: String, required: true, trim: true, maxlength: 160 },
         scenarioText: { type: String, required: true, trim: true },
-        language: { type: String, enum: ["en", "ur"], default: "en" },
+        contentLanguage: { type: String, enum: ["en", "ur"], default: "en" },
         subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
         chapter: { type: mongoose.Schema.Types.ObjectId, ref: "Chapter" },
         topic: { type: mongoose.Schema.Types.ObjectId, ref: "Topic" },

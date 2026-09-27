@@ -13,7 +13,7 @@ const questionSchema = new mongoose.Schema(
         type: { type: String, enum: ["standard_mcq", "scenario_mcq"], default: "standard_mcq" },
         contentType: { type: String, enum: ["mcq", "long_question", "short_question"], default: "mcq" },
         questionText: { type: String, required: true, trim: true },
-        language: { type: String, enum: ["en", "ur"], default: "en", index: true },
+        contentLanguage: { type: String, enum: ["en", "ur"], default: "en", index: true },
         options: {
             type: [optionSchema],
             validate: [function (value) { return ["long_question", "short_question"].includes(this.contentType) || value.length >= 2; }, "At least two options are required"],
