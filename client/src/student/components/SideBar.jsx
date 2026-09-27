@@ -153,7 +153,7 @@ const SideBar = ({ drawerMode = false }) => {
         className={`fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 ${drawerMode ? "" : "lg:hidden"} ${isMobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
       />
 
-      <div className={`fixed inset-x-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[60] flex max-h-[min(82dvh,680px)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${drawerMode ? "sm:inset-x-auto sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2" : "lg:static lg:z-auto lg:max-h-[calc(100vh-96px)] lg:translate-x-0 lg:translate-y-0 lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60"} ${isMobileOpen ? `${drawerMode ? "sm:-translate-x-1/2" : ""} translate-y-0 opacity-100` : `pointer-events-none translate-y-[110%] opacity-0 ${drawerMode ? "sm:-translate-x-1/2" : "lg:pointer-events-auto"}`}`}>
+      <div className={`fixed inset-x-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[60] flex h-[min(84dvh,700px)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${drawerMode ? "sm:inset-x-auto sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2" : "lg:static lg:z-auto lg:h-auto lg:max-h-[calc(100vh-96px)] lg:translate-x-0 lg:translate-y-0 lg:p-5 lg:opacity-100 lg:shadow-xl lg:shadow-slate-200/60"} ${isMobileOpen ? `${drawerMode ? "sm:-translate-x-1/2" : ""} translate-y-0 opacity-100` : `pointer-events-none translate-y-[110%] opacity-0 ${drawerMode ? "sm:-translate-x-1/2" : "lg:pointer-events-auto"}`}`}>
       {/* Title */}
       <button
         type="button"
@@ -177,7 +177,8 @@ const SideBar = ({ drawerMode = false }) => {
       {/* Main Filter Sections */}
       <div
         id="study-filter-options"
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+        className="min-h-0 flex-1 touch-pan-y overflow-y-scroll overscroll-contain pr-1 [scrollbar-gutter:stable]"
+        style={{ WebkitOverflowScrolling: "touch" }}
       >
       {isLoading ? (
         <div className="flex min-h-40 flex-grow flex-col items-center justify-center gap-3 rounded-2xl border border-primary-soft bg-primary-soft/40 text-gray-400">
@@ -185,7 +186,7 @@ const SideBar = ({ drawerMode = false }) => {
           <span className="text-xs font-bold text-slate-500">Loading filters...</span>
         </div>
       ) : (
-        <div className="space-y-3 pb-2 lg:space-y-4">
+        <div className="space-y-3 pb-5 lg:space-y-4">
           {filterCategories.map((category) => (
             <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
               {/* Category Header (Icon + Label) */}
@@ -227,7 +228,10 @@ const SideBar = ({ drawerMode = false }) => {
         </div>
       )}
       </div>
-      <button type="button" onClick={() => setIsMobileOpen(false)} className={`mt-3 w-full shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white ${drawerMode ? "" : "lg:hidden"}`}>Show results</button>
+      <div className={`shrink-0 border-t border-slate-100 bg-white pt-3 ${drawerMode ? "" : "lg:hidden"}`}>
+        <p className="mb-2 text-center text-[11px] font-bold text-slate-400">Scroll to view class, board and group options</p>
+        <button type="button" onClick={() => setIsMobileOpen(false)} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-black text-white">Show results</button>
+      </div>
       </div>
     </aside>
   );
