@@ -5,6 +5,7 @@ import { CustomSelect } from "../components/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
 import SmartSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 const optionKeys = ["A", "B", "C", "D"];
 
@@ -111,6 +112,7 @@ const QuestionBankManagement = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [questionToDelete, setQuestionToDelete] = useState(null);
 
   const isMcq = form.mode === "mcq";
   const isUrdu = form.language === "ur";
@@ -355,7 +357,8 @@ const QuestionBankManagement = () => {
     try {
       await axiosInstance.delete(`/questions/${id}`);
       if (form.id === id) resetForm();
-      setMessage("Question deleted successfully.");
+      setQuestionToDelete(null);
+      setMessage("Question removed from new tests. Previous student attempts are preserved.");
       await loadQuestions();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to delete question.");
@@ -757,7 +760,7 @@ const QuestionBankManagement = () => {
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <EditButton onClick={() => editQuestion(question)} title="Edit question" />
-                      <DeleteButton onClick={() => deleteQuestion(question._id)} disabled={saving} title="Delete question" />
+                      <DeleteButton onClick={() => setQuestionToDelete(question)} disabled={saving} title="Delete question" />
                     </div>
                   </div>
                 </article>
@@ -827,6 +830,17 @@ const QuestionBankManagement = () => {
           )}
         </section>
       </div>
+      <DeleteConfirmationModal
+        isOpen={Boolean(questionToDelete)}
+        onClose={() => setQuestionToDelete(null)}
+        onConfirm={() => deleteQuestion(questionToDelete?._id)}
+        itemName={questionToDelete?.questionText || "this question"}
+        entityName="Question"
+        actionVerb="archive"
+        confirmLabel="Archive question"
+        isDeleting={saving}
+        description="It will be removed from new tests and archived in the question bank. Existing student attempts and their results will be kept. Tests left with no questions will be archived."
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ const {
     logoutAdmin,
     getLoggedInAdmin,
     getDashboard,
+    listStudents,
     listAdmins,
     createAdmin,
     updateAdmin,
@@ -23,6 +24,7 @@ router.post("/reset-password", resetAdminPassword);
 router.get("/me", authMiddleware, getLoggedInAdmin);
 router.post("/logout", authMiddleware, logoutAdmin);
 router.get("/dashboard", authMiddleware, getDashboard);
+router.get("/students", authMiddleware.requireSuperAdmin, listStudents);
 router.get("/leaderboard", authMiddleware.requireSuperAdmin, getLeaderboardAdminSummary);
 router.post("/leaderboard/reset", authMiddleware.requireSuperAdmin, resetLeaderboard);
 

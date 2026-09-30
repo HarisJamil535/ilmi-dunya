@@ -34,6 +34,7 @@ const standardSidebarItems = [
   { id: 16, label: "MCQ Tests", icon: HiOutlineClipboardCheck, path:'assessments/builder' },
   { id: 17, label: "Analytics", icon: HiOutlineChartPie, path:'assessments/analytics' },
   { id: 18, label: "Education News", icon: HiOutlineNewspaper, path:'home-content/news' },
+  { id: 19, label: "Students", icon: HiOutlineUserGroup, path:'students', superAdminOnly: true },
 ];
 
 const AdminSidebar = () => {
@@ -216,7 +217,7 @@ const AdminSidebar = () => {
           </div>
 
           {/* REMAINING STANDARD SIDEBAR ITEMS */}
-          {standardSidebarItems.map((item) => {
+          {standardSidebarItems.filter((item) => !item.superAdminOnly || adminUser?.role === "super_admin").map((item) => {
             const Icon = item.icon;
             const active = activeItem === item.id || isPathActive(item.path);
 

@@ -140,6 +140,29 @@ const getDashboard = async (req, res) => {
     });
 };
 
+const listStudents = async (req, res) => {
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 25, 1), 100);
+    const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
+    const filter = {};
+    if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const pattern = new RegExp(escaped, "i");
+        filter.$or = ["name", "email", "phone", "city", "school", "gender"].map((field) => ({ [field]: pattern }));
+    }
+    const [students, total] = await Promise.all([
+        Student.find(filter)
+            .select("name email phone gender city school board class group enrolledSubjects status isEmailVerified lastLoginAt createdAt")
+            .populate("board class group enrolledSubjects", "name classNumber")
+            .sort({ createdAt: -1, _id: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean(),
+        Student.countDocuments(filter),
+    ]);
+    res.json({ success: true, students, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+};
+
 const listAdmins = async (req, res) => {
     const admins = await Admin.find().sort({ role: -1, createdAt: -1 }).lean();
     res.json({ success: true, admins: admins.map(safeAdmin), permissions: Admin.permissions });
@@ -275,6 +298,7 @@ module.exports = {
     logoutAdmin,
     getLoggedInAdmin,
     getDashboard,
+    listStudents,
     listAdmins,
     createAdmin,
     updateAdmin,

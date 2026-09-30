@@ -7,6 +7,7 @@ const studentSchema = new mongoose.Schema(
         password: { type: String, required: true, select: false },
         tokenVersion: { type: Number, default: 0, select: false },
         phone: { type: String, required: true, trim: true },
+        gender: { type: String, enum: ["female", "male", "other", "prefer_not_to_say"] },
         city: { type: String, required: true, trim: true, maxlength: 80 },
         school: { type: String, required: true, trim: true, maxlength: 160 },
         board: { type: mongoose.Schema.Types.ObjectId, ref: "Board" },

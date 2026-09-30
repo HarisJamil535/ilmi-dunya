@@ -19,6 +19,7 @@ const safeStudent = (student) => ({
     name: student.name,
     email: student.email,
     phone: student.phone,
+    gender: student.gender,
     city: student.city,
     school: student.school,
     board: student.board,
@@ -29,7 +30,7 @@ const safeStudent = (student) => ({
 
 const registerStudent = async (req, res) => {
     try {
-        const { name, email, password, phone, city, school, board, class: classId, group } = req.body;
+        const { name, email, password, phone, gender, city, school, board, class: classId, group } = req.body;
 
         if (![name, email, phone, city, school, password].every(value => typeof value === 'string' && value.trim())) {
             return res.status(400).json({ success: false, message: "Name, email, phone, city, school and password are required." });
@@ -38,6 +39,7 @@ const registerStudent = async (req, res) => {
         const normalizedEmail = email.toLowerCase().trim();
         if (!emailPattern.test(normalizedEmail)) return res.status(400).json({ success: false, message: "Enter a valid email address." });
         if (!phonePattern.test(phone.trim())) return res.status(400).json({ success: false, message: "Enter a valid phone number." });
+        if (gender && !["female", "male", "other", "prefer_not_to_say"].includes(gender)) return res.status(400).json({ success: false, message: "Choose a valid gender option." });
         if (name.trim().length < 2 || name.trim().length > 80 || city.trim().length < 2 || school.trim().length < 2) {
             return res.status(400).json({ success: false, message: "Enter a valid name, city and school or Private Candidate." });
         }
@@ -56,6 +58,7 @@ const registerStudent = async (req, res) => {
             email: normalizedEmail,
             password: hashedPassword,
             phone: phone.trim(),
+            gender: gender || undefined,
             city: city.trim(),
             school: school.trim(),
             board: board || undefined,

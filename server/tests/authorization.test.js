@@ -28,6 +28,14 @@ test('admin writes require an active permitted session and reject student tokens
     assert.equal(passed, true);
 });
 
+test('student directory rejects authenticated content admins', async t => {
+    const admin = { status: 'active', role: 'admin', currentSessionId: 'current', permissions: ['assessments'] };
+    t.mock.method(Admin, 'findById', () => ({ select: async () => admin }));
+    const res = response();
+    await adminAuth.requireSuperAdmin(request({ id: 'content-admin', role: 'admin', sid: 'current' }), res, () => assert.fail('Content admin accessed student directory'));
+    assert.equal(res.code, 403);
+});
+
 test('student password reset versions revoke old tokens', async t => {
     t.mock.method(Student, 'findById', () => ({ select: async () => ({ status: 'active', tokenVersion: 2 }) }));
     const res = response();
@@ -50,6 +58,7 @@ test('mounted private and write APIs reject missing authentication before databa
             ['POST', '/api/resources/books'], ['POST', '/api/resources/past-papers'], ['POST', '/api/resources/chapter-notes'],
             ['POST', '/api/news'], ['POST', '/api/questions'], ['POST', '/api/assessments'],
             ['GET', '/api/admin/me'], ['GET', '/api/students/me'], ['POST', '/api/attempts/start'],
+            ['GET', '/api/admin/students'],
             ['GET', '/api/home-content/testimonials'], ['GET', '/api/home-content/stats'], ['GET', '/api/student-dashboard/summary'],
         ];
         for (const [method, path] of routes) {

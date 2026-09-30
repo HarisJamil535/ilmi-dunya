@@ -4,6 +4,8 @@ import axiosInstance from "@/api/axios";
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../components/CustomSelect";
 import SmartSelect from "../../shared/CustomSelect";
+import { DeleteButton } from "../components/AdminUI";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 const Field = ({ label, helper, children }) => (
   <label className="block">
@@ -41,6 +43,8 @@ const AssessmentBuilder = () => {
   const [topics, setTopics] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [questionFilters, setQuestionFilters] = useState({ search: "", difficulty: "", type: "" });
+  const [assessmentToArchive, setAssessmentToArchive] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
@@ -112,11 +116,14 @@ const AssessmentBuilder = () => {
       if (subject) params.set("subject", subject);
       if (chapter) params.set("chapter", chapter);
       if (topic) params.set("topic", topic);
+      if (questionFilters.search.trim()) params.set("search", questionFilters.search.trim());
+      if (questionFilters.difficulty) params.set("difficulty", questionFilters.difficulty);
+      if (questionFilters.type) params.set("type", questionFilters.type);
       const response = await axiosInstance.get(`/questions?mcqOnly=true&limit=100&${params.toString()}`);
       setQuestions(sortQuestions(response.data.questions || []));
     };
     loadQuestions().catch(() => setError("Some test builder data could not be loaded. Please refresh and try again."));
-  }, [board, classId, group, subject, chapter, topic, form.type]);
+  }, [board, classId, group, subject, chapter, topic, form.type, questionFilters]);
 
   const totalMarks = useMemo(
     () => selected.reduce((sum, id) => sum + (questions.find((question) => question._id === id)?.marks || 1), 0),
@@ -152,6 +159,14 @@ const AssessmentBuilder = () => {
     setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   };
 
+  const toggleVisibleQuestions = () => {
+    const visibleIds = questions.map((question) => question._id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
+    setSelected((current) => allVisibleSelected
+      ? current.filter((id) => !visibleIds.includes(id))
+      : [...new Set([...current, ...visibleIds])]);
+  };
+
   const publishAssessment = async (assessment) => {
     setError("");
     try {
@@ -159,6 +174,21 @@ const AssessmentBuilder = () => {
       setAssessments((current) => sortByTitle(current.map((item) => item._id === assessment._id ? response.data.assessment : item)));
     } catch (err) {
       setError(err.response?.data?.message || "Unable to publish this test. Please check its questions and try again.");
+    }
+  };
+
+  const archiveAssessment = async () => {
+    if (!assessmentToArchive) return;
+    setSaving(true);
+    setError("");
+    try {
+      await axiosInstance.delete(`/assessments/${assessmentToArchive._id}`);
+      setAssessments((current) => current.filter((item) => item._id !== assessmentToArchive._id));
+      setAssessmentToArchive(null);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to archive this test.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -232,6 +262,24 @@ const AssessmentBuilder = () => {
             <div className="mt-6">
               <h2 className="mb-1 text-sm font-black uppercase tracking-wider text-slate-700">Add from Question Bank</h2>
               <p className="mb-3 text-xs leading-5 text-slate-500">Only questions that match the selected syllabus context are shown. Saving a question here does not publish it by itself.</p>
+              <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Field label="Find a question">
+                  <input value={questionFilters.search} onChange={(event) => setQuestionFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search question text" className="min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm" />
+                </Field>
+                <Field label="Difficulty">
+                  <SmartSelect value={questionFilters.difficulty} onChange={(value) => setQuestionFilters((current) => ({ ...current, difficulty: value }))} options={[{ value: "easy", label: "Easy" }, { value: "medium", label: "Medium" }, { value: "hard", label: "Hard" }]} placeholder="Any difficulty" />
+                </Field>
+                <Field label="MCQ format">
+                  <SmartSelect value={questionFilters.type} onChange={(value) => setQuestionFilters((current) => ({ ...current, type: value }))} options={[{ value: "standard_mcq", label: "Standard MCQ" }, { value: "scenario_mcq", label: "Scenario MCQ" }]} placeholder="Any format" />
+                </Field>
+              </div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                <p className="text-xs font-bold text-slate-600">{questions.length} matching · {selected.length} selected for this test</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={toggleVisibleQuestions} disabled={!questions.length} className="rounded-lg px-3 py-2 text-xs font-black text-primary hover:bg-white disabled:opacity-50">Select all shown</button>
+                  <button type="button" onClick={() => setSelected([])} disabled={!selected.length} className="rounded-lg px-3 py-2 text-xs font-black text-slate-500 hover:bg-white disabled:opacity-50">Clear selection</button>
+                </div>
+              </div>
               <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
                 {!questions.length && <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Select board, class, group, subject and chapter to find matching MCQs.</p>}
                 {questions.map((question) => (
@@ -279,12 +327,26 @@ const AssessmentBuilder = () => {
                   <p className="font-black text-slate-900">{assessment.title}</p>
                   <p className="text-xs font-bold uppercase text-slate-400">{assessment.type.replaceAll("_", " ")} · {assessment.status} · {assessment.questionCount || assessment.questions?.length || 0} questions</p>
                 </div>
-                {assessment.status === "draft" && <div className="flex gap-2"><button type="button" onClick={() => editDraft(assessment)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700">Edit</button><button type="button" onClick={() => publishAssessment(assessment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"><Check size={15} />Publish test</button></div>}
+                <div className="flex items-center gap-2">
+                  {assessment.status === "draft" && <><button type="button" onClick={() => editDraft(assessment)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700">Edit</button><button type="button" onClick={() => publishAssessment(assessment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"><Check size={15} />Publish test</button></>}
+                  <DeleteButton onClick={() => setAssessmentToArchive(assessment)} title="Archive test" aria-label={`Archive ${assessment.title}`} />
+                </div>
               </div>
             ))}
           </div>
         </section>
       </div>
+      <DeleteConfirmationModal
+        isOpen={Boolean(assessmentToArchive)}
+        onClose={() => setAssessmentToArchive(null)}
+        onConfirm={archiveAssessment}
+        itemName={assessmentToArchive?.title || "this test"}
+        entityName="Test"
+        actionVerb="archive"
+        confirmLabel="Archive test"
+        isDeleting={saving}
+        description="This removes the test from student listings. Existing student attempts and results remain in the learning history."
+      />
     </div>
   );
 };

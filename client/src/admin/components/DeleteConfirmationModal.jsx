@@ -10,6 +10,8 @@ const DeleteConfirmationModal = ({
     entityName = "Item",
     isDeleting = false,
     description,
+    confirmLabel = "Delete Permanently",
+    actionVerb = "delete",
 }) => {
     if (!isOpen) return null;
 
@@ -21,13 +23,13 @@ const DeleteConfirmationModal = ({
                         <AlertTriangle className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900">Delete {entityName}</h3>
-                        <p className="text-xs text-slate-500">Confirm permanent deletion</p>
+                        <h3 className="text-lg font-bold text-slate-900">{actionVerb === "archive" ? "Archive" : "Delete"} {entityName}</h3>
+                        <p className="text-xs text-slate-500">{actionVerb === "archive" ? "Confirm archival" : "Confirm permanent deletion"}</p>
                     </div>
                 </div>
 
                 <p className="text-sm text-slate-600 leading-relaxed">
-                    Are you sure you want to delete <strong className="text-slate-900">"{itemName}"</strong>?
+                    Are you sure you want to {actionVerb} <strong className="text-slate-900">"{itemName}"</strong>?
                     {description && <span className="block mt-1 text-slate-500 text-xs">{description}</span>}
                 </p>
 
@@ -47,7 +49,7 @@ const DeleteConfirmationModal = ({
                         className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors disabled:opacity-70 cursor-pointer shadow-md"
                     >
                         {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Delete Permanently
+                        {confirmLabel}
                     </button>
                 </div>
             </div>

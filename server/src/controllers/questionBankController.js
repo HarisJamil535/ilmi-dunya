@@ -1,4 +1,5 @@
 const Question = require("../models/Question");
+const Assessment = require("../models/Assessment");
 const QuestionScenario = require("../models/QuestionScenario");
 const Board = require("../models/Board");
 const ClassModel = require("../models/Class");
@@ -408,9 +409,31 @@ const updateQuestion = async (req, res) => {
 };
 
 const deleteQuestion = async (req, res) => {
-    const question = await Question.findByIdAndUpdate(req.params.id, { status: "archived" }, { new: true });
+    const question = await Question.findById(req.params.id);
     if (!question) return res.status(404).json({ success: false, message: "Question not found." });
-    res.json({ success: true, question });
+    const assessments = await Assessment.find({ "questions.question": question._id, status: { $ne: "archived" } })
+        .select("questions totalMarks passingMarks status")
+        .lean();
+    if (assessments.length) {
+        await Assessment.bulkWrite(assessments.map((assessment) => {
+            const questions = assessment.questions.filter((item) => String(item.question) !== String(question._id));
+            const totalMarks = questions.reduce((sum, item) => sum + Number(item.marks || 0), 0);
+            return {
+                updateOne: {
+                    filter: { _id: assessment._id },
+                    update: { $set: {
+                        questions,
+                        totalMarks,
+                        passingMarks: Math.min(Number(assessment.passingMarks || 0), totalMarks),
+                        ...(questions.length ? {} : { status: "archived" }),
+                    } },
+                },
+            };
+        }));
+    }
+    question.status = "archived";
+    await question.save();
+    res.json({ success: true, question, removedFromTests: assessments.length });
 };
 
 const getScenarios = async (req, res) => {

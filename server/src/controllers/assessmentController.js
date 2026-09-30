@@ -46,6 +46,7 @@ const getAssessments = async (req, res) => {
     }
     const filter = {};
     filter.createdBy = { $exists: true };
+    if (req.admin) filter.status = { $ne: "archived" };
     ["type", "board", "class", "group", "subject", "chapter", "topic"].forEach((key) => {
         if (req.query[key]) filter[key] = req.query[key];
     });
