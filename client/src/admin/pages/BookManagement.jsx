@@ -162,28 +162,28 @@ const BookManagement = () => {
   const clearFilters = () => setFilter({ board: "", class: "", group: "", subject: "" });
 
   return (
-    <div className="min-h-screen bg-slate-50/60 text-slate-800">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-7 text-white shadow-md">
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-            <div>
+    <div className="min-h-screen min-w-0 bg-slate-50/60 p-3 text-slate-800 sm:p-6 md:p-8">
+      <div className="mx-auto min-w-0 max-w-7xl space-y-6">
+        <header className="rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-5 text-white shadow-md sm:p-7">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+            <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]">
                 <BookOpen className="h-4 w-4" />
                 Book Library
               </div>
-              <h1 className="mt-4 text-3xl font-black">Full Book PDFs</h1>
+              <h1 className="mt-4 text-2xl font-black sm:text-3xl">Full Book PDFs</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
                 Add, update and manage the complete PDF book attached to each board, class, group and subject.
               </p>
             </div>
-            <div className="rounded-2xl bg-white/10 px-5 py-4 text-right">
-              <p className="text-3xl font-black">{books.length}</p>
+            <div className="min-w-0 self-start rounded-xl bg-white/10 px-4 py-3 text-left sm:shrink-0 sm:self-auto sm:text-right">
+              <p className="text-2xl font-black">{books.length}</p>
               <p className="text-xs font-bold uppercase tracking-wider text-white/70">{selectedFilterCount ? "Filtered Books" : "Total Books"}</p>
             </div>
           </div>
         </header>
 
-        <form onSubmit={handleSave} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <form onSubmit={handleSave} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-xl font-black text-slate-950">{isEditing ? "Update Book" : "Add New Book"}</h2>
@@ -197,19 +197,19 @@ const BookManagement = () => {
             )}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <CustomSelect label="Board" value={form.board} onChange={(value) => setForm({ ...form, board: value, subject: "" })} options={getSelectOptions(boards)} placeholder="Select Board" isLoading={isLoadingContext} />
             <CustomSelect label="Class" value={form.class} onChange={(value) => setForm({ ...form, class: value, subject: "" })} options={getSelectOptions(classes)} placeholder="Select Class" isLoading={isLoadingContext} />
             <CustomSelect label="Group" value={form.group} onChange={(value) => setForm({ ...form, group: value, subject: "" })} options={getSelectOptions(groups)} placeholder="Select Group" isLoading={isLoadingContext} />
             <CustomSelect label="Subject" value={form.subject} onChange={(value) => setForm({ ...form, subject: value })} options={getSelectOptions(subjects)} placeholder="Select Subject" disabled={!form.board || !form.class || !form.group} />
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-2">
             <Field label="Book Title" helper="Example: FBISE Class 10 Physics Textbook - 2026 Edition">
-              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Book title" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
+              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} maxLength={180} placeholder="Book title" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
             </Field>
             <Field label="PDF Link" helper="Paste a public PDF URL students can view and download.">
-              <input value={form.pdfUrl} onChange={(event) => setForm({ ...form, pdfUrl: event.target.value })} placeholder="https://example.com/book.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
+              <input type="url" value={form.pdfUrl} onChange={(event) => setForm({ ...form, pdfUrl: event.target.value })} placeholder="https://example.com/book.pdf" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
             </Field>
           </div>
 
@@ -217,14 +217,14 @@ const BookManagement = () => {
           {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
 
           <div className="mt-5 flex justify-end">
-            <button disabled={!canSave || saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-50">
+            <button disabled={!canSave || saving} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-50 sm:w-auto">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {isEditing ? "Update Book" : "Add Book"}
             </button>
           </div>
         </form>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
               <div className="flex items-center gap-2 text-sm font-black text-primary">
@@ -241,7 +241,7 @@ const BookManagement = () => {
             )}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <CustomSelect label="Board" value={filter.board} onChange={(value) => setFilter({ board: value, class: "", group: "", subject: "" })} options={getSelectOptions(boards)} placeholder="All Boards" isLoading={isLoadingContext} />
             <CustomSelect label="Class" value={filter.class} onChange={(value) => setFilter({ ...filter, class: value, subject: "" })} options={getSelectOptions(classes)} placeholder="All Classes" isLoading={isLoadingContext} />
             <CustomSelect label="Group" value={filter.group} onChange={(value) => setFilter({ ...filter, group: value, subject: "" })} options={getSelectOptions(groups)} placeholder="All Groups" isLoading={isLoadingContext} />
@@ -251,19 +251,21 @@ const BookManagement = () => {
           {loading ? (
             <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
           ) : books.length ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
               {books.map((book) => (
-                <article key={book._id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition hover:border-primary/30 hover:bg-white hover:shadow-sm">
-                  <div className="flex flex-col justify-between gap-4 sm:flex-row">
+                <article key={book._id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-primary/30 hover:bg-white hover:shadow-sm sm:p-5">
+                  <div className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row">
                     <div className="min-w-0">
                       <p className="text-xs font-black uppercase tracking-wider text-primary">{getName(book.subject, "Subject")}</p>
-                      <h3 className="mt-1 truncate text-lg font-black text-slate-950">{book.title}</h3>
-                      <p className="mt-2 text-sm font-semibold text-slate-500">
-                        {getName(book.board)} / {getName(book.class)} / {getName(book.group)}
+                      <h3 className="mt-1 break-words text-base font-black leading-snug text-slate-950 sm:text-lg">{book.title}</h3>
+                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-semibold text-slate-500">
+                        <span>{getName(book.board)}</span><span aria-hidden="true">/</span>
+                        <span>{getName(book.class)}</span><span aria-hidden="true">/</span>
+                        <span>{getName(book.group)}</span>
                       </p>
                     </div>
-                    <div className="flex shrink-0 gap-2">
-                      <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary" title="Open PDF">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary" title="Open PDF" aria-label={"Open " + book.title + " PDF"}>
                         <ExternalLink className="h-4 w-4" />
                       </a>
                       <EditButton onClick={() => editBook(book)} title="Edit book" />

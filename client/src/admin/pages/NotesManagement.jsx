@@ -1,12 +1,13 @@
-import { useCallback, useContext, useEffect, useState } from "react";
-import { FileText, Loader2, Save } from "lucide-react";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { ExternalLink, FileText, Loader2, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "@/context/AppContext";
 import { CustomSelect } from "@/admin/components/CustomSelect";
-import { DeleteButton } from "@/admin/components/AdminUI";
+import { AdminAlert, DeleteButton } from "@/admin/components/AdminUI";
 import { isValidUrl, noteTypeLabels } from "@/admin/components/ResourceHelpers";
+import SmartSelect from "../../shared/CustomSelect";
 
-const emptyNotes = { short_questions: "", long_questions: "", mcqs: "" };
+const noteTypes = Object.entries(noteTypeLabels).map(([value, label]) => ({ value, label }));
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 
@@ -17,106 +18,128 @@ const NotesManagement = () => {
     const [selectedSubject, setSelectedSubject] = useState("");
     const [selectedChapter, setSelectedChapter] = useState("");
     const [notes, setNotes] = useState([]);
-    const [metadata, setMetadata] = useState({});
-    const [urls, setUrls] = useState(emptyNotes);
-    const [savingType, setSavingType] = useState("");
+    const [selectedType, setSelectedType] = useState("");
+    const [drafts, setDrafts] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [error, setError] = useState("");
+    const [message, setMessage] = useState("");
 
     useEffect(() => { refreshContext(); }, [refreshContext]);
 
     useEffect(() => {
-        const loadSubjects = async () => {
-            setSelectedSubject("");
-            setSelectedChapter("");
-            setSubjects([]);
-            setChapters([]);
-            if (!selectedBoard || !selectedClass || !selectedGroup) return;
-            const res = await axiosInstance.get(`/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`);
-            setSubjects(sortByName(res.data.subjects || []));
-        };
-        loadSubjects().catch(() => setError("Failed to load subjects."));
+        let active = true;
+        setSelectedSubject("");
+        setSelectedChapter("");
+        setSubjects([]);
+        setChapters([]);
+        if (selectedBoard && selectedClass && selectedGroup) {
+            axiosInstance.get("/subjects?boardId=" + selectedBoard + "&classId=" + selectedClass + "&groupId=" + selectedGroup)
+                .then((res) => { if (active) setSubjects(sortByName(res.data.subjects || [])); })
+                .catch(() => { if (active) setError("Could not load subjects. Select the group again to retry."); });
+        }
+        return () => { active = false; };
     }, [selectedBoard, selectedClass, selectedGroup]);
 
     useEffect(() => {
-        const loadChapters = async () => {
-            setSelectedChapter("");
-            setChapters([]);
-            if (!selectedSubject) return;
+        let active = true;
+        setSelectedChapter("");
+        setChapters([]);
+        if (selectedSubject) {
             const params = new URLSearchParams({ boardId: selectedBoard, classId: selectedClass, groupId: selectedGroup, subjectId: selectedSubject });
-            const res = await axiosInstance.get(`/chapters?${params.toString()}`);
-            setChapters(sortChapters(res.data.chapters || []));
-        };
-        loadChapters().catch(() => setError("Failed to load chapters."));
+            axiosInstance.get("/chapters?" + params.toString())
+                .then((res) => { if (active) setChapters(sortChapters(res.data.chapters || [])); })
+                .catch(() => { if (active) setError("Could not load chapters. Select the subject again to retry."); });
+        }
+        return () => { active = false; };
     }, [selectedSubject, selectedBoard, selectedClass, selectedGroup]);
 
-    const loadNotes = useCallback(async () => {
+    useEffect(() => {
         setNotes([]);
-        setUrls(emptyNotes);
-        setMetadata({});
-        if (!selectedChapter) return;
-        const res = await axiosInstance.get(`/resources/chapter-notes?chapter=${selectedChapter}`);
-        const nextNotes = res.data.notes || [];
-        setNotes(nextNotes);
-        setMetadata(Object.fromEntries(nextNotes.map(note => [note.noteType, note])));
-        setUrls({
-            short_questions: nextNotes.find((note) => note.noteType === "short_questions")?.pdfUrl || "",
-            long_questions: nextNotes.find((note) => note.noteType === "long_questions")?.pdfUrl || "",
-            mcqs: nextNotes.find((note) => note.noteType === "mcqs")?.pdfUrl || "",
-        });
+        setDrafts({});
+        setSelectedType("");
+        setError("");
+        setMessage("");
     }, [selectedChapter]);
 
-    useEffect(() => { loadNotes().catch(() => setError("Failed to load notes.")); }, [loadNotes]);
+    useEffect(() => {
+        let active = true;
+        if (!selectedChapter) return () => { active = false; };
+        setLoading(true);
+        axiosInstance.get("/resources/chapter-notes?chapter=" + selectedChapter)
+            .then((res) => { if (active) setNotes(res.data.notes || []); })
+            .catch(() => { if (active) setError("Could not load notes. Select this chapter again to retry."); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [selectedChapter, refreshKey]);
 
-    const saveNote = async (noteType) => {
+    const existingNote = useMemo(() => notes.find((note) => note.noteType === selectedType), [notes, selectedType]);
+    const title = drafts[selectedType]?.title ?? existingNote?.title ?? "";
+    const pdfUrl = drafts[selectedType]?.pdfUrl ?? existingNote?.pdfUrl ?? "";
+    const canSave = selectedChapter && selectedType && title.trim() && title.trim().length <= 180 && isValidUrl(pdfUrl.trim()) && !loading && !saving;
+
+    const updateDraft = (patch) => {
+        setDrafts((current) => ({ ...current, [selectedType]: { title, pdfUrl, ...current[selectedType], ...patch } }));
+    };
+
+    const saveNote = async (event) => {
+        event.preventDefault();
+        if (!canSave) return;
         setError("");
-        if (!selectedChapter || !metadata[noteType]?.title?.trim()) return setError("Choose a chapter and enter a notes title.");
-        const pdfUrl = urls[noteType]?.trim();
-        if (!isValidUrl(pdfUrl)) return setError("Enter a valid PDF URL.");
-        setSavingType(noteType);
+        setMessage("");
+        setSaving(true);
         try {
             await axiosInstance.post("/resources/chapter-notes", {
-                ...metadata[noteType],
-                title: metadata[noteType]?.title || noteTypeLabels[noteType],
-                noteType,
-                pdfUrl,
+                title: title.trim(),
+                noteType: selectedType,
+                pdfUrl: pdfUrl.trim(),
                 chapter: selectedChapter,
             });
-            await loadNotes();
+            setMessage(existingNote ? "Notes updated successfully." : "Notes added successfully.");
+            setRefreshKey((current) => current + 1);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to save notes.");
+            setError(err.response?.data?.message || "Could not save notes. Please try again.");
         } finally {
-            setSavingType("");
+            setSaving(false);
         }
     };
 
-    const deleteNote = async (noteType) => {
-        const note = notes.find((item) => item.noteType === noteType);
-        if (!note) return;
-        setSavingType(noteType);
+    const deleteNote = async (note) => {
+        setSaving(true);
+        setError("");
+        setMessage("");
         try {
-            await axiosInstance.delete(`/resources/chapter-notes/${note._id}`);
-            await loadNotes();
+            await axiosInstance.delete("/resources/chapter-notes/" + note._id);
+            setNotes((current) => current.filter((item) => item._id !== note._id));
+            setDrafts((current) => {
+                const next = { ...current };
+                delete next[note.noteType];
+                return next;
+            });
+            setMessage("Notes removed successfully.");
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to delete notes.");
+            setError(err.response?.data?.message || "Could not delete notes. Please try again.");
         } finally {
-            setSavingType("");
+            setSaving(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50/60 p-3 sm:p-6 md:p-8 text-slate-800">
+        <div className="min-h-screen min-w-0 bg-slate-50/60 p-3 text-slate-800 sm:p-6 md:p-8">
             <div className="mx-auto max-w-6xl space-y-6">
-                <header className="rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-muted p-6 text-white shadow-md">
+                <header className="rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-muted p-5 text-white shadow-md sm:p-6">
                     <div className="flex items-center gap-3">
                         <FileText className="h-7 w-7" />
                         <div>
                             <h1 className="text-2xl font-bold">Chapter Notes</h1>
-                            <p className="text-sm text-primary-muted">Manage short questions, long questions and MCQs notes per chapter.</p>
+                            <p className="mt-1 text-sm text-white/80">Add one notes PDF at a time for a selected chapter.</p>
                         </div>
                     </div>
                 </header>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                    <h2 className="mb-4 text-sm font-bold text-slate-700">Choose a chapter</h2>
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                         <CustomSelect label="Board" value={selectedBoard} onChange={setSelectedBoard} options={boards} placeholder="Select Board" isLoading={isLoadingContext} />
                         <CustomSelect label="Class" value={selectedClass} onChange={setSelectedClass} options={classes} placeholder="Select Class" isLoading={isLoadingContext} />
@@ -126,37 +149,61 @@ const NotesManagement = () => {
                     </div>
                 </section>
 
-                {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p>}
+                <form onSubmit={saveNote} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                    <div className="mb-5">
+                        <h2 className="text-lg font-bold text-slate-900">{existingNote ? "Edit notes" : "Add notes"}</h2>
+                        <p className="mt-1 text-sm text-slate-500">Select a type, enter a clear title and paste the PDF link students will open.</p>
+                    </div>
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+                        <SmartSelect label="Notes type" value={selectedType} onChange={setSelectedType} options={noteTypes} placeholder="Select notes type" disabled={!selectedChapter || loading || saving} />
+                        <label className="block min-w-0">
+                            <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Notes title</span>
+                            <input value={title} onChange={(event) => updateDraft({ title: event.target.value })} disabled={!selectedType || saving} maxLength={180} placeholder="FBISE Class 10 Physics - Chapter 2 Short Questions" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
+                        </label>
+                    </div>
+                    <label className="mt-4 block min-w-0">
+                        <span className="mb-2 block text-xs font-bold uppercase text-slate-500">PDF link</span>
+                        <input type="url" value={pdfUrl} onChange={(event) => updateDraft({ pdfUrl: event.target.value })} disabled={!selectedType || saving} placeholder="https://example.com/chapter-2-notes.pdf" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
+                        <span className="mt-1.5 block text-xs text-slate-500">Use a public HTTPS link that opens the complete PDF.</span>
+                    </label>
+                    <div className="mt-5 flex justify-end">
+                        <button type="submit" disabled={!canSave} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            {existingNote ? "Update notes" : "Add notes"}
+                        </button>
+                    </div>
+                    <AdminAlert type="error">{error}</AdminAlert>
+                    <AdminAlert>{message}</AdminAlert>
+                </form>
 
-                {!selectedChapter && <p className="text-sm text-slate-500">Choose a board, class, group, subject and chapter above to manage its notes.</p>}
-                <section className="grid gap-5">
-                    {Object.entries(noteTypeLabels).map(([noteType, label]) => {
-                        const existingNote = notes.find((note) => note.noteType === noteType);
-                        return (
-                            <div key={noteType} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                                <h2 className="text-lg font-black text-slate-900">{label}</h2>
-                                <p className="mt-1 text-xs text-slate-500">Enter a clear title and a public PDF link. Save each notes type separately.</p>
-                                <label className="mt-4 block text-sm font-semibold">Notes title
-                                    <input maxLength={180} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" value={metadata[noteType]?.title || ""} placeholder="FBISE Class 10 Physics - Chapter 2 Short Questions" onChange={e => setMetadata(current => ({ ...current, [noteType]: { ...current[noteType], title: e.target.value } }))} />
-                                </label>
-                                <input
-                                    aria-label={`${label} PDF URL`}
-                                    value={urls[noteType]}
-                                    onChange={(e) => setUrls({ ...urls, [noteType]: e.target.value })}
-                                    placeholder="https://example.com/notes.pdf"
-                                    className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary"
-                                />
-                                <div className="mt-4 flex gap-2">
-                                    {existingNote && <a href={existingNote.pdfUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">View</a>}
-                                    <button disabled={!selectedChapter || Boolean(savingType) || !isValidUrl(urls[noteType]?.trim()) || !metadata[noteType]?.title?.trim() || metadata[noteType].title.trim().length > 180} onClick={() => saveNote(noteType)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
-                                        {savingType === noteType ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
-                                    </button>
-                                    {existingNote && <DeleteButton onClick={() => deleteNote(noteType)} disabled={Boolean(savingType)} />}
-                                </div>
+                {selectedChapter && (
+                    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="border-b border-slate-100 px-4 py-4 sm:px-6">
+                            <h2 className="font-bold text-slate-900">Notes in this chapter</h2>
+                        </div>
+                        {loading ? (
+                            <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading notes...</div>
+                        ) : notes.length === 0 ? (
+                            <p className="p-6 text-sm text-slate-500">No notes have been added for this chapter yet.</p>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {notes.map((note) => (
+                                    <div key={note._id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold uppercase text-primary">{noteTypeLabels[note.noteType]}</p>
+                                            <h3 className="mt-1 break-words font-semibold text-slate-900">{note.title}</h3>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <a href={note.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary-soft px-3 text-sm font-semibold text-primary hover:bg-primary-soft/70"><ExternalLink className="h-4 w-4" /> View</a>
+                                            <button type="button" onClick={() => setSelectedType(note.noteType)} className="min-h-10 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-200">Edit</button>
+                                            <DeleteButton onClick={() => deleteNote(note)} disabled={saving} title={"Delete " + noteTypeLabels[note.noteType]} />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        );
-                    })}
-                </section>
+                        )}
+                    </section>
+                )}
             </div>
         </div>
     );
