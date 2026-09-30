@@ -22,6 +22,8 @@ const studentDashboardRoutes = require("./src/routes/studentDashboardRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const leaderboardRoutes = require("./src/routes/leaderboardRoutes");
 const newsRoutes = require("./src/routes/newsRoutes");
+const StudentAuthChallenge = require("./src/models/StudentAuthChallenge");
+const Student = require("./src/models/Student");
 const express = require('express');
 
 const app = express();
@@ -37,7 +39,7 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS) || false);
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    contentSecurityPolicy: { directives: { "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])], "frame-src": ["'self'", "https:"], "connect-src": ["'self'", "https:"] } },
+    contentSecurityPolicy: { directives: { "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])], "script-src": ["'self'", "https://accounts.google.com/gsi/client"], "frame-src": ["'self'", "https://accounts.google.com/gsi/"], "connect-src": ["'self'", "https://accounts.google.com", "https:"] } },
 }));
 app.use(compression());
 app.use('/api', cors({
@@ -74,14 +76,27 @@ const authLimiter = rateLimit({
     message: { success: false, message: "Too many login attempts. Please try again later." },
 });
 
+const studentOtpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: "Too many verification attempts. Please wait 15 minutes and try again." },
+});
+
 app.use("/api", apiLimiter);
 app.use("/api/admin/login", authLimiter);
 app.use("/api/admin/forgot-password", authLimiter);
 app.use("/api/admin/reset-password", authLimiter);
 app.use("/api/students/login", authLimiter);
-app.use("/api/students/register", authLimiter);
+app.use("/api/students/register", studentOtpLimiter);
+app.use("/api/students/login/request-code", studentOtpLimiter);
+app.use("/api/students/login/verify-code", studentOtpLimiter);
 app.use("/api/students/forgot-password", authLimiter);
+app.use("/api/students/forgot-password", studentOtpLimiter);
 app.use("/api/students/reset-password", authLimiter);
+app.use("/api/students/reset-password", studentOtpLimiter);
+app.use("/api/students/google", authLimiter);
 
 app.use('/api/admin', adminRoutes);
 app.use("/api/boards", boardRoutes);
@@ -118,7 +133,11 @@ if (require.main === module) {
         throw new Error('Configure JWT_SECRET (32+ characters in production), SITE_URL and CLIENT_ORIGIN before starting.');
     }
     require('./src/services/seoDocument').siteOrigin();
-    connectDB().then(() => app.listen(PORT)).catch(error => {
+    connectDB().then(async () => {
+        await Student.collection.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
+        await StudentAuthChallenge.createIndexes();
+        return app.listen(PORT);
+    }).catch(error => {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
         process.exitCode = 1;
     });

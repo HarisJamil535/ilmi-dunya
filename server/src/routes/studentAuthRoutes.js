@@ -1,12 +1,32 @@
 const express = require("express");
 const router = express.Router();
-const { registerStudent, loginStudent, getStudentMe, requestPasswordReset, resetPassword } = require("../controllers/studentAuthController");
+const {
+    authOptions,
+    requestRegistrationCode,
+    verifyRegistrationCode,
+    registerGoogleProfile,
+    loginStudent,
+    requestLoginCode,
+    verifyLoginCode,
+    getStudentMe,
+    requestPasswordReset,
+    resetPassword,
+    createGoogleNonce,
+    loginWithGoogle,
+} = require("../controllers/studentAuthController");
 const studentAuthMiddleware = require("../middleware/studentAuthMiddleware");
 
-router.post("/register", registerStudent);
+router.get("/auth-options", authOptions);
+router.post("/register", requestRegistrationCode);
+router.post("/register/verify", verifyRegistrationCode);
+router.post("/register/google-profile", registerGoogleProfile);
 router.post("/login", loginStudent);
+router.post("/login/request-code", requestLoginCode);
+router.post("/login/verify-code", verifyLoginCode);
 router.post("/forgot-password", requestPasswordReset);
 router.post("/reset-password", resetPassword);
+router.post("/google/nonce", createGoogleNonce);
+router.post("/google", loginWithGoogle);
 router.get("/me", studentAuthMiddleware, getStudentMe);
 
 module.exports = router;

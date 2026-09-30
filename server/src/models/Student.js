@@ -4,9 +4,11 @@ const studentSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true, maxlength: 80 },
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-        password: { type: String, required: true, select: false },
+        password: { type: String, default: null, select: false },
         tokenVersion: { type: Number, default: 0, select: false },
         phone: { type: String, required: true, trim: true },
+        isPhoneVerified: { type: Boolean, default: false },
+        googleSub: { type: String, select: false },
         gender: { type: String, enum: ["female", "male", "other", "prefer_not_to_say"] },
         city: { type: String, required: true, trim: true, maxlength: 80 },
         school: { type: String, required: true, trim: true, maxlength: 160 },
@@ -25,5 +27,6 @@ const studentSchema = new mongoose.Schema(
 );
 
 studentSchema.index({ email: 1 }, { unique: true });
+studentSchema.index({ googleSub: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Student", studentSchema);

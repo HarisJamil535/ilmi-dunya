@@ -66,6 +66,9 @@ test('mounted private and write APIs reject missing authentication before databa
             assert.equal(result.status, 401, `${method} ${path}`);
             assert.match(result.headers.get('x-robots-tag'), /noindex/);
         }
+        const authOptions = await fetch(origin + '/api/students/auth-options');
+        assert.equal(authOptions.status, 200);
+        assert.deepEqual(Object.keys(await authOptions.json()).sort(), ['channels', 'googleClientId', 'success']);
         const bad = await fetch(origin + '/api/students/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: { $ne: null } }) });
         assert.equal(bad.status, 400);
     } finally { await new Promise(resolve => server.close(resolve)); }

@@ -1,52 +1,80 @@
-import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, KeyRound, MailCheck, MessageCircle, ShieldCheck } from "lucide-react";
 import axiosInstance from "../../api/axios";
+import StudentAuthShell from "../components/StudentAuthShell";
+import { AuthChannelPicker, AuthField, AuthSubmit, OtpField, PasswordField } from "../components/StudentAuthControls";
+import useStudentAuthOptions from "../hooks/useStudentAuthOptions";
 
-export default function ForgotPassword() {
+const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState("email");
-  const [form, setForm] = useState({ email: "", otp: "", password: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [step, setStep] = useState("request");
+  const [identifier, setIdentifier] = useState("");
+  const [channel, setChannel] = useState("email");
+  const [challengeId, setChallengeId] = useState("");
+  const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { channels } = useStudentAuthOptions();
 
-  const submitEmail = async (event) => {
-    event.preventDefault(); setBusy(true); setError("");
+  useEffect(() => { if (!channels.email && channels.whatsapp) setChannel("whatsapp"); }, [channels.email, channels.whatsapp]);
+
+  const requestCode = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
     try {
-      const response = await axiosInstance.post(
-        "/students/forgot-password",
-        { email: form.email.trim().toLowerCase() },
-        { timeout: 60000 }
-      );
+      const response = await axiosInstance.post("/students/forgot-password", { identifier: identifier.trim(), channel });
+      setChallengeId(response.data.challengeId || "");
       setMessage(response.data.message);
-      setStep("reset");
+      setStep("verify");
     } catch (err) {
-      if (err.code === "ECONNABORTED") {
-        setError("The server is taking longer than expected to wake up. Please wait a moment, then try once more.");
-      } else if (!err.response) {
-        setError("The server could not be reached. Check your connection and try again in a moment.");
-      } else {
-        setError(err.response?.data?.message || "Unable to send the code right now.");
-      }
+      setError(err.response?.data?.message || "We could not send a reset code right now.");
+    } finally {
+      setBusy(false);
     }
-    finally { setBusy(false); }
-  };
-  const reset = async (event) => {
-    event.preventDefault(); setBusy(true); setError("");
-    try { await axiosInstance.post("/students/reset-password", form); setStep("done"); }
-    catch (err) { setError(err.response?.data?.message || "Unable to reset your password."); }
-    finally { setBusy(false); }
   };
 
-  return <main className="min-h-screen bg-slate-50 px-4 py-12"><section className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70">
-    {step === "done" ? <div className="text-center"><CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" /><h1 className="mt-5 text-2xl font-black text-slate-950">Password updated</h1><p className="mt-2 text-sm leading-6 text-slate-500">Your password has been changed successfully.</p><button type="button" onClick={() => navigate("/login")} className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-sm font-black text-white">Continue to login</button></div> : <>
-      <div className="mb-7"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary"><KeyRound className="h-5 w-5" /></div><h1 className="text-2xl font-black text-slate-950">Reset your password</h1><p className="mt-2 text-sm leading-6 text-slate-500">{step === "email" ? "Enter your email and we will send a secure verification code." : "Enter the six digit code from your email and choose a new password."}</p></div>
-      {step === "email" ? <form onSubmit={submitEmail} className="space-y-4"><input required type="email" autoComplete="email" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Email address" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /><Submit busy={busy} label="Send verification code" /></form> : <form onSubmit={reset} className="space-y-4"><p className="rounded-xl bg-primary-soft p-3 text-xs font-semibold leading-5 text-primary-dark">{message}</p><input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm tracking-[0.4em] outline-none focus:border-primary" placeholder="000000" value={form.otp} onChange={(event) => setForm({ ...form, otp: event.target.value.replace(/\D/g, "") })} /><div className="relative"><input required minLength={6} type={showPassword ? "text" : "password"} autoComplete="new-password" className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 text-sm outline-none focus:border-primary" placeholder="New password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><Submit busy={busy} label="Update password" /></form>}
-      {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-600">{error}</p>}<Link to="/login" className="mt-5 flex items-center justify-center gap-2 text-sm font-bold text-primary"><ArrowLeft size={15} />Back to login</Link>
-    </>}
-  </section></main>;
-}
+  const resetPassword = async (event) => {
+    event.preventDefault();
+    if (!challengeId) return setError("If an active account matches these details, its code will arrive. Check the email or number and try again.");
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return setError("Use at least 8 characters with a letter and a number.");
+    setBusy(true);
+    setError("");
+    try {
+      await axiosInstance.post("/students/reset-password", { challengeId, otp, password });
+      setStep("done");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to reset your password. Check the code and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-function Submit({ busy, label }) { return <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white transition hover:bg-primary-dark disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{label}</button>; }
+  const footer = <>Remember your password? <Link to="/login" className="font-black text-primary hover:text-primary-dark">Back to login</Link></>;
+
+  return <StudentAuthShell eyebrow="Account recovery" title={step === "done" ? "Password updated" : "Reset your password"} description={step === "request" ? "Choose where to receive a one-time code, then set a new password." : step === "done" ? "Your password has been changed. Sign in with your new password to continue." : "Enter the code we sent and choose a strong new password."} footer={footer}>
+    {step === "done" ? <section className="rounded-3xl border border-emerald-100 bg-white p-7 text-center shadow-xl shadow-slate-200/50 sm:p-9">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-8 w-8" /></span>
+      <h2 className="mt-5 text-xl font-black text-slate-950">You’re back in control</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">Your password is updated and your existing sessions have been signed out.</p>
+      <button type="button" onClick={() => navigate("/login", { replace: true })} className="mt-6 min-h-12 w-full rounded-xl bg-primary px-5 py-3 text-sm font-black text-white transition hover:bg-primary-dark">Continue to login</button>
+    </section> : step === "request" ? <form onSubmit={requestCode} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
+      <AuthField label={channel === "email" ? "Email address" : "WhatsApp number"} type={channel === "email" ? "email" : "tel"} autoComplete={channel === "email" ? "email" : "tel"} value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder={channel === "email" ? "you@example.com" : "0300 1234567"} required />
+      <AuthChannelPicker value={channel} onChange={(value) => { setChannel(value); setError(""); }} channels={channels} />
+      <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />For account privacy, we show the same confirmation whether or not those details match an account.</div>
+      {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+      <AuthSubmit loading={busy}>Send reset code</AuthSubmit>
+    </form> : <form onSubmit={resetPassword} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
+      <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary">{channel === "email" ? <MailCheck className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}</span><span>{message}<br /><strong>Code expires in 10 minutes.</strong></span></div>
+      <OtpField value={otp} onChange={setOtp} />
+      <PasswordField label="New password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters, with a letter and number" />
+      {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+      <AuthSubmit loading={busy}><KeyRound className="h-4 w-4" />Update password</AuthSubmit>
+    </form>}
+  </StudentAuthShell>;
+};
+
+export default ForgotPassword;
