@@ -4,8 +4,8 @@ import logo from "../../assets/logo.png";
 import hero from "../../assets/hero_img.jpg";
 
 const StudentAuthShell = ({ eyebrow, title, description, children, footer, maxWidth = "max-w-md" }) => (
-  <main className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
-    <aside className="relative hidden min-h-screen overflow-hidden bg-primary-dark text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+  <main className="grid h-[100dvh] overflow-hidden bg-slate-50 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
+    <aside className="relative hidden h-[100dvh] overflow-hidden bg-primary-dark text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
       <img src={hero} alt="A student preparing for exams" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-br from-[#25114d]/95 via-[#4629a7]/85 to-[#36277e]/80" />
       <div className="relative z-10 flex items-center gap-3">
@@ -23,20 +23,19 @@ const StudentAuthShell = ({ eyebrow, title, description, children, footer, maxWi
       </div>
     </aside>
 
-    <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
-      <div className={`w-full ${maxWidth}`}>
-        <div className="mb-7 flex items-center justify-between lg:mb-9">
+    <section className="flex h-[100dvh] min-h-0 items-center justify-center px-4 py-3 sm:px-8 lg:px-12">
+      <div className={`w-full max-h-full ${maxWidth}`}>
+        <div className="mb-3 flex items-center justify-between sm:mb-5">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" /> Home</Link>
           <Link to="/" className="flex items-center gap-2 lg:hidden"><img src={logo} alt="IlmiDunya" className="h-9 w-9 object-contain" /><span className="text-lg font-black text-primary-dark">IlmiDunya</span></Link>
         </div>
-        <header className="mb-7">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
-          <p className="mt-3 max-w-lg text-sm leading-6 text-slate-500">{description}</p>
+        <header className="mb-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
+          <p className="mt-1.5 max-w-lg text-xs leading-5 text-slate-500 sm:text-sm">{description}</p>
         </header>
         {children}
-        {footer && <div className="mt-6 border-t border-slate-200 pt-5 text-center text-sm text-slate-500">{footer}</div>}
-        <p className="mt-7 text-center text-xs text-slate-400">By continuing, you agree to use IlmiDunya respectfully and keep your account secure.</p>
+        {footer && <div className="mt-3 text-center text-xs text-slate-500">{footer}</div>}
       </div>
     </section>
   </main>
