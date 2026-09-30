@@ -19,6 +19,16 @@ const pastPaperSchema = new mongoose.Schema(
             enum: ["morning", "evening"],
             required: [true, "Past paper session is required"],
         },
+        examType: {
+            type: String,
+            enum: ["annual", "supplementary"],
+            default: "annual",
+            required: true,
+        },
+        isNewPattern: {
+            type: Boolean,
+            default: false,
+        },
         pdfUrl: {
             type: String,
             required: [true, "Past paper PDF URL is required"],

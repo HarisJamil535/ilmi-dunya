@@ -133,7 +133,7 @@ const getPastPapers = async (req, res, next) => {
 
 const createPastPaper = async (req, res, next) => {
     try {
-        const { title, year, session, pdfUrl, board, class: classId, group, subject } = req.body;
+        const { title, year, session, examType = "annual", isNewPattern = false, pdfUrl, board, class: classId, group, subject } = req.body;
         const contextError = requireContext({ board, class: classId, group, subject });
         const parsedYear = Number(year);
 
@@ -144,6 +144,9 @@ const createPastPaper = async (req, res, next) => {
         if (!["morning", "evening"].includes(session)) {
             return res.status(400).json({ success: false, message: "Session must be morning or evening." });
         }
+        if (!["annual", "supplementary"].includes(examType)) {
+            return res.status(400).json({ success: false, message: "Paper type must be annual or supplementary." });
+        }
         if (!isValidUrl(pdfUrl.trim())) {
             return res.status(400).json({ success: false, message: "Please enter a valid PDF URL." });
         }
@@ -153,6 +156,8 @@ const createPastPaper = async (req, res, next) => {
             title: title.trim(),
             year: parsedYear,
             session,
+            examType,
+            isNewPattern: Boolean(isNewPattern),
             pdfUrl: pdfUrl.trim(),
             board,
             class: classId,
@@ -169,7 +174,7 @@ const createPastPaper = async (req, res, next) => {
 
 const updatePastPaper = async (req, res, next) => {
     try {
-        const { title, year, session, pdfUrl, board, class: classId, group, subject } = req.body;
+        const { title, year, session, examType = "annual", isNewPattern = false, pdfUrl, board, class: classId, group, subject } = req.body;
         const contextError = requireContext({ board, class: classId, group, subject });
         const parsedYear = Number(year);
 
@@ -180,10 +185,13 @@ const updatePastPaper = async (req, res, next) => {
         if (!isValidUrl(pdfUrl.trim())) {
             return res.status(400).json({ success: false, message: "Please enter a valid PDF URL." });
         }
+        if (!["annual", "supplementary"].includes(examType)) {
+            return res.status(400).json({ success: false, message: "Paper type must be annual or supplementary." });
+        }
 
         const paper = await PastPaper.findByIdAndUpdate(
             req.params.id,
-            { ...req.publication, title: title.trim(), year: parsedYear, session, pdfUrl: pdfUrl.trim(), board, class: classId, group, subject },
+            { ...req.publication, title: title.trim(), year: parsedYear, session, examType, isNewPattern: Boolean(isNewPattern), pdfUrl: pdfUrl.trim(), board, class: classId, group, subject },
             { new: true, runValidators: true }
         ).populate(populateContext);
 

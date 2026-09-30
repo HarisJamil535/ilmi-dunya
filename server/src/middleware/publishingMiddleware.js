@@ -31,7 +31,9 @@ module.exports = kind => async (req, res, next) => {
         if (kind === 'paper') {
             const year = Number(req.body.year);
             if (!Number.isInteger(year) || year < 1990 || year > new Date().getFullYear()) fail('Enter the actual past paper year between 1990 and this year.');
-            const duplicate = await PastPaper.exists({ ...(existing ? { _id: { $ne: existing._id } } : {}), board: req.body.board, class: req.body.class, group: req.body.group, subject: req.body.subject, year, session: req.body.session, title: String(req.body.title || '').trim() });
+            if (!['annual', 'supplementary'].includes(req.body.examType || 'annual')) fail('Choose Annual or Supplementary for the paper type.');
+            if (req.body.isNewPattern !== undefined && typeof req.body.isNewPattern !== 'boolean') fail('New Pattern must be true or false.');
+            const duplicate = await PastPaper.exists({ ...(existing ? { _id: { $ne: existing._id } } : {}), board: req.body.board, class: req.body.class, group: req.body.group, subject: req.body.subject, year, session: req.body.session, examType: req.body.examType || 'annual', title: String(req.body.title || '').trim() });
             if (duplicate) fail('This past paper already exists. Edit that paper or distinguish its paper/part in the title.', 409);
         }
         req.publication = publication(req.body, { existing: existing || {} });

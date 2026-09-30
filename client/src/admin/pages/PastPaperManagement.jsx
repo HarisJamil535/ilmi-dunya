@@ -7,7 +7,7 @@ import { isValidUrl } from "@/admin/components/ResourceHelpers";
 import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
 
-const initialForm = { title: "", year: new Date().getFullYear(), session: "morning", pdfUrl: "" };
+const initialForm = { title: "", year: new Date().getFullYear(), session: "morning", examType: "annual", isNewPattern: false, pdfUrl: "" };
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortPapers = (items) => [...items].sort((a, b) => (b.year || 0) - (a.year || 0) || (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
@@ -91,7 +91,7 @@ const PastPaperManagement = () => {
 
     const handleEdit = (paper) => {
         setEditingId(paper._id);
-        setForm({ ...paper, title: paper.title, year: paper.year, session: paper.session, pdfUrl: paper.pdfUrl });
+        setForm({ ...paper, title: paper.title, year: paper.year, session: paper.session, examType: paper.examType || "annual", isNewPattern: Boolean(paper.isNewPattern), pdfUrl: paper.pdfUrl });
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -133,8 +133,8 @@ const PastPaperManagement = () => {
 
                 <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
                     <h2 className="mb-2 text-lg font-black text-slate-900">{editingId ? "Edit Past Paper" : "Add Past Paper"}</h2>
-                    <p className="mb-4 text-sm text-slate-500">Select the subject above, then enter the paper title, exam year, session and PDF link. All four fields are required.</p>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <p className="mb-4 text-sm text-slate-500">Select a subject, then enter the paper details and its public PDF link.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <Field label="Paper Title" helper="Example: BISE Lahore Class 10 Physics 2025 Morning - Subjective.">
                             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Paper title" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
                         </Field>
@@ -144,10 +144,20 @@ const PastPaperManagement = () => {
                         <Field label="Session" helper="Morning or evening paper.">
                             <SmartSelect value={form.session} onChange={(value) => setForm({ ...form, session: value })} options={[{ value: "morning", label: "Morning" }, { value: "evening", label: "Evening" }]} placeholder="Choose session" />
                         </Field>
+                        <Field label="Exam Type" helper="Choose the exam sitting shown to students.">
+                            <SmartSelect value={form.examType} onChange={(value) => setForm({ ...form, examType: value })} options={[{ value: "annual", label: "Annual" }, { value: "supplementary", label: "Supplementary" }]} placeholder="Choose exam type" />
+                        </Field>
                         <Field label="PDF Link" helper="Paste the direct PDF URL students can open.">
                             <input value={form.pdfUrl} onChange={(e) => setForm({ ...form, pdfUrl: e.target.value })} placeholder="https://example.com/paper.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
                         </Field>
                     </div>
+                    <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-primary/15 bg-primary-soft/50 p-4 transition hover:border-primary/35">
+                        <input type="checkbox" checked={Boolean(form.isNewPattern)} onChange={(e) => setForm({ ...form, isNewPattern: e.target.checked })} className="mt-0.5 h-5 w-5 accent-[var(--color-primary)]" />
+                        <span>
+                            <span className="block text-sm font-bold text-slate-900">New Pattern</span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-600">Mark this if the paper follows a new or revised exam pattern. Students will see a highlighted badge.</span>
+                        </span>
+                    </label>
                     {error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p>}
                     <div className="mt-5 flex justify-end gap-3">
                         {editingId && <button type="button" onClick={resetForm} className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button>}
@@ -173,7 +183,9 @@ const PastPaperManagement = () => {
                                         <h3 className="font-bold text-slate-900">{paper.title}</h3>
                                         <div className="mt-1 flex gap-2 text-xs font-bold uppercase">
                                             <span className="rounded-full bg-primary-soft px-2.5 py-1 text-primary">{paper.year}</span>
+                                            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">{paper.examType === "supplementary" ? "Supplementary" : "Annual"}</span>
                                             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{paper.session}</span>
+                                            {paper.isNewPattern && <span className="new-pattern-badge">New Pattern</span>}
                                         </div>
                                     </div>
                                     <div className="flex gap-2">

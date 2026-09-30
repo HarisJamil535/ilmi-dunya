@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, FileText, Loader2, SearchX } from "lucide-react";
+import { Download, ExternalLink, FileText, Loader2, SearchX, Sparkles } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axios";
@@ -65,10 +65,12 @@ const PastPapers = () => {
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">{paper.title}</h2>
-                    <div className="mt-2 flex gap-2 text-xs font-bold uppercase">
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold uppercase">
                       <span className="rounded-full bg-primary-soft px-2.5 py-1 text-primary">{paper.year}</span>
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">{paper.examType === "supplementary" ? "Supplementary" : "Annual"}</span>
                       <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{paper.session}</span>
                     </div>
+                    {paper.isNewPattern && <span className="new-pattern-badge mt-3"><Sparkles className="h-3.5 w-3.5" /> New Pattern</span>}
                   </div>
                   <FileText className="h-6 w-6 text-slate-300" />
                 </div>
