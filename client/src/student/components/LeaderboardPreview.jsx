@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Crown, Loader2, Trophy } from "lucide-react";
+import { ArrowRight, Crown, Trophy, Medal } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 
@@ -38,19 +38,27 @@ export default function LeaderboardPreview() {
 
   return <section className="home-section home-leaders">
     <div className="home-width">
-      <div className="home-section-heading"><div><p className="home-eyebrow"><Trophy size={17} /> A little friendly competition</p><h2>Meet the students<br /><span>making every answer count.</span></h2></div><Link className="home-text-link" to="/leaderboard">Explore the leaderboard <ArrowRight size={18} /></Link></div>
-      {loading ? <div className="home-empty" role="status"><Loader2 className="animate-spin" size={26} /><p>Finding our top learners...</p></div> :
+      <div className="home-section-heading"><div><p className="home-eyebrow"><Trophy size={17} /> The learning leaderboard</p><h2>A little practice.<br /><span>A place at the top.</span></h2><p className="home-leaders-intro">Celebrating the students turning their knowledge into progress. Your next test could move you up.</p></div><Link className="home-text-link" to="/leaderboard">View all rankings <ArrowRight size={18} /></Link></div>
+      {loading ? <div className="home-leader-loading" role="status" aria-label="Loading top learners"><div /><div /><div /></div> :
         failed && !leaders.length ? <div className="home-empty" role="status"><p>Rankings are unavailable right now.</p><button className="home-text-link" onClick={() => setRetry((value) => value + 1)}>Try again <ArrowRight size={16} /></button></div> :
         !leaders.length ? <div className="home-empty"><Trophy size={40} /><div><strong>The next spot could be yours.</strong><p>Complete an MCQ test and start your journey up the leaderboard.</p></div><Link className="home-text-link" to="/tests">Start practising <ArrowRight size={16} /></Link></div> :
-        <ol className="home-leader-list">{leaders.map((leader) => <li key={leader.studentId} className="home-leader-row">
+        <>
+        <ol className="home-podium">{leaders.slice(0, 3).map((leader) => <li key={leader.studentId} className={`home-podium-person ${leader.rank === 1 ? "home-podium-first" : ""}`}>
+          <div className="home-podium-top"><span className="home-podium-place">{leader.rank === 1 ? <Crown size={19} /> : <Medal size={19} />} Rank {leader.rank}</span><Trophy size={25} strokeWidth={1.4} aria-hidden="true" /></div>
+          <div className="home-podium-identity"><span className="home-podium-avatar" aria-hidden="true">{leader.name?.trim().slice(0, 1).toUpperCase()}</span><div><h3>{leader.name}</h3><p>{leader.className || "Student"}{leader.city ? ` · ${leader.city}` : ""}</p></div></div>
+          {leader.school && <p className="home-podium-school">{leader.school}</p>}
+          <div className="home-podium-score"><strong>{Number(leader.points).toLocaleString()}</strong><span>earned points</span><span className="home-podium-mark" aria-hidden="true">{String(leader.rank).padStart(2, "0")}</span></div>
+        </li>)}</ol>
+        {leaders.length > 3 && <ol className="home-leader-list" start={4}>{leaders.slice(3).map((leader) => <li key={leader.studentId} className="home-leader-row">
           <span className="home-leader-rank" aria-label={`Rank ${leader.rank}`}>{leader.rank === 1 ? <Crown size={24} /> : String(leader.rank).padStart(2, "0")}</span>
           <span className="home-leader-avatar" aria-hidden="true">{leader.name?.slice(0, 1)}</span>
           <div><strong>{leader.name}</strong><small>{leader.className || "Student"}{leader.city ? ` / ${leader.city}` : ""}</small></div>
           <div className="home-leader-school"><small>{leader.school}</small></div>
           <div className="home-leader-points"><strong>{Number(leader.points).toLocaleString()}</strong><small>points</small></div>
         </li>)}</ol>}
+        <div className="home-leader-invite"><span><strong>Your name could be next.</strong> Keep learning, one test at a time.</span><Link to="/tests">Take a practice test <ArrowRight size={17} /></Link></div>
+        </>}
       {failed && leaders.length > 0 && <p className="home-option-error" role="status">Showing the last available rankings. Reconnecting...</p>}
     </div>
   </section>;
 }
-
