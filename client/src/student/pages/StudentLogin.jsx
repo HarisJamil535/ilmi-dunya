@@ -107,32 +107,33 @@ const StudentLogin = () => {
     }
   };
 
-  const footer = <>New to IlmiDunya? <Link to="/register" state={{ from: returnTo }} className="font-black text-primary hover:text-primary-dark">Create a student account</Link></>;
-
-  return <StudentAuthShell eyebrow="Your study space" title={step === "verify" ? "Check your code" : "Welcome back"} description={step === "verify" ? "Enter the one-time code to securely access your student account." : "Sign in to continue your tests, resources and learning progress."} footer={footer}>
+  return <StudentAuthShell eyebrow="Your study space" title={step === "verify" ? "Check your code" : "Welcome back"} description={step === "verify" ? "Enter the one-time code to securely access your student account." : "Sign in to continue your tests, resources and learning progress."}>
     {step === "verify" ? <form onSubmit={verifyCode} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
       <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary">{channel === "email" ? <MailCheck className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}</span><span>{message}<br /><strong>Code expires in 10 minutes.</strong></span></div>
       <OtpField value={otp} onChange={setOtp} />
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
       <AuthSubmit loading={loading}>Verify and sign in</AuthSubmit>
       <button type="button" onClick={() => { setStep("credentials"); setError(""); }} className="flex w-full items-center justify-center gap-2 py-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" />Change sign-in details</button>
-    </form> : <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
+    </form> : <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/50 sm:space-y-4 sm:rounded-3xl sm:p-6">
       <GoogleIdentityButton onCredential={handleGoogleCredential} disabled={loading} />
-      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or sign in with a code or password<span className="h-px flex-1 bg-slate-200" /></div>
+      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or use email / WhatsApp<span className="h-px flex-1 bg-slate-200" /></div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1"><button type="button" onClick={() => { setMode("password"); setError(""); }} aria-pressed={mode === "password"} className={`min-h-10 rounded-lg text-sm font-black transition ${mode === "password" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>Password</button><button type="button" onClick={() => { setMode("code"); setError(""); }} aria-pressed={mode === "code"} className={`min-h-10 rounded-lg text-sm font-black transition ${mode === "code" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>One-time code</button></div>
-      {mode === "password" ? <form onSubmit={submitPassword} className="space-y-4">
+      {mode === "password" ? <form onSubmit={submitPassword} className="space-y-3">
         <AuthField label="Email or WhatsApp number" autoComplete="username" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setFieldError(""); }} placeholder="you@example.com or 0300 1234567" error={fieldError} />
         <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" />
         {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
         <AuthSubmit loading={loading}>Log in</AuthSubmit>
-      </form> : <form onSubmit={requestCode} className="space-y-4">
+      </form> : <form onSubmit={requestCode} className="space-y-3">
         <AuthField label="Email or WhatsApp number" autoComplete="username" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setFieldError(""); }} placeholder="you@example.com or 0300 1234567" error={fieldError} />
         <AuthChannelPicker value={channel} onChange={setChannel} channels={channels} />
         {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
         <AuthSubmit loading={loading}>Send sign-in code</AuthSubmit>
       </form>}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <Link to="/register" state={{ from: returnTo }} className="font-bold text-primary hover:text-primary-dark">Create account</Link>
+        <Link to="/forgot-password" className="inline-flex items-center gap-1 font-bold text-slate-500 hover:text-primary"><KeyRound className="h-3 w-3" />Forgot password?</Link>
+      </div>
     </div>}
-    <div className="mt-5 text-center"><Link to="/forgot-password" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 transition hover:text-primary"><KeyRound className="h-3.5 w-3.5" />Forgot password? Reset by email or WhatsApp</Link></div>
   </StudentAuthShell>;
 };
 

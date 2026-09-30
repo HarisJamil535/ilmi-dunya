@@ -108,7 +108,7 @@ export const GoogleIdentityButton = ({ onCredential, disabled = false }) => {
   }, [setup]);
 
   return <div className="space-y-2">
-    {setup?.clientId ? <div ref={containerRef} className={`flex min-h-11 justify-center ${disabled ? "pointer-events-none opacity-50" : ""}`} /> : setup?.unavailable ? <div className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-500"><ShieldCheck className="h-4 w-4" />Google sign-in is not configured for this site</div> : <div className="h-11 animate-pulse rounded-full bg-slate-100" aria-label="Loading Google sign-in" />}
+    {setup?.clientId ? <div ref={containerRef} className={`flex min-h-11 justify-center ${disabled ? "pointer-events-none opacity-50" : ""}`} /> : setup?.unavailable ? <div className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-500"><ShieldCheck className="h-4 w-4" />Google sign-in unavailable</div> : <div className="h-11 animate-pulse rounded-full bg-slate-100" aria-label="Loading Google sign-in" />}
     {error && <p role="status" className="text-center text-xs font-semibold text-amber-700">{error}</p>}
   </div>;
 };

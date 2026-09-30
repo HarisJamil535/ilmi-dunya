@@ -1,9 +1,16 @@
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import StudentToast from "../../shared/StudentToast";
 
 const StudentLayout = () => {
+  const { pathname } = useLocation();
+  const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+
+  if (isAuthPage) {
+    return <><StudentToast /><Outlet /></>;
+  }
+
   return (
     <>
       <StudentToast />

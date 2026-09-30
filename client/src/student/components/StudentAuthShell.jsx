@@ -3,7 +3,7 @@ import { ArrowLeft, BookOpen, ShieldCheck, Sparkles } from "lucide-react";
 import logo from "../../assets/logo.png";
 import hero from "../../assets/hero_img.jpg";
 
-const StudentAuthShell = ({ eyebrow, title, description, children, footer, maxWidth = "max-w-md" }) => (
+const StudentAuthShell = ({ eyebrow, title, description, children, maxWidth = "max-w-md" }) => (
   <main className="grid h-[100dvh] overflow-hidden bg-slate-50 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
     <aside className="relative hidden h-[100dvh] overflow-hidden bg-primary-dark text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
       <img src={hero} alt="A student preparing for exams" className="absolute inset-0 h-full w-full object-cover" />
@@ -24,7 +24,7 @@ const StudentAuthShell = ({ eyebrow, title, description, children, footer, maxWi
     </aside>
 
     <section className="flex h-[100dvh] min-h-0 items-center justify-center px-4 py-3 sm:px-8 lg:px-12">
-      <div className={`w-full max-h-full ${maxWidth}`}>
+      <div className={`w-full max-h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${maxWidth}`}>
         <div className="mb-3 flex items-center justify-between sm:mb-5">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" /> Home</Link>
           <Link to="/" className="flex items-center gap-2 lg:hidden"><img src={logo} alt="IlmiDunya" className="h-9 w-9 object-contain" /><span className="text-lg font-black text-primary-dark">IlmiDunya</span></Link>
@@ -32,10 +32,9 @@ const StudentAuthShell = ({ eyebrow, title, description, children, footer, maxWi
         <header className="mb-4">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
-          <p className="mt-1.5 max-w-lg text-xs leading-5 text-slate-500 sm:text-sm">{description}</p>
+          <p className="mt-1.5 max-w-lg text-xs leading-5 text-slate-500 max-[600px]:max-h-10 sm:text-sm [@media(max-height:600px)]:hidden">{description}</p>
         </header>
         {children}
-        {footer && <div className="mt-3 text-center text-xs text-slate-500">{footer}</div>}
       </div>
     </section>
   </main>
