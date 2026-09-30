@@ -6,7 +6,7 @@ function assessmentPayload(body, existing = {}) {
     const payload = Object.fromEntries(editable.filter(key => body[key] !== undefined).map(key => [key, body[key]]));
     for (const key of ['group', 'chapter', 'topic']) if (payload[key] === '') payload[key] = null;
     const merged = { ...existing, ...payload };
-    Object.assign(payload, publication(body, { existing, requireSummary: merged.status === 'published' }));
+    Object.assign(payload, publication(body, { existing }));
     for (const key of ['board', 'class', 'subject']) if (!mongoose.isValidObjectId(merged[key])) fail(`Choose a valid ${key}.`);
     for (const key of ['group', 'chapter', 'topic']) if (merged[key] && !mongoose.isValidObjectId(merged[key])) fail(`Choose a valid ${key}.`);
     if (merged.type === 'chapter_test' && !merged.chapter) fail('Choose a chapter for a chapter test.');

@@ -17,7 +17,7 @@ const startAttempt = async (req, res) => {
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Unable to start test. Please try again." });
     }
 
-    if (!assessment || assessment.status !== "published") {
+    if (!assessment || assessment.status !== "published" || !assessment.createdBy) {
         return res.status(404).json({ success: false, message: "Assessment not found." });
     }
 

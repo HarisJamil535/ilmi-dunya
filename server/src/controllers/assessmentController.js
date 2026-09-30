@@ -10,8 +10,8 @@ const calculateTotals = async (questions = [], scope = {}) => {
     const ids = questions.map((item) => item.question || item);
     if (ids.some(id => !mongoose.isValidObjectId(id)) || new Set(ids.map(String)).size !== ids.length) fail('Choose valid MCQs without duplicate questions.');
     const context = Object.fromEntries(['board', 'class', 'group', 'subject', 'chapter', 'topic'].filter(key => scope[key]).map(key => [key, scope[key]]));
-    const questionDocs = await Question.find({ ...context, _id: { $in: ids }, ...(scope.status === 'published' ? { status: 'published' } : {}), contentType: { $nin: ["long_question", "short_question"] } }).select("marks estimatedTimeSeconds").lean();
-    if (questionDocs.length !== ids.length) fail('Select existing MCQs matching this test scope. Published tests require published questions.');
+    const questionDocs = await Question.find({ ...context, _id: { $in: ids }, status: { $ne: "archived" }, contentType: { $nin: ["long_question", "short_question"] } }).select("marks estimatedTimeSeconds").lean();
+    if (questionDocs.length !== ids.length) fail('Select existing, non-archived MCQs that match this test scope.');
     const lookup = new Map(questionDocs.map((question) => [String(question._id), question]));
 
     let totalMarks = 0;
@@ -45,6 +45,7 @@ const getAssessments = async (req, res) => {
         return res.json({ success: true, assessments: [] });
     }
     const filter = {};
+    filter.createdBy = { $exists: true };
     ["type", "board", "class", "group", "subject", "chapter", "topic"].forEach((key) => {
         if (req.query[key]) filter[key] = req.query[key];
     });
@@ -53,7 +54,9 @@ const getAssessments = async (req, res) => {
         if (req.query[idKey]) filter[key] = req.query[idKey];
     });
 
-    if (!req.admin) filter.status = "published";
+    if (!req.admin) {
+        filter.status = "published";
+    }
     if (req.query.status && req.admin) filter.status = req.query.status;
 
     ["board", "class", "group", "subject", "chapter", "topic"].forEach((key) => {
@@ -97,7 +100,7 @@ const getAssessment = async (req, res) => {
         .lean();
 
     if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found." });
-    if (!req.admin && assessment.status !== "published") {
+    if (!req.admin && (assessment.status !== "published" || !assessment.createdBy)) {
         return res.status(404).json({ success: false, message: "Assessment not found." });
     }
 

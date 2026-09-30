@@ -36,7 +36,11 @@ const questionSchema = new mongoose.Schema(
         tags: [{ type: String, trim: true }],
         references: [{ title: String, url: String, type: String }],
         imageUrls: [{ type: String, trim: true }],
-        status: { type: String, enum: ["draft", "published", "archived"], default: "published" },
+        status: {
+            type: String,
+            enum: ["draft", "published", "archived"],
+            default: function () { return this.contentType === "mcq" ? "draft" : "published"; },
+        },
         usageCount: { type: Number, default: 0 },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
         updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },

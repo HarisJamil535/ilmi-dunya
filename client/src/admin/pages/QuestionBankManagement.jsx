@@ -29,7 +29,7 @@ const defaultForm = {
   chapter: "",
   topic: "",
   tags: "",
-  status: "published",
+  status: "draft",
   scenario: "",
   scenarioTitle: "",
   scenarioText: "",
@@ -85,7 +85,7 @@ const normalizeQuestionForForm = (question) => {
     chapter: question.chapter?._id || question.chapter || "",
     topic: question.topic?._id || question.topic || "",
     tags: Array.isArray(question.tags) ? question.tags.join(", ") : "",
-    status: question.status || "published",
+    status: contentType === "mcq" ? "draft" : question.status || "published",
     scenario: question.scenario?._id || question.scenario || "",
   };
 };
@@ -223,6 +223,7 @@ const QuestionBankManagement = () => {
       ...defaultForm,
       mode,
       contentType: mode === "mcq" ? "mcq" : "long_question",
+      status: mode === "mcq" ? "draft" : "published",
       board: form.board,
       class: form.class,
       group: form.group,
@@ -246,6 +247,7 @@ const QuestionBankManagement = () => {
       ...defaultForm,
       mode: form.mode,
       contentType: form.mode === "mcq" ? "mcq" : "long_question",
+      status: form.mode === "mcq" ? "draft" : "published",
       board: form.board,
       class: form.class,
       group: form.group,
@@ -268,6 +270,7 @@ const QuestionBankManagement = () => {
     const payload = {
       ...form,
       contentType: isMcq ? "mcq" : form.contentType,
+      status: isMcq ? "draft" : form.status,
       type: isMcq ? form.type : "standard_mcq",
       examYear: isMcq ? undefined : form.examYear,
       examSession: isMcq ? undefined : form.examSession,
@@ -514,9 +517,15 @@ const QuestionBankManagement = () => {
                 <SmartSelect value={form.contentType} onChange={(value) => setForm({ ...form, contentType: value })} options={[{ value: "long_question", label: "Long Question" }, { value: "short_question", label: "Short Question" }]} placeholder="Choose written type" />
               </Field>
             )}
-            <Field label="Publish Status" helper="Draft stays hidden from students.">
-              <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "published", label: "Published" }, { value: "draft", label: "Draft" }]} placeholder="Choose status" />
-            </Field>
+            {isMcq ? (
+              <div className="rounded-xl border border-primary-muted bg-primary-soft px-4 py-3 text-sm font-semibold text-primary-dark">
+                Saved to the question bank. Students see MCQs only after you publish a test in MCQ Test Builder.
+              </div>
+            ) : (
+              <Field label="Publish Status" helper="Published written questions appear on the selected topic page.">
+                <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "published", label: "Published" }, { value: "draft", label: "Draft" }]} placeholder="Choose status" />
+              </Field>
+            )}
             {!isMcq && (
               <Field label="Exam Session" helper="Optional label shown with the question.">
                 <SmartSelect value={form.examSession} onChange={(value) => setForm({ ...form, examSession: value })} options={[{ value: "morning", label: "Morning" }, { value: "evening", label: "Evening" }]} placeholder="Optional session" />
@@ -734,7 +743,11 @@ const QuestionBankManagement = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span>
                         {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
+                        {question.contentType === "mcq" ? (
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">Question bank</span>
+                        ) : (
+                          <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
+                        )}
                         {question.scenario?.title && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Scenario: {question.scenario.title}</span>}
                       </div>
                       <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`mt-2 font-black leading-7 text-slate-950 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>{question.questionText}</p>
@@ -769,6 +782,7 @@ const QuestionBankManagement = () => {
               <p className="mt-1 text-sm text-slate-500">
                 First select Board, Class, Group, Subject and Chapter in the Study Context above. The Excel file should contain only question data.
               </p>
+              <p className="mt-2 text-xs font-bold text-primary-dark">Imported MCQs are added to the reusable bank. Publish a student test separately from MCQ Test Builder.</p>
               <p className="mt-2 text-xs font-bold leading-5 text-slate-400">
                 {writtenImport ? "Select a topic above. Columns: questionText, examYear, examSession. Year and session are optional; use morning or evening for session. No answers or options are needed." : "Columns: questionText, optionA, optionB, optionC, optionD, correctOption, explanation. Use A, B, C or D for the correct answer."}
                 {importKind === "scenario_mcq" && " Also fill scenarioTitle and scenarioText on every row. Repeat the same title and passage for all questions in one scenario; there is no fixed question count."}

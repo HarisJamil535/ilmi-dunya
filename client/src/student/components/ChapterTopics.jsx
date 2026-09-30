@@ -27,7 +27,7 @@ export default function ChapterTopics({ chapter, context }) {
       </Link>
       <div className="ml-auto flex shrink-0 gap-2">
         <Link title={`Watch ${topic.name}`} to={`/topics?${params}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-red-600"><Video size={16} />Video</Link>
-        <Link title={`Test MCQs from ${topic.name} only`} to={`/tests/start?topic=${topic._id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-white"><FileText size={16} />Test</Link>
+        <Link title={`Start the published test for ${topic.name}`} to={`/tests/start?topic=${topic._id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-white"><FileText size={16} />Test</Link>
       </div>
     </li>;
   })}</ol>;

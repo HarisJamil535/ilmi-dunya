@@ -89,6 +89,8 @@ const cleanQuestionPayload = (body, adminId) => {
 
     payload.contentType = body.contentType || "mcq";
     if (payload.contentType === "mcq") {
+        // MCQs are reusable bank inventory; only a published Assessment exposes them to students.
+        payload.status = "draft";
         payload.examYear = undefined;
         payload.examSession = undefined;
     }
@@ -330,7 +332,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
             topic: values.topic,
         scenario,
         tags: row.tags,
-        status: row.status || "published",
+        status: (row.contentType || "mcq") === "mcq" ? "draft" : row.status || "published",
     }, adminId);
 };
 

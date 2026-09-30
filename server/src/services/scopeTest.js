@@ -1,11 +1,8 @@
-const crypto = require("node:crypto");
 const mongoose = require("mongoose");
 const Chapter = require("../models/Chapter");
 const Topic = require("../models/Topic");
-const Question = require("../models/Question");
 const Assessment = require("../models/Assessment");
-
-const mcqFilter = { contentType: { $nin: ["long_question", "short_question"] }, type: { $in: ["standard_mcq", "scenario_mcq"] }, status: "published" };
+const mcqFilter = { contentType: { $nin: ["long_question", "short_question"] }, type: { $in: ["standard_mcq", "scenario_mcq"] }, status: { $ne: "archived" } };
 
 async function resolveScope(chapterId, topicId) {
     const id = topicId || chapterId;
@@ -22,26 +19,14 @@ async function resolveScope(chapterId, topicId) {
 
 async function createScopeTest(chapterId, topicId) {
     const { chapter, topic, filter } = await resolveScope(chapterId, topicId);
-    const questions = await Question.find({ ...filter, ...mcqFilter }).sort({ _id: 1 }).select("_id marks estimatedTimeSeconds updatedAt").lean();
-    if (!questions.length) throw Object.assign(new Error("No published MCQs have been added here yet."), { status: 404 });
-    // A changed question set gets a new test, preserving totals on earlier attempts.
-    const digest = crypto.createHash("sha256").update(JSON.stringify([filter, questions])).digest("hex").slice(0, 24);
-    const _id = new mongoose.Types.ObjectId(digest);
-    const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
-    const payload = {
-        ...filter, title: `${topic?.name || chapter.name} MCQ test`,
-        type: topic ? "topic_test" : "chapter_test", status: "published",
-        questions: questions.map((q, index) => ({ question: q._id, marks: q.marks, order: index + 1 })),
-        totalMarks, passingMarks: Math.ceil(totalMarks * 0.4),
-        durationMinutes: Math.max(1, Math.ceil(questions.reduce((sum, q) => sum + q.estimatedTimeSeconds, 0) / 60)),
-        allowResume: true,
-    };
-    try {
-        return await Assessment.findOneAndUpdate({ _id }, { $setOnInsert: payload }, { upsert: true, new: true, runValidators: true }).lean();
-    } catch (error) {
-        if (error.code === 11000) return Assessment.findById(_id).lean();
-        throw error;
-    }
+    const assessment = await Assessment.findOne({
+        ...filter,
+        type: topic ? "topic_test" : "chapter_test",
+        status: "published",
+        createdBy: { $exists: true },
+    }).sort({ createdAt: -1 }).lean();
+    if (!assessment) throw Object.assign(new Error(`No ${topic ? "topic" : "chapter"} test has been published here yet.`), { status: 404 });
+    return assessment;
 }
 
 module.exports = { resolveScope, createScopeTest, mcqFilter };
