@@ -68,6 +68,11 @@ test('mounted private and write APIs reject missing authentication before databa
         }
         const authOptions = await fetch(origin + '/api/students/auth-options');
         assert.equal(authOptions.status, 200);
+        assert.equal(authOptions.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+        const policy = authOptions.headers.get('content-security-policy');
+        assert.match(policy, /script-src[^;]*https:\/\/accounts\.google\.com\/gsi\/client/);
+        assert.match(policy, /style-src[^;]*https:\/\/accounts\.google\.com\/gsi\/style/);
+        assert.match(policy, /frame-src 'self' https:/);
         assert.deepEqual(Object.keys(await authOptions.json()).sort(), ['channels', 'googleClientId', 'success']);
         const bad = await fetch(origin + '/api/students/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: { $ne: null } }) });
         assert.equal(bad.status, 400);

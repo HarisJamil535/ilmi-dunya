@@ -113,6 +113,8 @@ const createOtpChallenge = async ({ purpose, channel, destination, student, payl
         else await startWhatsAppVerification(destination);
     } catch (error) {
         await StudentAuthChallenge.deleteOne({ _id: challenge._id });
+        const diagnosticCode = String(error.code || error.name || "DELIVERY_FAILED").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+        process.stderr.write(`[student-auth] ${channel} delivery failed: ${diagnosticCode}\n`);
         throw Object.assign(new Error(error.status === 429 ? "Too many code requests. Please wait and try again." : `${channel === "email" ? "Email" : "WhatsApp"} code delivery is unavailable right now. Please try another method or try again shortly.`), { status: error.status || 503 });
     }
     return challenge;

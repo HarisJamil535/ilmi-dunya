@@ -38,8 +38,15 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS) || false);
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    contentSecurityPolicy: { directives: { "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])], "script-src": ["'self'", "https://accounts.google.com/gsi/client"], "frame-src": ["'self'", "https://accounts.google.com/gsi/"], "connect-src": ["'self'", "https://accounts.google.com", "https:"] } },
+    contentSecurityPolicy: { directives: {
+        "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])],
+        "script-src": ["'self'", "https://accounts.google.com/gsi/client"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://accounts.google.com/gsi/style"],
+        "frame-src": ["'self'", "https:"],
+        "connect-src": ["'self'", "https:"],
+    } },
 }));
 app.use(compression());
 app.use('/api', cors({

@@ -1,4 +1,5 @@
 const { sendIlmiDunyaEmail } = require("../utils/mailer");
+const { escapeHtml } = require("./seoDocument");
 
 const emailDeliveryConfigured = () => Boolean(
     process.env.RESEND_API_KEY?.trim() ||
@@ -23,7 +24,9 @@ const startWhatsAppVerification = async (phone) => {
         signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) {
+        const details = await response.json().catch(() => ({}));
         const error = new Error(`WhatsApp verification provider rejected the request (${response.status}).`);
+        error.code = `TWILIO_${Number(details.code) || response.status}`;
         error.status = response.status === 429 ? 429 : 503;
         throw error;
     }
@@ -54,7 +57,7 @@ const sendEmailOtp = async ({ to, name, code, purpose }) => {
     const sent = await sendIlmiDunyaEmail({
         to,
         subject,
-        html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#17202a"><h1 style="color:#5938c8">${heading}</h1><p>${name ? `Hello ${name}, ` : ""}use this one-time verification code to continue:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold;color:#24154d">${code}</p><p>This code expires in 10 minutes and can only be used once. If you did not request it, you can ignore this email.</p><p>Team IlmiDunya</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#17202a"><h1 style="color:#5938c8">${heading}</h1><p>${name ? `Hello ${escapeHtml(name)}, ` : ""}use this one-time verification code to continue:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold;color:#24154d">${code}</p><p>This code expires in 10 minutes and can only be used once. If you did not request it, you can ignore this email.</p><p>Team IlmiDunya</p></div>`,
     });
     if (!sent) throw Object.assign(new Error("Email delivery is not configured."), { status: 503 });
 };
