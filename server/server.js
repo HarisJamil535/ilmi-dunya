@@ -135,18 +135,43 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-if (require.main === module) {
+const validateRuntimeConfig = () => {
     if (!process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' && (!process.env.SITE_URL || !process.env.CLIENT_ORIGIN || process.env.JWT_SECRET.length < 32))) {
         throw new Error('Configure JWT_SECRET (32+ characters in production), SITE_URL and CLIENT_ORIGIN before starting.');
     }
     require('./src/services/seoDocument').siteOrigin();
-    connectDB().then(async () => {
-        await Student.collection.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
-        await StudentAuthChallenge.createIndexes();
-        return app.listen(PORT);
-    }).catch(error => {
+};
+
+let databaseReady;
+const initializeDatabase = async () => {
+    if (!databaseReady) {
+        databaseReady = connectDB().then(async () => {
+            await Student.collection.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
+            await StudentAuthChallenge.createIndexes();
+        });
+    }
+    return databaseReady;
+};
+
+if (require.main === module) {
+    try {
+        validateRuntimeConfig();
+    } catch (error) {
+        process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
+        process.exit(1);
+    }
+    initializeDatabase().then(() => app.listen(PORT)).catch(error => {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
         process.exitCode = 1;
     });
+} else if (process.env.NODE_ENV === 'production') {
+    try {
+        validateRuntimeConfig();
+        initializeDatabase().catch(error => {
+            process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
+        });
+    } catch (error) {
+        process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
+    }
 }
 module.exports = app;
