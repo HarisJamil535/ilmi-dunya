@@ -7,7 +7,7 @@ import AdminToast from "../components/AdminToast";
 
 const AdminLayout = () => {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="admin-theme-root flex h-screen overflow-hidden bg-slate-50">
        <Sidebar /> 
       <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6">
         <AdminBackButton />

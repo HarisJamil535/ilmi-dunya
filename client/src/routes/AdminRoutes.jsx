@@ -5,6 +5,7 @@ import AdminLayout from "../admin/layout/AdminLayout";
 import ProtectedRoutes from "../admin/components/ProtectedRoutes";
 import PageLoader from "../shared/PageLoader";
 import NotFound from '../shared/NotFound';
+import { ThemeProvider } from "../theme/ThemeProvider";
 
 const AdminLogin = lazy(() => import("../admin/pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("../admin/pages/AdminDashboard"));
@@ -29,7 +30,7 @@ const AnswerSheetManagement = lazy(() => import("@/admin/pages/AnswerSheetManage
 
 const AdminRoutes = () => {
     return (
-        <Suspense fallback={<PageLoader label="Loading admin workspace..." />}>
+        <ThemeProvider scope="admin"><Suspense fallback={<PageLoader label="Loading admin workspace..." />}>
             <Routes>
                 <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -61,7 +62,7 @@ const AdminRoutes = () => {
 
                 <Route path="/admin/*" element={<NotFound admin />} />
             </Routes>
-        </Suspense>
+        </Suspense></ThemeProvider>
     );
 };
 

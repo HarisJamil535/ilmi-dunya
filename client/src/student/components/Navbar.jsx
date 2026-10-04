@@ -3,6 +3,7 @@ import { NavLink, Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import logo from "../../assets/logo.png";
 import { useStudentSession } from "../../auth/useStudentSession";
+import ThemeToggle from "../../shared/ThemeToggle";
 
 const navLinks = [
   { label: "Home", path: "/" },
@@ -63,6 +64,7 @@ const Navbar = () => {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden items-center gap-3 xl:flex">
+            <ThemeToggle className="theme-toggle-compact" />
             {isLoggedIn ? (
               <Link
                 to="/dashboard"
@@ -125,6 +127,7 @@ const Navbar = () => {
             <hr className="my-4 border-gray-200" />
 
             <div className="flex flex-col gap-3">
+              <ThemeToggle />
               {isLoggedIn ? (
                 <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="rounded-xl bg-primary px-4 py-2 text-center font-bold text-white transition hover:bg-primary-dark">
                   Dashboard

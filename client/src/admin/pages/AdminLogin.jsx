@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
 import { useNavigate } from "react-router-dom";
+import ThemeToggle from '../../shared/ThemeToggle';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -111,7 +112,7 @@ export default function AdminLogin() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen bg-[#f4f5f9] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-600 shadow-sm">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           Checking secure session...
@@ -121,7 +122,8 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f9] flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <ThemeToggle className="theme-toggle-compact absolute right-4 top-4 sm:right-6 sm:top-6" />
       <div className="w-full max-w-[420px] bg-white rounded-2xl p-8 shadow-[0_10px_25px_rgba(68,61,215,0.05),0_20px_48px_rgba(0,0,0,0.03)]">
         
         {/* Header */}

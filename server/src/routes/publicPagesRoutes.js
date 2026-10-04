@@ -98,6 +98,7 @@ function frontendRoutes() {
     const router = express.Router();
     router.use('/assets', express.static(path.join(root, 'dist/assets'), { immutable: true, maxAge: '1y' }));
     router.get('/logo.png', (req, res) => res.sendFile(path.join(root, 'dist/logo.png')));
+    router.get('/theme-init.js', (req, res) => res.type('application/javascript').set('Cache-Control', 'public, max-age=3600').sendFile(path.join(root, 'dist/theme-init.js')));
     router.get('/{*path}', async (req, res, next) => {
         if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
         let template;

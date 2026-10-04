@@ -19,6 +19,7 @@ import {
   HiOutlineNewspaper,
   HiOutlineUserGroup,
 } from "react-icons/hi";
+import ThemeToggle from "../../shared/ThemeToggle";
 
 // Rest of the flat sidebar items (Dashboard and Academic Structure handled separately)
 const standardSidebarItems = [
@@ -305,6 +306,7 @@ const AdminSidebar = () => {
                 </p>
               </div>
             </div>
+            <ThemeToggle className="mt-4 w-full" />
             <button
               type="button"
               onClick={handleLogout}

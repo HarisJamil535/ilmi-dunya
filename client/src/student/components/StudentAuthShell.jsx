@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, BookOpen, ShieldCheck, Sparkles } from "lucide-react";
 import logo from "../../assets/logo.png";
 import hero from "../../assets/hero_img.jpg";
+import ThemeToggle from "../../shared/ThemeToggle";
 
 const StudentAuthShell = ({ eyebrow, title, description, children, maxWidth = "max-w-md" }) => (
   <main className="grid h-[100dvh] overflow-hidden bg-slate-50 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
@@ -27,7 +28,7 @@ const StudentAuthShell = ({ eyebrow, title, description, children, maxWidth = "m
       <div className={`w-full max-h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${maxWidth}`}>
         <div className="mb-3 flex items-center justify-between sm:mb-5">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" /> Home</Link>
-          <Link to="/" className="flex items-center gap-2 lg:hidden"><img src={logo} alt="IlmiDunya" className="h-9 w-9 object-contain" /><span className="text-lg font-black text-primary-dark">IlmiDunya</span></Link>
+          <div className="flex items-center gap-2"><ThemeToggle className="theme-toggle-compact" /><Link to="/" className="flex items-center gap-2 lg:hidden"><img src={logo} alt="IlmiDunya" className="h-9 w-9 object-contain" /><span className="text-lg font-black text-primary-dark">IlmiDunya</span></Link></div>
         </div>
         <header className="mb-4">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>

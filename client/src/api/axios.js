@@ -13,7 +13,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use((config) => {
     const url = config.url || "";
     const isAdminRequest = window.location.pathname.startsWith('/admin') || url.startsWith('/admin');
-    const studentPaths = ["/attempts", "/student-dashboard", "/students/me", "/resources/books", "/resources/chapter-notes"];
+    const studentPaths = ["/attempts", "/student-dashboard", "/students/me", "/resources/books", "/resources/chapter-notes", "/resources/answer-sheets"];
     const isStudentRequest = !isAdminRequest && studentPaths.some((path) => url.startsWith(path));
     const token = isStudentRequest ? localStorage.getItem("studentToken") : isAdminRequest ? localStorage.getItem("adminToken") : null;
     config.authAudience = isStudentRequest ? 'student' : isAdminRequest ? 'admin' : null;
