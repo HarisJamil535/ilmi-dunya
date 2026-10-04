@@ -28,6 +28,7 @@ const standardSidebarItems = [
   { id: 6, label: "Books", icon: HiOutlineBookOpen, path:'academic-structure/manage-books' },
   { id: 7, label: "Notes", icon: HiOutlineDocumentText, path:'academic-structure/manage-notes' },
   { id: 8, label: "Past Papers", icon: HiOutlineDocumentText, path:'academic-structure/manage-past-papers' },
+  { id: 20, label: "Answer Sheets", icon: HiOutlineDocumentText, path:'academic-structure/manage-answer-sheets' },
   { id: 9, label: "Home Stats", icon: HiOutlineChartBar, path:'home-content/stats' },
   { id: 10, label: "Testimonials", icon: HiOutlineChatAlt2, path:'home-content/testimonials' },
   { id: 15, label: "Question Bank", icon: HiOutlineClipboardCheck, path:'assessments/questions' },

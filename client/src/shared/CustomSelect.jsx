@@ -11,9 +11,9 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
   const menuRef = useRef(null);
   const selected = options.find((option) => String(option.value) === String(value));
 
-  const positionMenu = useCallback(() => {
+  const getMenuStyle = useCallback(() => {
     const trigger = ref.current?.querySelector("button");
-    if (!trigger) return;
+    if (!trigger) return null;
 
     const rect = trigger.getBoundingClientRect();
     const viewportPadding = 12;
@@ -23,13 +23,13 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
     const opensAbove = availableBelow < 180 && availableAbove > availableBelow;
     const availableSpace = opensAbove ? availableAbove : availableBelow;
 
-    setMenuStyle({
+    return {
       left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding)),
       top: opensAbove ? undefined : rect.bottom + menuGap,
       bottom: opensAbove ? window.innerHeight - rect.top + menuGap : undefined,
       width: Math.min(rect.width, window.innerWidth - viewportPadding * 2),
       maxHeight: Math.max(120, Math.min(256, availableSpace)),
-    });
+    };
   }, []);
 
   useEffect(() => {
@@ -42,11 +42,10 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
 
   useEffect(() => {
     if (!open) return undefined;
-    positionMenu();
 
     const handleViewportChange = (event) => {
       if (event.type === "scroll" && menuRef.current?.contains(event.target)) return;
-      positionMenu();
+      setMenuStyle(getMenuStyle());
     };
 
     window.addEventListener("resize", handleViewportChange);
@@ -55,11 +54,20 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
       window.removeEventListener("resize", handleViewportChange);
       document.removeEventListener("scroll", handleViewportChange, true);
     };
-  }, [open, positionMenu]);
+  }, [getMenuStyle, open]);
+
+  const toggleMenu = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setMenuStyle(getMenuStyle());
+    setOpen(true);
+  };
 
   return <div ref={ref} className={`relative ${className}`}>
     {label && <label htmlFor={selectId} className="mb-2 block text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">{label}</label>}
-    <button id={selectId} type="button" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50">
+    <button id={selectId} type="button" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleMenu} className="flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50">
       <span className={selected ? "truncate text-slate-800" : "truncate text-slate-400"}>{selected?.label || placeholder}</span>
       <ChevronDown className={`ml-3 h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180 text-primary" : ""}`} />
     </button>

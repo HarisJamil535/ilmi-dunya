@@ -11,6 +11,10 @@ const {
     getChapterNotes,
     saveChapterNote,
     deleteChapterNote,
+    getAnswerSheets,
+    saveAnswerSheet,
+    updateAnswerSheet,
+    deleteAnswerSheet,
 } = require("../controllers/resourceController");
 const authMiddleware = require("../middleware/authMiddleware");
 const publishing = require('../middleware/publishingMiddleware');
@@ -30,5 +34,10 @@ router.delete("/past-papers/:id", authMiddleware, deletePastPaper);
 router.get("/chapter-notes", require('../middleware/resourceReader'), getChapterNotes);
 router.post("/chapter-notes", authMiddleware, publishing('note'), saveChapterNote);
 router.delete("/chapter-notes/:id", authMiddleware, deleteChapterNote);
+
+router.get("/answer-sheets", require('../middleware/resourceReader'), getAnswerSheets);
+router.post("/answer-sheets", authMiddleware, saveAnswerSheet);
+router.put("/answer-sheets/:id", authMiddleware, updateAnswerSheet);
+router.delete("/answer-sheets/:id", authMiddleware, deleteAnswerSheet);
 
 module.exports = router;

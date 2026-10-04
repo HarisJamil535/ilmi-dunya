@@ -4,6 +4,7 @@ const Book = require("../models/Book");
 const PastPaper = require("../models/PastPaper");
 const ChapterNote = require("../models/ChapterNote");
 const Chapter = require("../models/Chapter");
+const AnswerSheet = require("../models/AnswerSheet");
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -278,6 +279,78 @@ const deleteChapterNote = async (req, res, next) => {
     }
 };
 
+const answerSheetFilter = (query) => {
+    const filter = {};
+    ["board", "class"].forEach((field) => {
+        if (query[field] && !isValidObjectId(query[field])) fail(`Invalid ${field} filter.`);
+        if (query[field]) filter[field] = query[field];
+    });
+    return filter;
+};
+
+const getAnswerSheets = async (req, res, next) => {
+    try {
+        const answerSheets = await AnswerSheet.find(answerSheetFilter(req.query))
+            .select(req.admin || req.student ? "" : "-pdfUrl")
+            .populate(["board", "class"])
+            .sort({ updatedAt: -1 });
+        res.status(200).json({ success: true, count: answerSheets.length, answerSheets });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const validateAnswerSheet = ({ title, pdfUrl, board, class: classId }) => {
+    if (!title?.trim() || !pdfUrl?.trim()) return "Title and PDF URL are required.";
+    if (!isValidObjectId(board) || !isValidObjectId(classId)) return "Please select a valid Board and Class.";
+    if (!isValidUrl(pdfUrl.trim())) return "Please enter a valid PDF URL.";
+    return null;
+};
+
+const saveAnswerSheet = async (req, res, next) => {
+    try {
+        const validationError = validateAnswerSheet(req.body);
+        if (validationError) return res.status(400).json({ success: false, message: validationError });
+        const { title, pdfUrl, board, class: classId } = req.body;
+        const existing = await AnswerSheet.findOne({ board, class: classId }).select("_id");
+        if (existing) return res.status(409).json({ success: false, message: "An answer sheet already exists for this board and class. Edit the existing resource instead." });
+        const answerSheet = await AnswerSheet.create({ title: title.trim(), pdfUrl: pdfUrl.trim(), board, class: classId });
+        await answerSheet.populate(["board", "class"]);
+        res.status(201).json({ success: true, message: "Answer sheet added successfully.", answerSheet });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateAnswerSheet = async (req, res, next) => {
+    try {
+        const validationError = validateAnswerSheet(req.body);
+        if (validationError) return res.status(400).json({ success: false, message: validationError });
+        const { title, pdfUrl, board, class: classId } = req.body;
+        const duplicate = await AnswerSheet.findOne({ _id: { $ne: req.params.id }, board, class: classId }).select("_id");
+        if (duplicate) return res.status(409).json({ success: false, message: "An answer sheet already exists for this board and class." });
+        const answerSheet = await AnswerSheet.findByIdAndUpdate(
+            req.params.id,
+            { title: title.trim(), pdfUrl: pdfUrl.trim(), board, class: classId },
+            { new: true, runValidators: true }
+        ).populate(["board", "class"]);
+        if (!answerSheet) return res.status(404).json({ success: false, message: "Answer sheet not found." });
+        res.status(200).json({ success: true, message: "Answer sheet updated successfully.", answerSheet });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteAnswerSheet = async (req, res, next) => {
+    try {
+        const answerSheet = await AnswerSheet.findByIdAndDelete(req.params.id);
+        if (!answerSheet) return res.status(404).json({ success: false, message: "Answer sheet not found." });
+        res.status(200).json({ success: true, message: "Answer sheet deleted successfully." });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getBooks,
     saveBook,
@@ -290,4 +363,8 @@ module.exports = {
     getChapterNotes,
     saveChapterNote,
     deleteChapterNote,
+    getAnswerSheets,
+    saveAnswerSheet,
+    updateAnswerSheet,
+    deleteAnswerSheet,
 };

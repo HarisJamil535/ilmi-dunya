@@ -25,6 +25,7 @@ const AssessmentAnalytics = lazy(() => import("@/admin/pages/AssessmentAnalytics
 const NewsManagement = lazy(() => import("@/admin/pages/NewsManagement"));
 const AdminManagement = lazy(() => import("@/admin/pages/AdminManagement"));
 const StudentManagement = lazy(() => import("@/admin/pages/StudentManagement"));
+const AnswerSheetManagement = lazy(() => import("@/admin/pages/AnswerSheetManagement"));
 
 const AdminRoutes = () => {
     return (
@@ -44,6 +45,7 @@ const AdminRoutes = () => {
                         <Route path="academic-structure/manage-topics" element={<TopicManagement />} />
                         <Route path="academic-structure/manage-books" element={<BookManagement />} />
                         <Route path="academic-structure/manage-past-papers" element={<PastPaperManagement />} />
+                        <Route path="academic-structure/manage-answer-sheets" element={<AnswerSheetManagement />} />
                         <Route path="academic-structure/manage-notes" element={<NotesManagement />} />
                         <Route path="home-content/stats" element={<HomeStatsManagement />} />
                         <Route path="home-content/testimonials" element={<TestimonialsManagement />} />

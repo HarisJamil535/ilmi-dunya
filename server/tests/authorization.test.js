@@ -55,7 +55,7 @@ test('mounted private and write APIs reject missing authentication before databa
         const routes = [
             ['POST', '/api/boards'], ['POST', '/api/classes'], ['POST', '/api/groups'],
             ['POST', '/api/subjects'], ['POST', '/api/chapters'], ['POST', '/api/topics'],
-            ['POST', '/api/resources/books'], ['POST', '/api/resources/past-papers'], ['POST', '/api/resources/chapter-notes'],
+            ['POST', '/api/resources/books'], ['POST', '/api/resources/past-papers'], ['POST', '/api/resources/chapter-notes'], ['POST', '/api/resources/answer-sheets'],
             ['POST', '/api/news'], ['POST', '/api/questions'], ['POST', '/api/assessments'],
             ['GET', '/api/admin/me'], ['GET', '/api/students/me'], ['POST', '/api/attempts/start'],
             ['GET', '/api/admin/students'],
@@ -87,5 +87,16 @@ test('public book metadata excludes download URLs until a reader authenticates',
     await getBooks({ query: {} }, response(), error => { throw error; });
     assert.equal(projection, '-pdfUrl');
     await getBooks({ query: {}, student: { id: 'reader' } }, response(), error => { throw error; });
+    assert.equal(projection, '');
+});
+
+test('public answer sheet metadata reveals availability without exposing its PDF URL', async t => {
+    const AnswerSheet = require('../src/models/AnswerSheet');
+    const { getAnswerSheets } = require('../src/controllers/resourceController');
+    let projection;
+    t.mock.method(AnswerSheet, 'find', () => ({ select(value) { projection = value; return this; }, populate() { return this; }, sort: async () => [] }));
+    await getAnswerSheets({ query: {} }, response(), error => { throw error; });
+    assert.equal(projection, '-pdfUrl');
+    await getAnswerSheets({ query: {}, student: { id: 'reader' } }, response(), error => { throw error; });
     assert.equal(projection, '');
 });

@@ -25,6 +25,7 @@ const News = lazy(() => import("../student/pages/News"));
 const NewsArticle = lazy(() => import("../student/pages/NewsArticle"));
 const TopicQuestions = lazy(() => import("../student/pages/TopicQuestions"));
 const PublicStudyPage = lazy(() => import("../student/pages/PublicStudyPage"));
+const AnswerSheetViewer = lazy(() => import("../student/pages/AnswerSheetViewer"));
 
 const StudentRoutes = ({ initialData, initialView }) => {
   const HomeView = initialData?.type === 'home' ? initialView : Home;
@@ -43,6 +44,7 @@ const StudentRoutes = ({ initialData, initialView }) => {
           <Route path="/chapters" element={<Chapters />} />
           <Route path="/book" element={<BookViewer />} />
           <Route path="/past-papers" element={<PastPapers />} />
+          <Route path="/answer-sheet" element={<AnswerSheetViewer />} />
           <Route path="/notes" element={<ChapterNotes />} />
           <Route path="/login" element={<StudentLogin />} />
           <Route path="/register" element={<StudentRegister />} />

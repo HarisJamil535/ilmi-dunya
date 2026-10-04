@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronDown, Download, FileText, Layers, Loader2, SearchX } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, Layers, Lightbulb, ListChecks, Loader2, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from "../../api/axios";
@@ -66,7 +66,7 @@ const Chapters = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
-
+  const [answerSheet, setAnswerSheet] = useState(null);
 
   const hasRequiredContext = Boolean(boardParam && classParam && (subjectParam || subjectId));
   const pageContext = useMemo(
@@ -123,6 +123,18 @@ const Chapters = () => {
           : [];
 
         setChapters(sortedChapters);
+        const resolvedBoardId = boardId || sortedChapters[0]?.board?._id;
+        const resolvedClassId = classId || sortedChapters[0]?.class?._id;
+        if (resolvedBoardId && resolvedClassId) {
+          try {
+            const answerResponse = await axiosInstance.get(`/resources/answer-sheets?board=${resolvedBoardId}&class=${resolvedClassId}`);
+            setAnswerSheet(answerResponse.data.answerSheets?.[0] || null);
+          } catch {
+            setAnswerSheet(null);
+          }
+        } else {
+          setAnswerSheet(null);
+        }
       } catch {
         setError("Chapters could not be loaded right now. Please try again.");
         setChapters([]);
@@ -143,15 +155,17 @@ const Chapters = () => {
           { label: "Subjects", to: `/subjects?${searchParams.toString()}` },
           { label: pageContext.subject || "Chapters" },
         ]} />
-        <header className="chapters-header flex flex-col gap-6 border-b border-slate-200 pb-8 lg:flex-row lg:items-end lg:justify-between">
+        <header className="chapters-header relative overflow-hidden rounded-3xl border border-primary/10 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
+          <div className="chapters-header-glow" aria-hidden="true" />
+          <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(330px,0.62fr)] lg:items-end">
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
               <Layers className="h-4 w-4" />
-              <span>Subject Chapters</span>
+              <span>Your subject workspace</span>
             </div>
 
             <div className="space-y-2">
-              <h1 className="max-w-4xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">
+              <h1 className="max-w-4xl text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
                 {hasRequiredContext ? (
                   <>
                     <span className="capitalize">{pageContext.subject}</span>
@@ -162,12 +176,13 @@ const Chapters = () => {
               </h1>
               {hasRequiredContext && <div className="chapter-context"><span>Class {pageContext.grade}</span><span className="capitalize">{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>{pageContext.group && <span className="capitalize">{pageContext.group}</span>}</div>}
               <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
-                Follow the chapter sequence, watch topic videos, download notes and continue into practice when available.
+                Study chapter by chapter with videos, notes and focused tests. Expand a chapter to explore every topic in the correct syllabus order.
               </p>
             </div>
           </div>
-
-          <div className="chapter-resources grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
+          <div className="chapter-resource-panel">
+            <p className="chapter-resource-kicker">Subject resources</p>
+            <div className={`chapter-resources grid gap-3 ${answerSheet ? "sm:grid-cols-3 lg:grid-cols-1" : "grid-cols-2 lg:grid-cols-1"}`}>
             <Link
               to={buildResourceLink({
                 path: "/book",
@@ -183,7 +198,8 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-600 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-50 hover:text-blue-600"
             >
               <BookOpen className="h-4 w-4" />
-              Full Book
+              <span><strong>Full Book</strong><small>Read the complete textbook</small></span>
+              <ArrowRight className="resource-arrow" size={16} />
             </Link>
             <Link
               to={buildResourceLink({
@@ -200,8 +216,19 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-amber-100 hover:text-amber-600"
             >
               <FileText className="h-4 w-4" />
-              Past Papers
+              <span><strong>Past Papers</strong><small>Practise previous exams</small></span>
+              <ArrowRight className="resource-arrow" size={16} />
             </Link>
+            {answerSheet && <Link
+              to={buildResourceLink({ path: "/answer-sheet", subject: subjectParam, grade: classParam, board: boardParam, group: groupParam, subjectId, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id, groupId })}
+              className="answer-sheet-resource"
+            >
+              <FileCheck2 className="h-4 w-4" />
+              <span><strong>Answer Sheet</strong><small>See the board exam pattern</small></span>
+              <ArrowRight className="resource-arrow" size={16} />
+            </Link>}
+            </div>
+          </div>
           </div>
         </header>
 
@@ -238,7 +265,12 @@ const Chapters = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="chapter-list-heading"><h2>Chapters</h2><span>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</span></div>
+            <div className="topic-discovery-callout">
+              <span className="topic-discovery-icon"><Lightbulb size={20} /></span>
+              <div><h2>Important questions are inside every topic</h2><p>Expand a chapter, then click any topic name to view its board-focused long and short questions.</p></div>
+              <span className="topic-discovery-hint"><ListChecks size={16} /> Click a topic</span>
+            </div>
+            <div className="chapter-list-heading"><div><p>Course outline</p><h2>Explore all chapters</h2></div><span>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</span></div>
             {chapters.map((chapter) => {
               const chapterNumStr = String(chapter.chapterNumber || 1).padStart(2, "0");
               const chapterTitle = chapter.name || chapter.title || `Chapter ${chapter.chapterNumber || 1}`;
@@ -266,6 +298,7 @@ const Chapters = () => {
                         {chapterNumStr}
                       </span>
                       <div className="min-w-0">
+                        <p className="chapter-overline">Chapter {chapter.chapterNumber || 1}</p>
                         <h2 className="text-base font-bold leading-6 text-slate-900 transition group-hover:text-primary sm:text-lg">
                           {chapterTitle}
                         </h2>
@@ -275,13 +308,14 @@ const Chapters = () => {
                           </p>
                         )}
                       </div>
-                      <ChevronDown aria-hidden="true" className={`ml-auto h-5 w-5 shrink-0 transition-transform ${expandedChapter === chapter._id ? "rotate-180" : ""}`} />
+                      <span className="chapter-expand-label">{expandedChapter === chapter._id ? "Hide topics" : "View topics"}</span>
+                      <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 transition-transform ${expandedChapter === chapter._id ? "rotate-180" : ""}`} />
                     </button>
 
                     <div className="chapter-actions ml-auto grid shrink-0 grid-cols-3 gap-2">
                       <Link
                         to={videoLink}
-                        title={`Watch ${chapterTitle} videos`}
+                        title={`Watch videos for the complete ${chapterTitle}`}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-red-500 transition hover:bg-red-500 hover:text-white"
                       >
                         <IoLogoYoutube className="h-4 w-4" />
@@ -289,7 +323,7 @@ const Chapters = () => {
                       </Link>
                       <Link
                         to={`/notes?${notesParams.toString()}`}
-                        title={`Open ${chapterTitle} notes`}
+                        title={`Open notes for the complete ${chapterTitle}`}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-600 transition hover:bg-emerald-500 hover:text-white"
                       >
                         <Download className="h-4 w-4" />
@@ -297,7 +331,7 @@ const Chapters = () => {
                       </Link>
                       <Link
                         to={`/tests/start?chapter=${chapter._id}&type=chapter_test`}
-                        title={`Take the complete ${chapterTitle} test`}
+                        title={`Take an MCQ test covering all topics in ${chapterTitle}`}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:bg-primary"
                       >
                         <FileText className="h-4 w-4" />
