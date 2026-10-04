@@ -161,7 +161,7 @@ const Chapters = () => {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
               <Layers className="h-4 w-4" />
-              <span>Your subject workspace</span>
+              <span>Subject Chapters</span>
             </div>
 
             <div className="space-y-2">
@@ -176,7 +176,7 @@ const Chapters = () => {
               </h1>
               {hasRequiredContext && <div className="chapter-context"><span>Class {pageContext.grade}</span><span className="capitalize">{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>{pageContext.group && <span className="capitalize">{pageContext.group}</span>}</div>}
               <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
-                Study chapter by chapter with videos, notes and focused tests. Expand a chapter to explore every topic in the correct syllabus order.
+                Select a chapter to explore its topics, notes, videos and tests.
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-600 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-50 hover:text-blue-600"
             >
               <BookOpen className="h-4 w-4" />
-              <span><strong>Full Book</strong><small>Read the complete textbook</small></span>
+              <span>Download Full Book</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>
             <Link
@@ -216,7 +216,7 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-amber-100 hover:text-amber-600"
             >
               <FileText className="h-4 w-4" />
-              <span><strong>Past Papers</strong><small>Practise previous exams</small></span>
+              <span>Past Papers</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>
             {answerSheet && <Link
@@ -224,7 +224,7 @@ const Chapters = () => {
               className="answer-sheet-resource"
             >
               <FileCheck2 className="h-4 w-4" />
-              <span><strong>Answer Sheet</strong><small>See the board exam pattern</small></span>
+              <span>Answer Sheet</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>}
             </div>
