@@ -123,7 +123,7 @@ function frontendRoutes() {
                 if (!data.meta.indexable) res.set('X-Robots-Tag','noindex, follow');
                 return res.send(renderDocument(template, data, render(data), [...styles]));
             }
-            const known = /^\/(admin(?:\/.*)?|subjects|chapters|topics|videos|book|notes|past-papers|topic-questions|login|register|forgot-password|dashboard|leaderboard|tests(?:\/.*)?|assessments(?:\/.*)?)$/.test(req.path);
+            const known = /^\/(admin(?:\/.*)?|subjects|chapters|topics|videos|book|notes|past-papers|answer-sheet|topic-questions|login|register|forgot-password|dashboard|leaderboard|tests(?:\/.*)?|assessments(?:\/.*)?)$/.test(req.path);
             res.status(known ? 200 : 404).set('X-Robots-Tag','noindex, follow').set('Cache-Control','private, no-store').send(renderDocument(template, { requestPath: req.originalUrl, meta: meta(known ? 'IlmiDunya Study Tools' : 'Page not found', known ? 'Student study tools and account access.' : 'This page could not be found.', req.path, false) }));
         } catch (error) {
             const status = error.status === 404 ? 404 : 503;
