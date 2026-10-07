@@ -150,9 +150,9 @@ const listStudents = async (req, res) => {
         const pattern = new RegExp(escaped, "i");
         filter.$or = ["name", "email", "phone", "city", "school", "gender"].map((field) => ({ [field]: pattern }));
     }
-    const [students, total] = await Promise.all([
+    const [studentRecords, total] = await Promise.all([
         Student.find(filter)
-            .select("name email phone gender city school board class group enrolledSubjects status isEmailVerified lastLoginAt createdAt")
+            .select("name email phone gender city school board class group enrolledSubjects status isEmailVerified lastLoginAt createdAt +googleSub")
             .populate("board class group enrolledSubjects", "name classNumber")
             .sort({ createdAt: -1, _id: -1 })
             .skip((page - 1) * limit)
@@ -160,6 +160,10 @@ const listStudents = async (req, res) => {
             .lean(),
         Student.countDocuments(filter),
     ]);
+    const students = studentRecords.map(({ googleSub, ...student }) => ({
+        ...student,
+        signInMethod: googleSub ? "google" : "password",
+    }));
     res.json({ success: true, students, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 };
 

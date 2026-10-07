@@ -242,6 +242,11 @@ const registerGoogleProfile = async (req, res) => {
             googleSub: identity.sub,
             isEmailVerified: true,
         });
+        sendIlmiDunyaEmail({
+            to: student.email,
+            subject: "Welcome to IlmiDunya - your Google account is connected",
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h1 style="color:#623fcd">Welcome, ${escapeHtml(student.name)}!</h1><p>Your IlmiDunya student profile has been created securely with Google. You can now save test history and track your learning progress.</p><p>Keep learning,<br><strong>Team IlmiDunya</strong></p></div>`,
+        }).catch(() => {});
         res.status(201).json(await issueStudentSession(student));
     } catch (error) {
         if (error.code === 11000) return res.status(409).json({ success: false, message: "An account with this email already exists. Please log in." });

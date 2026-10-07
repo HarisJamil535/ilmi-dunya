@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
 import axiosInstance from "../../api/axios";
 
 const inputClass = "min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -44,7 +44,7 @@ const loadGoogleScript = () => new Promise((resolve, reject) => {
   script.addEventListener("error", reject, { once: true });
 });
 
-export const GoogleIdentityButton = ({ onCredential, disabled = false }) => {
+export const GoogleIdentityButton = ({ onCredential, disabled = false, intent = "continue_with" }) => {
   const containerRef = useRef(null);
   const callbackRef = useRef(onCredential);
   const [setup, setSetup] = useState(null);
@@ -87,15 +87,20 @@ export const GoogleIdentityButton = ({ onCredential, disabled = false }) => {
         theme: "outline",
         size: "large",
         shape: "pill",
-        text: "continue_with",
+        text: intent,
+        logo_alignment: "left",
         width: Math.max(220, Math.min(400, Math.floor(element.clientWidth || 360))),
       });
     }).catch(() => active && setError("Google sign-in could not be loaded. You can use email or WhatsApp instead."));
     return () => { active = false; };
-  }, [setup]);
+  }, [intent, setup]);
 
-  return <div className="space-y-2">
-    {setup?.clientId ? <div ref={containerRef} className={`flex min-h-11 justify-center ${disabled ? "pointer-events-none opacity-50" : ""}`} /> : setup?.unavailable ? <div className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-500"><ShieldCheck className="h-4 w-4" />Google sign-in unavailable</div> : <div className="h-11 animate-pulse rounded-full bg-slate-100" aria-label="Loading Google sign-in" />}
+  return <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm">
+    <div className="mb-2.5 flex items-center gap-2 px-1">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary"><Sparkles className="h-3.5 w-3.5" /></span>
+      <div className="min-w-0"><p className="text-xs font-black text-slate-800">Quick and secure with Google</p><p className="truncate text-[11px] text-slate-500">Google verifies your name and email.</p></div>
+    </div>
+    {setup?.clientId ? <div ref={containerRef} className={`flex min-h-11 justify-center overflow-hidden rounded-full bg-white ${disabled ? "pointer-events-none opacity-50" : ""}`} /> : setup?.unavailable ? <div className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-500"><ShieldCheck className="h-4 w-4" />Google sign-in unavailable</div> : <div className="h-11 animate-pulse rounded-full bg-slate-100" aria-label="Loading Google sign-in" />}
     {error && <p role="status" className="text-center text-xs font-semibold text-amber-700">{error}</p>}
   </div>;
 };

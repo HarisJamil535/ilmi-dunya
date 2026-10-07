@@ -55,8 +55,8 @@ const StudentManagement = () => {
         </div>
         {loading ? <div className="p-5"><AdminLoader label="Loading student records..." /></div> : students.length ? <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{["Student", "Contact", "Gender", "City", "School / candidate", "Study profile", "Account", "Joined", "Last active"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
+            <table className="w-full min-w-[1140px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{["Student", "Contact", "Gender", "City", "School / candidate", "Study profile", "Sign in", "Account", "Joined", "Last active"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {students.map((student) => <tr key={student._id} className="align-top hover:bg-slate-50/70">
                   <td className="px-4 py-4"><p className="font-black text-slate-900">{student.name}</p><p className="mt-1 text-xs text-slate-500">{student.email}</p></td>
@@ -65,6 +65,7 @@ const StudentManagement = () => {
                   <td className="px-4 py-4">{student.city || "—"}</td>
                   <td className="max-w-48 truncate px-4 py-4" title={student.school}>{student.school || "—"}</td>
                   <td className="px-4 py-4"><p>{[student.board?.name, student.class?.name || (student.class?.classNumber ? `Class ${student.class.classNumber}` : ""), student.group?.name].filter(Boolean).join(" · ") || "—"}</p><p className="mt-1 max-w-56 truncate text-xs text-slate-500" title={(student.enrolledSubjects || []).map((subject) => subject.name).join(", ")}>{(student.enrolledSubjects || []).map((subject) => subject.name).join(", ") || "No subjects selected"}</p></td>
+                  <td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-black ${student.signInMethod === "google" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"}`}>{student.signInMethod === "google" ? "Google" : "Password"}</span></td>
                   <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${student.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{titleCase(student.status)}</span><p className="mt-2 text-xs text-slate-500">{student.isEmailVerified ? "Email verified" : "Email not verified"}</p></td>
                   <td className="whitespace-nowrap px-4 py-4">{formatDate(student.createdAt)}</td>
                   <td className="whitespace-nowrap px-4 py-4">{formatDate(student.lastLoginAt)}</td>

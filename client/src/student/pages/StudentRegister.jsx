@@ -126,10 +126,12 @@ const StudentRegister = () => {
     </form> : <form onSubmit={step === "security" ? (event) => { event.preventDefault(); requestCode(); } : continueFromProfile} className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl shadow-slate-200/50 [&_input]:min-h-10 [&_input]:px-3 [&_label>span:first-child]:mb-1 [&_label>span:first-child]:text-xs sm:space-y-3 sm:rounded-3xl sm:p-5">
       {step === "profile" && <>
       {!googleRegistrationToken && <>
-        <GoogleIdentityButton onCredential={handleGoogleCredential} disabled={loading} />
+        <GoogleIdentityButton onCredential={handleGoogleCredential} disabled={loading} intent="signup_with" />
         <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or create with email<span className="h-px flex-1 bg-slate-200" /></div>
       </>}
-      {googleRegistrationToken && <div className="flex items-start gap-3 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-800"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />Your Google email is verified. Add your student details to finish setup.</div>}
+      {googleRegistrationToken && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-emerald-600 shadow-sm"><ShieldCheck className="h-5 w-5" /></span><div><p className="text-sm font-black text-emerald-900">Google account verified</p><p className="mt-1 text-xs leading-5 text-emerald-800">Google provided your name and email. Add your WhatsApp number, gender, city and school so IlmiDunya can create your complete student profile.</p></div></div>
+      </div>}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:gap-3">
         <AuthField label="Full name" autoComplete="name" value={form.name} onChange={(event) => updateField("name", event.target.value)} placeholder="e.g. Ayesha Khan" error={fieldErrors.name} />
         <AuthField label="Email address" type="email" autoComplete="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} placeholder="you@example.com" error={fieldErrors.email} readOnly={Boolean(googleRegistrationToken)} className={googleRegistrationToken ? "[&_input]:bg-slate-50" : ""} />
