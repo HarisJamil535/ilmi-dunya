@@ -90,8 +90,8 @@ const cleanQuestionPayload = (body, adminId) => {
 
     payload.contentType = body.contentType || "mcq";
     if (payload.contentType === "mcq") {
-        // MCQs are reusable bank inventory; only a published Assessment exposes them to students.
-        payload.status = "draft";
+        // A published MCQ is ready for the test builder; only a published Assessment exposes it to students.
+        payload.status = body.status === "published" ? "published" : "draft";
         payload.examYear = undefined;
         payload.examSession = undefined;
     }
@@ -436,6 +436,22 @@ const deleteQuestion = async (req, res) => {
     res.json({ success: true, question, removedFromTests: assessments.length });
 };
 
+const updateQuestionStatus = async (req, res) => {
+    const status = String(req.body.status || "").trim();
+    if (!["draft", "published"].includes(status)) {
+        return res.status(400).json({ success: false, message: "Choose draft or ready for tests." });
+    }
+
+    const question = await Question.findOneAndUpdate(
+        { _id: req.params.id, status: { $ne: "archived" } },
+        { status, updatedBy: req.admin?._id },
+        { new: true, runValidators: true }
+    ).populate("subject chapter topic scenario", "name title");
+
+    if (!question) return res.status(404).json({ success: false, message: "Question not found." });
+    res.json({ success: true, question });
+};
+
 const getScenarios = async (req, res) => {
     const scenarios = await QuestionScenario.find(buildQuestionFilter(req.query))
         .sort({ createdAt: -1 })
@@ -606,6 +622,7 @@ module.exports = {
     getQuestions,
     createQuestion,
     updateQuestion,
+    updateQuestionStatus,
     deleteQuestion,
     getScenarios,
     createScenario,

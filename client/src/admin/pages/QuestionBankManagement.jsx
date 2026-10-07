@@ -86,7 +86,7 @@ const normalizeQuestionForForm = (question) => {
     chapter: question.chapter?._id || question.chapter || "",
     topic: question.topic?._id || question.topic || "",
     tags: Array.isArray(question.tags) ? question.tags.join(", ") : "",
-    status: contentType === "mcq" ? "draft" : question.status || "published",
+    status: question.status || (contentType === "mcq" ? "draft" : "published"),
     scenario: question.scenario?._id || question.scenario || "",
   };
 };
@@ -107,7 +107,7 @@ const QuestionBankManagement = () => {
   const [importKind, setImportKind] = useState("standard_mcq");
   const [importContext, setImportContext] = useState(null);
   const [importBusy, setImportBusy] = useState(false);
-  const [listFilter, setListFilter] = useState({ contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
+  const [listFilter, setListFilter] = useState({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -125,6 +125,7 @@ const QuestionBankManagement = () => {
     try {
       const params = new URLSearchParams({ limit: "100" });
       if (listFilter.contentType) params.set("contentType", listFilter.contentType);
+      if (listFilter.status) params.set("status", listFilter.status);
       if (listFilter.board) params.set("board", listFilter.board);
       if (listFilter.class) params.set("class", listFilter.class);
       if (listFilter.group) params.set("group", listFilter.group);
@@ -272,7 +273,7 @@ const QuestionBankManagement = () => {
     const payload = {
       ...form,
       contentType: isMcq ? "mcq" : form.contentType,
-      status: isMcq ? "draft" : form.status,
+      status: form.status,
       type: isMcq ? form.type : "standard_mcq",
       examYear: isMcq ? undefined : form.examYear,
       examSession: isMcq ? undefined : form.examSession,
@@ -362,6 +363,23 @@ const QuestionBankManagement = () => {
       await loadQuestions();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to delete question.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateQuestionStage = async (question, status) => {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await axiosInstance.patch(`/questions/${question._id}/status`, { status });
+      setMessage(status === "published"
+        ? "Question is ready. It can now be selected in MCQ Test Builder."
+        : "Question moved back to Drafts and is hidden from the Test Builder.");
+      await loadQuestions();
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to update the question stage.");
     } finally {
       setSaving(false);
     }
@@ -461,7 +479,7 @@ const QuestionBankManagement = () => {
   };
 
   const updateListFilter = (changes) => setListFilter((current) => ({ ...current, ...changes }));
-  const clearListFilters = () => setListFilter({ contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
+  const clearListFilters = () => setListFilter({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -494,6 +512,14 @@ const QuestionBankManagement = () => {
           })}
         </section>
 
+        {form.mode === "mcq" && (
+          <section className="grid gap-3 rounded-3xl border border-primary/15 bg-white p-5 shadow-sm sm:grid-cols-3">
+            <div className="rounded-2xl bg-slate-50 p-4"><span className="text-xs font-black text-primary">1. CREATE</span><p className="mt-1 font-black text-slate-950">Save an MCQ</p><p className="mt-1 text-xs leading-5 text-slate-500">Keep unfinished questions in Drafts.</p></div>
+            <div className="rounded-2xl bg-primary-soft p-4"><span className="text-xs font-black text-primary">2. APPROVE</span><p className="mt-1 font-black text-slate-950">Mark Ready for tests</p><p className="mt-1 text-xs leading-5 text-slate-500">Ready MCQs become selectable in Test Builder.</p></div>
+            <div className="rounded-2xl bg-emerald-50 p-4"><span className="text-xs font-black text-emerald-700">3. PUBLISH</span><p className="mt-1 font-black text-slate-950">Publish a test</p><p className="mt-1 text-xs leading-5 text-slate-500">Students see questions only inside a published test.</p></div>
+          </section>
+        )}
+
         <form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
@@ -521,9 +547,9 @@ const QuestionBankManagement = () => {
               </Field>
             )}
             {isMcq ? (
-              <div className="rounded-xl border border-primary-muted bg-primary-soft px-4 py-3 text-sm font-semibold text-primary-dark">
-                Saved to the question bank. Students see MCQs only after you publish a test in MCQ Test Builder.
-              </div>
+              <Field label="Question Stage" helper="Ready questions appear in MCQ Test Builder. Neither option exposes a question directly to students.">
+                <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "draft", label: "Draft - finish later" }, { value: "published", label: "Ready for tests" }]} placeholder="Choose stage" />
+              </Field>
             ) : (
               <Field label="Publish Status" helper="Published written questions appear on the selected topic page.">
                 <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "published", label: "Published" }, { value: "draft", label: "Draft" }]} placeholder="Choose status" />
@@ -650,7 +676,7 @@ const QuestionBankManagement = () => {
           <div className="mt-5 flex justify-end">
             <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-60">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {isEditing ? "Update Question" : isMcq && form.type === "scenario_mcq" ? "Save & Add Next" : "Save Question"}
+              {isEditing ? "Update Question" : isMcq && form.type === "scenario_mcq" ? "Save & Add Next" : isMcq && form.status === "published" ? "Save as Ready" : "Save to Drafts"}
             </button>
           </div>
         </form>
@@ -658,12 +684,31 @@ const QuestionBankManagement = () => {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Added Questions</h2>
-              <p className="mt-1 text-sm text-slate-500">Filter by board, class, group, subject, chapter or topic before editing and deleting.</p>
+              <h2 className="text-xl font-black text-slate-950">Question Library</h2>
+              <p className="mt-1 text-sm text-slate-500">Open Drafts to finish questions, then approve each one for use in the Test Builder.</p>
             </div>
             <button type="button" onClick={clearListFilters} className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-200">
               Clear Filters
             </button>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Question stage">
+            {[
+              { value: "", label: "All questions" },
+              { value: "draft", label: "Drafts" },
+              { value: "published", label: "Ready for tests" },
+            ].map((stage) => (
+              <button
+                key={stage.value || "all"}
+                type="button"
+                role="tab"
+                aria-selected={listFilter.status === stage.value}
+                onClick={() => updateListFilter({ status: stage.value, contentType: stage.value ? "mcq" : "" })}
+                className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${listFilter.status === stage.value ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              >
+                {stage.label}
+              </button>
+            ))}
           </div>
 
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
@@ -747,7 +792,7 @@ const QuestionBankManagement = () => {
                         <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span>
                         {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
                         {question.contentType === "mcq" ? (
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">Question bank</span>
+                          <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{question.status === "published" ? "Ready for tests" : "Draft"}</span>
                         ) : (
                           <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
                         )}
@@ -758,7 +803,17 @@ const QuestionBankManagement = () => {
                         {question.subject?.name || "Subject"} / {question.chapter?.name || "Chapter"}{question.topic?.name ? ` / ${question.topic.name}` : ""} / {question.marks || 1} marks
                       </p>
                     </div>
-                    <div className="flex shrink-0 gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      {question.contentType === "mcq" && question.status === "draft" && (
+                        <button type="button" onClick={() => updateQuestionStage(question, "published")} disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-50">
+                          <CheckCircle2 className="h-4 w-4" /> Ready for tests
+                        </button>
+                      )}
+                      {question.contentType === "mcq" && question.status === "published" && (
+                        <button type="button" onClick={() => updateQuestionStage(question, "draft")} disabled={saving} className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50">
+                          Move to drafts
+                        </button>
+                      )}
                       <EditButton onClick={() => editQuestion(question)} title="Edit question" />
                       <DeleteButton onClick={() => setQuestionToDelete(question)} disabled={saving} title="Delete question" />
                     </div>

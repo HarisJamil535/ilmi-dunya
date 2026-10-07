@@ -6,6 +6,7 @@ const {
     getQuestions,
     createQuestion,
     updateQuestion,
+    updateQuestionStatus,
     deleteQuestion,
     getScenarios,
     createScenario,
@@ -28,6 +29,7 @@ router.post("/import/preview", authMiddleware, upload.single("file"), importPrev
 router.post("/import/commit", authMiddleware, importCommit);
 router.get("/import/template", authMiddleware, downloadImportTemplate);
 router.put("/:id", authMiddleware, updateQuestion);
+router.patch("/:id/status", authMiddleware, updateQuestionStatus);
 router.delete("/:id", authMiddleware, deleteQuestion);
 
 module.exports = router;
