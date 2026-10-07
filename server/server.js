@@ -25,6 +25,7 @@ const newsRoutes = require("./src/routes/newsRoutes");
 const StudentAuthChallenge = require("./src/models/StudentAuthChallenge");
 const Student = require("./src/models/Student");
 const express = require('express');
+const mongoose = require('mongoose');
 
 const app = express();
 const { publicRoutes, frontendRoutes, invalidatePublicPages } = require('./src/routes/publicPagesRoutes');
@@ -57,6 +58,17 @@ app.use('/api', cors({
     credentials: true,
 }));
 app.use(express.json({ limit: "1mb" }));
+app.get('/health', (req, res) => res.json({ success: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'unavailable' }));
+app.use(async (req, res, next) => {
+    if (require.main !== module && process.env.NODE_ENV !== 'production') return next();
+    if (req.path === '/robots.txt' || req.path.startsWith('/assets/') || req.path === '/logo.png' || req.path === '/theme-init.js') return next();
+    try {
+        await initializeDatabase();
+        next();
+    } catch (error) {
+        res.status(503).set('Retry-After', '10').json({ success: false, message: 'Service temporarily unavailable. Please retry shortly.' });
+    }
+});
 app.use('/api', requestSafety);
 app.use('/api', (req, res, next) => {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.path !== '/home-content/visit') res.on('finish', () => { if (res.statusCode < 400) invalidatePublicPages(); });
@@ -124,7 +136,6 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/news", newsRoutes);
 
 app.use(publicRoutes());
-app.get('/health', (req, res) => res.json({ success: true }));
 app.use(frontendRoutes());
 
 app.use((req, res) => {
@@ -143,12 +154,13 @@ const validateRuntimeConfig = () => {
 };
 
 let databaseReady;
+mongoose.connection.on('disconnected', () => { databaseReady = undefined; });
 const initializeDatabase = async () => {
     if (!databaseReady) {
         databaseReady = connectDB().then(async () => {
             await Student.collection.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
             await StudentAuthChallenge.createIndexes();
-        });
+        }).catch(error => { databaseReady = undefined; throw error; });
     }
     return databaseReady;
 };
@@ -160,9 +172,9 @@ if (require.main === module) {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
         process.exit(1);
     }
-    initializeDatabase().then(() => app.listen(PORT)).catch(error => {
+    app.listen(PORT);
+    initializeDatabase().catch(error => {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
-        process.exitCode = 1;
     });
 } else if (process.env.NODE_ENV === 'production') {
     try {

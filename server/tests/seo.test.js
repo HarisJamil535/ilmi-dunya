@@ -1,7 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { renderDocument, sitemapXml, siteOrigin, safeJson } = require('../src/services/seoDocument');
-const { pagePath, pageNumber, sitemapFilter } = require('../src/services/publicPages');
+const { pagePath, pageNumber, sitemapFilter, sitemapCriteria } = require('../src/services/publicPages');
+const Chapter = require('../src/models/Chapter');
+const Book = require('../src/models/Book');
+const PastPaper = require('../src/models/PastPaper');
 const template = '<html><head><title>Old</title><meta name="description" content="old"><meta name="robots" content="index"><link rel="canonical" href="https://wrong.test"></head><body><div id="root"></div></body></html>';
 
 test('rendered pages have one escaped title, canonical and meaningful HTML', () => {
@@ -31,4 +34,18 @@ test('private pages are noindex; sitemap queries exclude drafts and thin resourc
     assert.equal(pagePath('book', { _id: '111111111111111111111111', title: 'Physics book' }), '/learn/book/111111111111111111111111/physics-book');
     assert.equal(pageNumber('-50'), 1);
     assert.equal(pageNumber('999999999'), 10000);
+});
+
+test('subject sitemap includes subjects with actual chapters, books or papers', async () => {
+    const originals = [Chapter, Book, PastPaper].map(Model => Model.distinct);
+    try {
+        Chapter.distinct = async () => ['111111111111111111111111'];
+        Book.distinct = async () => ['222222222222222222222222'];
+        PastPaper.distinct = async () => [];
+        const criteria = await sitemapCriteria('subject');
+        assert.deepEqual(criteria.$or[1]._id.$in, ['111111111111111111111111', '222222222222222222222222']);
+        assert.ok(criteria.$or[0].summary.$regex);
+    } finally {
+        [Chapter, Book, PastPaper].forEach((Model, i) => { Model.distinct = originals[i]; });
+    }
 });

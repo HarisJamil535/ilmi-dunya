@@ -53,7 +53,8 @@ test("invalid or mismatched study context is rejected", async () => {
 test("missing published test returns a useful error without creating an assessment", async () => {
     parents();
     mock.method(Assessment, "findOne", () => query(null));
-    await assert.rejects(createScopeTest(String(chapter._id)), { status: 404, message: "No chapter test has been published here yet." });
+    mock.method(Assessment, "find", () => query([]));
+    await assert.rejects(createScopeTest(String(chapter._id)), { status: 404, message: "No chapter or topic tests have been published here yet." });
 });
 
 test("written questions require no options; MCQs still require options and an answer", () => {

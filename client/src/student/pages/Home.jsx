@@ -61,9 +61,9 @@ export default function Home({ initialData }) {
     {signedIn && <div className="home-continue"><div className="home-width"><LayoutDashboard size={22} /><div><strong>Welcome back. Keep your momentum.</strong><p>Your test history and learning progress are waiting.</p></div><Link to="/dashboard">My dashboard <ArrowRight size={18} /></Link></div></div>}
     <Features />
     <section className="home-section home-journey"><div className="home-width">
-      <div className="home-section-heading"><div><p className="home-eyebrow">Small steps. Bigger possibilities.</p><h2>Make your next<br /><span>study session count.</span></h2></div><Link className="home-text-link" to="/subjects">Find your starting point <ArrowRight size={18} /></Link></div>
+      <div className="home-section-heading"><div><p className="home-eyebrow">Study by syllabus</p><h2>Find your chapter.<br /><span>Practise what matters.</span></h2></div><Link className="home-text-link" to="/subjects">Browse subjects <ArrowRight size={18} /></Link></div>
       <ol className="home-steps">
-        {[["01", "Find your focus", "Choose your board, class and subject. Your learning journey starts here."], ["02", "Build your understanding", "Read the notes, watch a lesson and work through one topic at a time."], ["03", "See how far you have come", "Take a test, learn from the explanations and make your next attempt stronger."]].map(([number, title, text]) => <li key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></li>)}
+        {[["01", "Choose your syllabus", "Select your board, class and subject to see the matching chapters."], ["02", "Review the material", "Open topic questions, notes, video lessons, books and past papers where available."], ["03", "Check your understanding", "Take a chapter or topic MCQ test and review the answers and explanations." ]].map(([number, title, text]) => <li key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></li>)}
       </ol>
     </div></section>
     <LeaderboardPreview />

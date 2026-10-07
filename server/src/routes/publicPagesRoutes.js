@@ -2,7 +2,7 @@ const express = require("express");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { publicPage, pagePath, meta, sitemapModels, sitemapFilter, pageNumber, hasAcademicContext } = require("../services/publicPages");
+const { publicPage, pagePath, meta, sitemapModels, sitemapFilter, sitemapCriteria, pageNumber, hasAcademicContext } = require("../services/publicPages");
 const { renderDocument, siteOrigin, sitemapXml, escapeHtml } = require("../services/seoDocument");
 const NewsArticle = require("../models/NewsArticle");
 const Board = require("../models/Board");
@@ -13,13 +13,13 @@ const HomeStat = require("../models/HomeStat");
 const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
-async function cached(key, load) {
+async function cached(key, load, ttl = 30000) {
     const item = cache.get(key);
     if (item && item.expires > Date.now()) return item.value;
-    const value = await load();
+    const value = Promise.resolve().then(load);
     if (cache.size >= 128) cache.delete(cache.keys().next().value);
-    cache.set(key, { value, expires: Date.now() + 30000 });
-    return value;
+    cache.set(key, { value, expires: Date.now() + ttl });
+    try { return await value; } catch (error) { if (cache.get(key)?.value === value) cache.delete(key); throw error; }
 }
 const invalidatePublicPages = () => cache.clear();
 async function dataFor(req) {
@@ -61,14 +61,14 @@ function publicRoutes() {
         const xml = await cached('sitemap-index', async () => {
             const entries = [`${siteOrigin()}/sitemaps/core/1.xml`];
             for (const [kind, Model] of Object.entries(sitemapModels)) {
-                const filter = sitemapFilter(kind);
+                const filter = await sitemapCriteria(kind);
                 if (!filter) continue;
                 const total = await Model.countDocuments(filter);
                 for (let p = 1; p <= Math.ceil(total / 1000); p++) entries.push(`${siteOrigin()}/sitemaps/${kind}/${p}.xml`);
             }
             return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries.map(url => `<sitemap><loc>${escapeHtml(url)}</loc></sitemap>`).join('')}</sitemapindex>`;
-        });
-        res.type('application/xml').set('Cache-Control', 'public, max-age=30').send(xml);
+        }, 300000);
+        res.type('application/xml').set('Cache-Control', 'public, max-age=300').send(xml);
     });
     router.get('/sitemaps/:kind/:page.xml', async (req, res) => {
         const { kind } = req.params;
@@ -79,7 +79,7 @@ function publicRoutes() {
                 if (p !== 1) return null;
                 return sitemapXml([{path:'/'},{path:'/learn'},{path:'/news'}]);
             }
-            const filter = sitemapFilter(kind);
+            const filter = await sitemapCriteria(kind);
             if (!filter) return null;
             const fields = kind === 'topic' ? 'boardId classId subjectId chapterId' : kind === 'news' ? '' : `board class${kind !== 'subject' ? ' subject' : ''}${kind === 'notes' ? ' chapter' : ''}`;
             let request = sitemapModels[kind].find(filter).sort({_id:1}).skip((p - 1) * 1000).limit(1000).select(`name title slug updatedAt ${fields}`);
@@ -87,9 +87,9 @@ function publicRoutes() {
             const docs = (await request.lean()).filter(doc => hasAcademicContext(kind, doc));
             if (!docs.length) return null;
             return sitemapXml(docs.map(doc => ({ path: kind === 'news' ? `/news/${encodeURIComponent(doc.slug)}` : pagePath(kind,doc), updatedAt: doc.updatedAt })));
-        });
+        }, 300000);
         if (!xml) return res.sendStatus(404);
-        res.type('application/xml').set('Cache-Control','public, max-age=30').send(xml);
+        res.type('application/xml').set('Cache-Control','public, max-age=300').send(xml);
     });
     return router;
 }

@@ -89,7 +89,10 @@ async function publicPage(path, query = {}) {
     const count = sections.reduce((total, section) => total + section.links.length, 0);
     const indexable = ["board", "class", "subject", "chapter"].includes(kind) ? count > 0 || summary.length >= 80 : kind === "topic" ? questions.length > 0 || summary.length >= 80 : summary.length >= 80;
     const suffix = page > 1 ? `?page=${page}` : "";
-    return { kind, title, scope, summary, sourceName: doc.sourceName, sourceUrl: doc.sourceUrl, edition: doc.edition, tags: doc.tags || [], updatedAt: doc.updatedAt, year: doc.year, session: doc.session, examType: doc.examType, isNewPattern: Boolean(doc.isNewPattern), durationMinutes: doc.durationMinutes, questionCount: kind === "mcqs" ? doc.questions?.length : undefined, instructions: kind === "mcqs" ? doc.instructions : undefined, sections: sections.filter(section => section.links.length), actions, questions, breadcrumbs, page, previous: page > 1 ? `${canonicalPath}${page === 2 ? "" : `?page=${page - 1}`}` : null, next: hasNext ? `${canonicalPath}?page=${page + 1}` : null, meta: meta(title + (page > 1 ? ` - Page ${page}` : ""), summary || `Explore ${title}. ${count ? `${count} available study resources with their academic context.` : "Review the resource details and available study tools."}`, canonicalPath + suffix, indexable) };
+    const description = summary || (sections.length
+        ? `${title}. Browse ${sections.filter(section => section.links.length).map(section => section.title.toLowerCase()).join(', ')} for this syllabus on IlmiDunya.`
+        : questions.length ? `${title}. Review ${questions.length} published short and long questions for this topic on IlmiDunya.` : `${title}. View the available study material on IlmiDunya.`);
+    return { kind, title, scope, summary, sourceName: doc.sourceName, sourceUrl: doc.sourceUrl, edition: doc.edition, tags: doc.tags || [], updatedAt: doc.updatedAt, year: doc.year, session: doc.session, examType: doc.examType, isNewPattern: Boolean(doc.isNewPattern), durationMinutes: doc.durationMinutes, questionCount: kind === "mcqs" ? doc.questions?.length : undefined, instructions: kind === "mcqs" ? doc.instructions : undefined, sections: sections.filter(section => section.links.length), actions, questions, breadcrumbs, page, previous: page > 1 ? `${canonicalPath}${page === 2 ? "" : `?page=${page - 1}`}` : null, next: hasNext ? `${canonicalPath}?page=${page + 1}` : null, meta: meta(title + (page > 1 ? ` - Page ${page}` : ""), description, canonicalPath + suffix, indexable) };
 }
 
 const resourceReady = { summary: { $regex: /[\s\S]{80}/ } };
@@ -102,4 +105,16 @@ function sitemapFilter(kind) {
     return resourceReady;
 }
 
-module.exports = { publicPage, pagePath, meta, sitemapModels, sitemapFilter, pageNumber, hasAcademicContext };
+async function sitemapCriteria(kind) {
+    const base = sitemapFilter(kind);
+    if (!['subject', 'chapter', 'topic'].includes(kind)) return base;
+    const sources = kind === 'subject'
+        ? [[Chapter, 'subject', {}], [Book, 'subject', {}], [PastPaper, 'subject', {}]]
+        : kind === 'chapter'
+            ? [[Topic, 'chapterId', {}], [ChapterNote, 'chapter', {}], [Assessment, 'chapter', { status: 'published' }]]
+            : [[Question, 'topic', { status: 'published', contentType: { $in: ['short_question', 'long_question'] } }]];
+    const ids = (await Promise.all(sources.map(([Model, field, filter]) => Model.distinct(field, filter)))).flat().filter(Boolean);
+    return { $or: [base, { _id: { $in: ids } }] };
+}
+
+module.exports = { publicPage, pagePath, meta, sitemapModels, sitemapFilter, sitemapCriteria, pageNumber, hasAcademicContext };
