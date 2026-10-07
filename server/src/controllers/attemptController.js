@@ -153,6 +153,7 @@ const submitAttempt = async (req, res) => {
         grading = questions.map((question) => ({ question: question._id, correctOption: question.correctOption, marks: marks.get(String(question._id)) ?? question.marks ?? 1 }));
     }
     const result = gradeAttempt(attempt, grading, attempt.passingMarksSnapshot ?? assessment.passingMarks, receivedAt);
+    if (req.body?.autoSubmitted && result.status === "submitted") result.autoSubmitted = true;
     // Only finalize the exact answer revision that was graded.
     const saved = await AssessmentAttempt.findOneAndUpdate({
         _id: attempt._id, student: req.student._id, status: "in_progress", updatedAt: attempt.updatedAt,

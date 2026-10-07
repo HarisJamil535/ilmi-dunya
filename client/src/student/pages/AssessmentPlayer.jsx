@@ -23,6 +23,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const [error, setError] = useState("");
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const submittingRef = useRef(false);
+  const attemptRef = useRef(null);
+  const exitSubmittedRef = useRef(false);
   const startRequest = useRef(null);
   const pendingSave = useRef(null);
   const serverOffset = useRef(0);
@@ -31,6 +33,31 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [actionError, setActionError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { attemptRef.current = attempt; }, [attempt]);
+
+  const submitWhenLeaving = useCallback(() => {
+    const activeAttempt = attemptRef.current;
+    if (!activeAttempt || activeAttempt.status !== "in_progress" || submittingRef.current) return;
+    submittingRef.current = true;
+    const token = localStorage.getItem("studentToken");
+    const apiBase = import.meta.env.VITE_API_URL || "/api";
+    fetch(`${apiBase}/attempts/${activeAttempt._id}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page" }),
+      keepalive: true,
+    }).then((response) => {
+      if (!response.ok) throw new Error("Automatic submission failed");
+      exitSubmittedRef.current = true;
+      if (document.visibilityState === "visible") navigate(`/tests/result/${activeAttempt._id}`, { replace: true });
+    }).catch(() => {
+      submittingRef.current = false;
+    });
+  }, [navigate]);
 
   const enableAudio = () => {
     if (!soundEnabled) return;
@@ -93,15 +120,29 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   }, [id, chapter, topic]);
 
   useEffect(() => {
-    const warn = (event) => {
-      if (attempt?.status === "in_progress" && !submittingRef.current) {
-        event.preventDefault();
-        event.returnValue = "";
+    const onPageHide = () => submitWhenLeaving();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") submitWhenLeaving();
+      if (document.visibilityState === "visible" && exitSubmittedRef.current) {
+        navigate(`/tests/result/${attemptRef.current?._id}`, { replace: true });
       }
     };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [attempt, submitAttempt]);
+    const onPopState = () => submitWhenLeaving();
+    const onLinkClick = (event) => {
+      const link = event.target.closest?.("a[href]");
+      if (link && link.href && new URL(link.href, window.location.href).href !== window.location.href) submitWhenLeaving();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("popstate", onPopState);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("click", onLinkClick, true);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("popstate", onPopState);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("click", onLinkClick, true);
+    };
+  }, [navigate, submitWhenLeaving]);
 
   useEffect(() => {
     if (!attempt || attempt.status !== "in_progress") return undefined;
@@ -175,6 +216,10 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           {actionError && <p role="alert" className="learning-alert">{actionError}</p>}
+          <p role="note" className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-5 text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            Leaving or switching away from this test page will submit your saved answers automatically.
+          </p>
           {remaining <= 30 && <p role="status" className="mb-4 text-sm font-bold text-rose-700">{remaining === 0 ? "Time is up. Submitting your saved answers." : "30 seconds or less remaining. Check any unanswered questions."}</p>}
           <div className="mb-6 h-2 overflow-hidden rounded-full bg-slate-100">
             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />

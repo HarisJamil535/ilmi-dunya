@@ -357,7 +357,8 @@ const getQuestions = async (req, res) => {
     const [questions, total] = await Promise.all([
         Question.find(filter)
             .populate("subject chapter topic scenario", "name title")
-            .sort({ createdAt: -1 })
+            // Question-bank order is append-only: newly added questions follow older ones.
+            .sort({ createdAt: 1, _id: 1 })
             .skip((page - 1) * limit)
             .limit(limit)
             .lean(),
