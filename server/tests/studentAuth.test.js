@@ -21,8 +21,6 @@ test("auth options reveal enabled methods without exposing provider secrets", ()
     };
     authOptions({}, response);
     assert.equal(response.headers["Cache-Control"], "no-store");
-    assert.equal(typeof response.body.channels.email, "boolean");
-    assert.equal(typeof response.body.channels.whatsapp, "boolean");
     assert.equal(typeof response.body.googleClientId, "string");
     assert.equal(Object.keys(response.body).some((key) => /token|secret|sid/i.test(key)), false);
 });

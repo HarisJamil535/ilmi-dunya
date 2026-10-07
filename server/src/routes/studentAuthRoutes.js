@@ -6,8 +6,6 @@ const {
     verifyRegistrationCode,
     registerGoogleProfile,
     loginStudent,
-    requestLoginCode,
-    verifyLoginCode,
     getStudentMe,
     requestPasswordReset,
     resetPassword,
@@ -21,8 +19,6 @@ router.post("/register", requestRegistrationCode);
 router.post("/register/verify", verifyRegistrationCode);
 router.post("/register/google-profile", registerGoogleProfile);
 router.post("/login", loginStudent);
-router.post("/login/request-code", requestLoginCode);
-router.post("/login/verify-code", verifyLoginCode);
 router.post("/forgot-password", requestPasswordReset);
 router.post("/reset-password", resetPassword);
 router.post("/google/nonce", createGoogleNonce);

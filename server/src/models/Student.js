@@ -27,6 +27,7 @@ const studentSchema = new mongoose.Schema(
 );
 
 studentSchema.index({ email: 1 }, { unique: true });
+studentSchema.index({ phone: 1 });
 studentSchema.index({ googleSub: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Student", studentSchema);

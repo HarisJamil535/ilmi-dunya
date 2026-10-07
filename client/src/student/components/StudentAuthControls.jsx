@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import axiosInstance from "../../api/axios";
 
 const inputClass = "min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -29,19 +29,6 @@ export const OtpField = ({ value, onChange, error }) => <label className="block"
   <input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={value} onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" aria-invalid={Boolean(error)} className={`${inputClass} text-center text-xl font-black tracking-[0.45em] ${error ? "border-rose-400" : ""}`} />
   {error && <span className="mt-1.5 block text-xs font-bold text-rose-600">{error}</span>}
 </label>;
-
-export const AuthChannelPicker = ({ value, onChange, channels = {} }) => <fieldset>
-  <legend className="mb-2 block text-sm font-bold text-slate-700">Send verification code by</legend>
-  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
-    {[{ id: "email", label: "Email" }, { id: "whatsapp", label: "WhatsApp" }].map(({ id, label }) => {
-      const enabled = Boolean(channels[id]);
-      return <button key={id} type="button" disabled={!enabled} onClick={() => onChange(id)} aria-pressed={value === id} className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${value === id ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"} disabled:cursor-not-allowed disabled:opacity-40`}>
-        {id === "email" ? <Mail className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}{label}
-      </button>;
-    })}
-  </div>
-  {!channels.email && !channels.whatsapp && <p className="mt-2 text-xs font-semibold text-amber-700">Code delivery is temporarily unavailable. Please try again later.</p>}
-</fieldset>;
 
 const loadGoogleScript = () => new Promise((resolve, reject) => {
   if (window.google?.accounts?.id) return resolve();

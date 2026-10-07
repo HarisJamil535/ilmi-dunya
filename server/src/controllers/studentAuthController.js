@@ -78,7 +78,6 @@ const getProfile = (body, { requirePassword = true } = {}) => {
 
 const authOptions = (req, res) => res.set("Cache-Control", "no-store").json({
     success: true,
-    channels: { email: emailDeliveryConfigured(), whatsapp: whatsappDeliveryConfigured() },
     googleClientId: process.env.GOOGLE_CLIENT_ID || "",
 });
 
@@ -172,6 +171,7 @@ const requestRegistrationCode = async (req, res) => {
     try {
         const profile = getProfile(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in or reset your password." });
+        if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
         const passwordHash = await bcrypt.hash(profile.password, 12);
         const safeProfile = {
             name: profile.name,
@@ -183,8 +183,8 @@ const requestRegistrationCode = async (req, res) => {
         };
         const challenge = await createOtpChallenge({
             purpose: "signup",
-            channel: req.body.channel,
-            destination: req.body.channel === "email" ? profile.email : profile.phone,
+            channel: "email",
+            destination: profile.email,
             payload: { ...safeProfile, passwordHash },
             name: profile.name,
         });
@@ -198,6 +198,9 @@ const verifyRegistrationCode = async (req, res) => {
     try {
         const challenge = await verifyOtpChallenge({ ...req.body, purpose: "signup" });
         const data = challenge.payload;
+        if (await Student.findOne({ $or: [{ email: data.email }, { phone: data.phone }] }).select("_id")) {
+            return res.status(409).json({ success: false, message: "An account with this email or phone number already exists. Please log in." });
+        }
         const student = await Student.create({
             name: data.name,
             email: data.email,
@@ -228,6 +231,7 @@ const registerGoogleProfile = async (req, res) => {
         const identity = jwt.verify(token, process.env.JWT_SECRET, { audience: "student-google-signup" });
         const profile = getProfile({ ...req.body, email: identity.email }, { requirePassword: false });
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in with Google." });
+        if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
         const student = await Student.create({
             name: profile.name || identity.name,
             email: identity.email,
@@ -252,8 +256,10 @@ const loginStudent = async (req, res) => {
         if (!identifier || !password) return res.status(400).json({ success: false, message: "Enter your email or WhatsApp number and password." });
         const email = identifier.toLowerCase();
         const normalizedPhone = normalizePakistaniPhone(identifier);
-        const student = await Student.findOne(emailPattern.test(email) ? { email } : { phone: { $in: [identifier, normalizedPhone].filter(Boolean) } }).select("+password +tokenVersion +googleSub");
-        if (!student || !student.password || !(await bcrypt.compare(password, student.password))) return res.status(401).json({ success: false, message: "Invalid email/WhatsApp number or password." });
+        const matches = await Student.find(emailPattern.test(email) ? { email } : { phone: { $in: [identifier, normalizedPhone].filter(Boolean) } }).limit(2).select("+password +tokenVersion +googleSub");
+        if (matches.length > 1) return res.status(409).json({ success: false, message: "More than one account uses this phone number. Please log in with your email address." });
+        const student = matches[0];
+        if (!student || !student.password || !(await bcrypt.compare(password, student.password))) return res.status(401).json({ success: false, message: "Invalid email/phone number or password." });
         if (student.status !== "active") return res.status(403).json({ success: false, message: "Your account is not active." });
         res.json(await issueStudentSession(student));
     } catch {
@@ -261,62 +267,19 @@ const loginStudent = async (req, res) => {
     }
 };
 
-const requestLoginCode = async (req, res) => {
-    try {
-        const identifier = typeof req.body.identifier === "string" ? req.body.identifier.trim() : "";
-        const channel = req.body.channel;
-        if (!identifier) return res.status(400).json({ success: false, message: "Enter your email or WhatsApp number." });
-        const email = identifier.toLowerCase();
-        const phone = normalizePakistaniPhone(identifier);
-        if (channel === "email" && !emailPattern.test(email)) return res.status(400).json({ success: false, message: "Enter a valid email address for email verification." });
-        if (channel === "whatsapp" && (emailPattern.test(identifier) || !phone)) return res.status(400).json({ success: false, message: "Enter a valid WhatsApp number." });
-        const destination = channel === "email" ? email : phone;
-        if ((channel === "email" && !emailDeliveryConfigured()) || (channel === "whatsapp" && !whatsappDeliveryConfigured())) {
-            return res.status(503).json({ success: false, message: `${channel === "email" ? "Email" : "WhatsApp"} code delivery is not configured yet.` });
-        }
-        const student = await Student.findOne(channel === "email" ? { email } : { phone: { $in: [identifier, phone].filter(Boolean) } });
-        const challenge = !student || student.status !== "active"
-            ? await createDecoyChallenge({ purpose: "login", channel, destination })
-            : await createOtpChallenge({ purpose: "login", channel, destination, student });
-        res.status(202).json({ success: true, challengeId: challenge._id, expiresInSeconds: 600, message: "If those details match an active account, a sign-in code will arrive shortly." });
-    } catch (error) {
-        res.status(error.status || 400).json({ success: false, message: error.message || "Unable to send a sign-in code." });
-    }
-};
-
-const verifyLoginCode = async (req, res) => {
-    try {
-        const challenge = await verifyOtpChallenge({ ...req.body, purpose: "login" });
-        if (!challenge.student) return res.status(400).json({ success: false, message: "The code is invalid or has expired. Request a new one." });
-        const student = await Student.findOne({ _id: challenge.student, status: "active" }).select("+tokenVersion");
-        if (!student) return res.status(400).json({ success: false, message: "This account is unavailable. Contact support." });
-        if (challenge.channel === "email") student.isEmailVerified = true;
-        if (challenge.channel === "whatsapp") student.isPhoneVerified = true;
-        res.json(await issueStudentSession(student));
-    } catch (error) {
-        res.status(error.status || 400).json({ success: false, message: error.message || "Unable to verify the sign-in code." });
-    }
-};
-
 const requestPasswordReset = async (req, res) => {
     try {
-        const channel = req.body.channel;
         const raw = typeof req.body.identifier === "string" ? req.body.identifier.trim() : typeof req.body.email === "string" ? req.body.email.trim() : "";
-        if (!raw) return res.status(400).json({ success: false, message: "Enter your email or WhatsApp number." });
+        if (!raw) return res.status(400).json({ success: false, message: "Enter your registered email address." });
         const email = raw.toLowerCase();
-        const phone = normalizePakistaniPhone(raw);
-        if (channel === "email" && !emailPattern.test(email)) return res.status(400).json({ success: false, message: "Enter a valid email address." });
-        if (channel === "whatsapp" && (emailPattern.test(raw) || !phone)) return res.status(400).json({ success: false, message: "Enter a valid WhatsApp number." });
-        if (!["email", "whatsapp"].includes(channel)) return res.status(400).json({ success: false, message: "Choose email or WhatsApp for the reset code." });
-        if ((channel === "email" && !emailDeliveryConfigured()) || (channel === "whatsapp" && !whatsappDeliveryConfigured())) {
-            return res.status(503).json({ success: false, message: `${channel === "email" ? "Email" : "WhatsApp"} code delivery is not configured yet.` });
-        }
-        const student = await Student.findOne(channel === "email" ? { email } : { phone: { $in: [raw, phone].filter(Boolean) } });
-        const destination = channel === "email" ? (student?.email || email) : phone;
+        if (!emailPattern.test(email)) return res.status(400).json({ success: false, message: "Enter a valid email address." });
+        if (!emailDeliveryConfigured()) return res.status(503).json({ success: false, message: "Email code delivery is unavailable right now." });
+        const student = await Student.findOne({ email });
+        const destination = student?.email || email;
         const account = student?.status === "active" ? student : null;
         const challenge = account
-            ? await createOtpChallenge({ purpose: "password_reset", channel, destination, student: account })
-            : await createDecoyChallenge({ purpose: "password_reset", channel, destination });
+            ? await createOtpChallenge({ purpose: "password_reset", channel: "email", destination, student: account })
+            : await createDecoyChallenge({ purpose: "password_reset", channel: "email", destination });
         res.status(202).json({ success: true, challengeId: challenge._id, expiresInSeconds: 600, message: "If those details match an active account, a reset code will arrive shortly." });
     } catch (error) {
         res.status(error.status || 400).json({ success: false, message: error.message || "Unable to send a password reset code." });
@@ -392,8 +355,6 @@ module.exports = {
     verifyRegistrationCode,
     registerGoogleProfile,
     loginStudent,
-    requestLoginCode,
-    verifyLoginCode,
     requestPasswordReset,
     resetPassword,
     createGoogleNonce,

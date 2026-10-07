@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, MailCheck, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, MailCheck, ShieldCheck } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
 import { showStudentToast } from "../../shared/studentNotifications";
 import CustomSelect from "../../shared/CustomSelect";
 import StudentAuthShell from "../components/StudentAuthShell";
-import { AuthChannelPicker, AuthField, AuthSubmit, GoogleIdentityButton, OtpField, PasswordField } from "../components/StudentAuthControls";
-import useStudentAuthOptions from "../hooks/useStudentAuthOptions";
+import { AuthField, AuthSubmit, GoogleIdentityButton, OtpField, PasswordField } from "../components/StudentAuthControls";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initialForm = { name: "", email: "", phone: "", gender: "prefer_not_to_say", city: "", school: "", password: "" };
@@ -19,19 +18,13 @@ const StudentRegister = () => {
   const [form, setForm] = useState({ ...initialForm, ...(initialGoogle?.profile || {}) });
   const [googleRegistrationToken, setGoogleRegistrationToken] = useState(initialGoogle?.googleRegistrationToken || "");
   const [step, setStep] = useState("profile");
-  const [channel, setChannel] = useState("email");
   const [challengeId, setChallengeId] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
-  const { channels } = useStudentAuthOptions();
   const requestedPath = location.state?.from || sessionStorage.getItem("studentReturnTo") || "/dashboard";
   const returnTo = requestedPath.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/dashboard";
-
-  useEffect(() => {
-    if (!channels.email && channels.whatsapp) setChannel("whatsapp");
-  }, [channels.email, channels.whatsapp]);
 
   const updateField = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -75,7 +68,7 @@ const StudentRegister = () => {
     try {
       const response = googleRegistrationToken
         ? await axiosInstance.post("/students/register/google-profile", { ...form, googleRegistrationToken })
-        : await axiosInstance.post("/students/register", { ...form, channel });
+        : await axiosInstance.post("/students/register", { ...form, channel: "email" });
       if (googleRegistrationToken) return enterStudent(response, "Google account connected");
       setChallengeId(response.data.challengeId || "");
       setStep("verify");
@@ -123,9 +116,9 @@ const StudentRegister = () => {
     }
   };
 
-  return <StudentAuthShell eyebrow={step === "verify" ? "One last step" : "Student account"} title={step === "verify" ? "Verify your contact" : step === "security" ? "Secure your account" : googleRegistrationToken ? "Complete your profile" : "Create your account"} description={step === "verify" ? `We sent a one-time code to your ${channel === "email" ? "email address" : "WhatsApp number"}. Enter it below to activate your student account.` : step === "security" ? "Create a password and choose where to receive your verification code." : "Join IlmiDunya to save your test history and track your progress."} maxWidth="max-w-xl">
+  return <StudentAuthShell eyebrow={step === "verify" ? "One last step" : "Student account"} title={step === "verify" ? "Verify your email" : step === "security" ? "Secure your account" : googleRegistrationToken ? "Complete your profile" : "Create your account"} description={step === "verify" ? "Enter the one-time code sent to your email to activate your account." : step === "security" ? "Create a password. We will verify your email before creating the account." : "Join IlmiDunya to save your test history and track your progress."} maxWidth="max-w-xl">
     {step === "verify" ? <form onSubmit={verifyCode} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/50 sm:space-y-4 sm:rounded-3xl sm:p-6">
-      <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary">{channel === "email" ? <MailCheck className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}</span><span>{channel === "email" ? form.email : form.phone}<br /><strong>Code expires in 10 minutes.</strong></span></div>
+      <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary"><MailCheck className="h-5 w-5" /></span><span>{form.email}<br /><strong>Code expires in 10 minutes.</strong></span></div>
       <OtpField value={otp} onChange={setOtp} />
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
       <AuthSubmit loading={loading}>Verify and create account</AuthSubmit>
@@ -151,9 +144,9 @@ const StudentRegister = () => {
       </>}
       {step === "security" && <>
         <PasswordField label="Create password" autoComplete="new-password" value={form.password} onChange={(event) => updateField("password", event.target.value)} placeholder="At least 8 characters, with a letter and number" error={fieldErrors.password} />
-        <AuthChannelPicker value={channel} onChange={setChannel} channels={channels} />
+        <div className="flex items-start gap-3 rounded-2xl border border-primary-soft bg-primary-soft/60 p-4 text-sm font-semibold leading-6 text-primary-dark"><MailCheck className="mt-0.5 h-5 w-5 shrink-0" />A six-digit verification code will be sent to <strong className="break-all">{form.email}</strong>.</div>
         {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
-        <AuthSubmit loading={loading}>Send verification code</AuthSubmit>
+        <AuthSubmit loading={loading}>Create account and send code</AuthSubmit>
         <button type="button" onClick={() => { setStep("profile"); setError(""); }} className="flex w-full items-center justify-center gap-2 py-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" />Edit your details</button>
       </>}
     </form>}

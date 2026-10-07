@@ -73,7 +73,11 @@ test('mounted private and write APIs reject missing authentication before databa
         assert.match(policy, /script-src[^;]*https:\/\/accounts\.google\.com\/gsi\/client/);
         assert.match(policy, /style-src[^;]*https:\/\/accounts\.google\.com\/gsi\/style/);
         assert.match(policy, /frame-src 'self' https:/);
-        assert.deepEqual(Object.keys(await authOptions.json()).sort(), ['channels', 'googleClientId', 'success']);
+        assert.deepEqual(Object.keys(await authOptions.json()).sort(), ['googleClientId', 'success']);
+        const removedOtpLogin = await fetch(origin + '/api/students/login/request-code', { method: 'POST' });
+        assert.equal(removedOtpLogin.status, 404);
+        const phoneReset = await fetch(origin + '/api/students/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: '03001234567', channel: 'whatsapp' }) });
+        assert.equal(phoneReset.status, 400);
         const bad = await fetch(origin + '/api/students/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: { $ne: null } }) });
         assert.equal(bad.status, 400);
     } finally { await new Promise(resolve => server.close(resolve)); }

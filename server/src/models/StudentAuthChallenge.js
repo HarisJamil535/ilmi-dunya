@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const studentAuthChallengeSchema = new mongoose.Schema({
-    purpose: { type: String, enum: ["signup", "login", "password_reset", "google_nonce"], required: true },
+    purpose: { type: String, enum: ["signup", "password_reset", "google_nonce"], required: true },
     channel: { type: String, enum: ["email", "whatsapp", "google"], required: true },
     destination: { type: String, default: "" },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" },
