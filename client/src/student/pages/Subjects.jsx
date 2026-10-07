@@ -113,7 +113,7 @@ const Subjects = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-[var(--app-bg-main)]">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-0 px-0 lg:flex-row lg:items-start lg:gap-6 lg:px-6 lg:py-8">
         <SideBar />
 

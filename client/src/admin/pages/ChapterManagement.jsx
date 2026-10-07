@@ -130,7 +130,7 @@ const ChapterManagement = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F4F5F9] p-3 sm:p-6 md:p-8 font-sans text-gray-800">
+        <div className="min-h-screen bg-[var(--app-bg-main)] p-3 sm:p-6 md:p-8 font-sans text-[var(--app-text-primary)]">
             <div className="flex items-center text-sm text-gray-500 mb-8">
                 <span className="hover:text-primary cursor-pointer transition-colors">Dashboard</span>
                 <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />

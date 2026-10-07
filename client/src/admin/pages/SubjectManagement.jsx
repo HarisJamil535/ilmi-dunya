@@ -103,7 +103,7 @@ const SubjectManagement = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F4F5F9] p-3 sm:p-6 md:p-8 font-sans text-gray-800">
+        <div className="min-h-screen bg-[var(--app-bg-main)] p-3 sm:p-6 md:p-8 font-sans text-[var(--app-text-primary)]">
             
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-gray-500 mb-8">

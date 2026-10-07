@@ -687,3 +687,92 @@ html.dark .leaderboard-row:hover { background: var(--brand-primary-soft); }
 
 html.dark .admin-form-modal > form > div:last-child { background: var(--app-bg-card); }
 html.dark .new-pattern-badge { border-color: #8b6b27; background: #302719; color: #f7ca6a; }
+
+/* Shared dark surfaces for utility classes used by student and admin pages. */
+html.dark {
+  --brand-dark: #f4f2fb;
+  --app-text-muted: #b8bfd0;
+  --app-border: #383d50;
+  --secondary: #202330;
+  --secondary-foreground: #f4f2fb;
+  --muted: #202330;
+  --muted-foreground: #b8bfd0;
+  --accent: #27223d;
+  --accent-foreground: #f4f2fb;
+}
+html.dark .bg-white\/50, html.dark .bg-white\/60, html.dark .bg-white\/70,
+html.dark .bg-white\/75, html.dark .bg-white\/85,
+html.dark .bg-slate-50\/40, html.dark .bg-slate-50\/70, html.dark .bg-slate-50\/80,
+html.dark .bg-gray-50\/50, html.dark .bg-gray-50\/80 { background-color: var(--app-bg-card) !important; }
+html.dark .bg-slate-100\/80, html.dark .bg-gray-200, html.dark .bg-gray-300,
+html.dark .bg-slate-300 { background-color: var(--app-bg-muted) !important; }
+html.dark .text-slate-400, html.dark .text-slate-300, html.dark .text-gray-400,
+html.dark .text-gray-300 { color: #aab2c5 !important; }
+html.dark .border-slate-200\/70, html.dark .border-slate-200\/80,
+html.dark .border-emerald-100, html.dark .border-blue-200,
+html.dark .border-violet-200, html.dark .border-indigo-200 { border-color: var(--app-border) !important; }
+html.dark .bg-rose-100, html.dark .bg-rose-50\/40, html.dark .bg-rose-50\/60 { background-color: #321c27 !important; }
+html.dark .bg-emerald-100 { background-color: #142b25 !important; }
+html.dark .bg-amber-100 { background-color: #302719 !important; }
+html.dark .bg-indigo-50 { background-color: #27213d !important; }
+html.dark .text-rose-500, html.dark .text-rose-950 { color: #ffafc2 !important; }
+html.dark .text-emerald-800, html.dark .text-emerald-900 { color: #8de7c3 !important; }
+html.dark .text-amber-500, html.dark .text-amber-600, html.dark .text-amber-950 { color: #f7ca6a !important; }
+html.dark .text-blue-600, html.dark .text-blue-700 { color: #9ec5ff !important; }
+html.dark .text-violet-700, html.dark .text-indigo-600 { color: #c4b5fd !important; }
+html.dark .text-primary-dark { color: #c4b5fd !important; }
+html.dark .bg-primary-soft\/60, html.dark .bg-primary-soft\/70,
+html.dark .bg-primary-soft\/80 { background-color: var(--brand-primary-soft) !important; }
+html.dark .hover\:bg-primary-dark:hover { background-color: #7356dc !important; }
+html.dark .bg-primary-dark.text-white, html.dark .from-primary-dark.text-white { --brand-primary-dark: #6343c2; }
+html.dark input:read-only { background-color: var(--app-bg-muted) !important; }
+html.dark input::placeholder, html.dark textarea::placeholder { color: #a1a9bd; }
+html.dark .theme-toggle { border-color: var(--app-border); background: var(--app-bg-card); color: var(--app-text-primary); }
+html.dark .theme-toggle-icon { background: var(--brand-primary-soft); color: #c4b5fd; }
+
+/* Page styles with their own CSS colors. */
+html.dark .home-page { --home-mint: #172e2a; --home-sky: #192b3a; --home-peach: #382721; --home-lilac: #29223f; }
+html.dark .home-hero .home-eyebrow, html.dark .home-motion-toggle,
+html.dark .home-review-avatar { background: var(--app-bg-card); color: var(--app-text-primary); }
+html.dark .home-tone-mint { --tile-ink: #83d9bd; }
+html.dark .home-tone-sky { --tile-ink: #a9d7f5; }
+html.dark .home-tone-peach { --tile-ink: #f1aa95; }
+html.dark .home-tone-lilac { --tile-ink: #cabaff; }
+html.dark .home-resource { background: var(--tile-bg); }
+html.dark .home-stats .home-width > div, html.dark .home-review figcaption { border-color: var(--app-border); }
+html.dark .home-page h1, html.dark .home-page h2, html.dark .home-page h3,
+html.dark .home-page strong, html.dark .home-page .home-tagline,
+html.dark .news-page h1, html.dark .news-page h2, html.dark .news-page h3,
+html.dark .news-article h1, html.dark .news-article h2, html.dark .news-article h3 { color: var(--app-text-primary); }
+html.dark .news-categories button, html.dark .news-feature p, html.dark .news-card p,
+html.dark .news-article-content p { color: var(--app-text-muted); }
+html.dark .news-categories button[aria-pressed="true"] { color: #fff; }
+html.dark .study-resource-link, html.dark .not-found, html.dark .not-found-secondary {
+  background: var(--app-bg-card); color: var(--app-text-primary); border-color: var(--app-border);
+}
+html.dark .study-questions li, html.dark .not-found-shortcuts { border-color: var(--app-border); }
+html.dark .not-found h1 { color: var(--app-text-primary); }
+html.dark .not-found-primary { color: #fff; background: var(--brand-primary); }
+html.dark .chapter-context span, html.dark .chapter-resources a.answer-sheet-resource { border-color: var(--brand-primary-muted); }
+html.dark .learning-button.secondary, html.dark .leaderboard-refresh {
+  border-color: var(--app-border); background: var(--app-bg-card); color: #c4b5fd;
+}
+html.dark .result-overview, html.dark .learning-tabs, html.dark .learning-question,
+html.dark .leaderboard-filters, html.dark .leaderboard-table,
+html.dark .leaderboard-refresh { background: var(--app-bg-card); border-color: var(--app-border); }
+html.dark .result-stat, html.dark .result-breakdown > div,
+html.dark .leaderboard-table-header, html.dark .leaderboard-header,
+html.dark .podium-metrics { border-color: var(--app-border); }
+html.dark .result-breakdown > div, html.dark .learning-option,
+html.dark .learning-option strong, html.dark .learning-explanation,
+html.dark .learning-tabs button, html.dark .learning-question-meta,
+html.dark .leaderboard-rule, html.dark .leaderboard-live,
+html.dark .leaderboard-table-header > span, html.dark .leaderboard-row-time { color: var(--app-text-muted); }
+html.dark .learning-tabs button[aria-pressed="true"] { color: #fff; }
+html.dark .learning-option.correct { background: #142b25; border-color: #2b6552; color: #8de7c3; }
+html.dark .learning-option.wrong { background: #321c27; border-color: #704052; color: #ffafc2; }
+html.dark .learning-scenario { background: var(--brand-primary-soft); color: #d6cbff; }
+html.dark .podium-rank-watermark { color: rgb(255 255 255 / 7%); }
+html.dark .podium-medal, html.dark .leaderboard-rank { background: var(--app-bg-muted); color: var(--app-text-primary); }
+html.dark .test-timer { background: #142b25; color: #8de7c3; border-color: #2b6552; }
+html.dark .test-timer.urgent { background: #321c27; color: #ffafc2; border-color: #704052; }

@@ -78,7 +78,7 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
     };
 
     return (
-        <div className="p-6 bg-[#F8F9FE] border-b border-primary-soft">
+        <div className="p-6 bg-[var(--app-bg-muted)] border-b border-primary-soft">
             <div className="mb-3 text-xs font-bold text-primary uppercase tracking-wider">
                 {editingSubject ? `Editing: ${editingSubject.name}` : "Add New Subject"}
             </div>

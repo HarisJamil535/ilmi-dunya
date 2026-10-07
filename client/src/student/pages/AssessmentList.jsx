@@ -69,7 +69,7 @@ const AssessmentList = () => {
       <section className="mx-auto max-w-7xl space-y-8">
         <header className="relative overflow-hidden rounded-3xl bg-primary px-6 py-8 text-white shadow-xl shadow-primary/15 sm:px-9 sm:py-10">
           <div className="relative z-10 max-w-3xl">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-primary-muted"><ClipboardCheck className="h-4 w-4" />Smart MCQ Practice</div>
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-white/85"><ClipboardCheck className="h-4 w-4" />Smart MCQ Practice</div>
             <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Practise the right questions,<br className="hidden sm:block" /> at the right time.</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">Choose your study path, take a focused chapter or topic test, and learn from every answer with an instant result report.</p>
           </div>
