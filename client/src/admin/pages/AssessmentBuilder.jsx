@@ -262,7 +262,7 @@ const AssessmentBuilder = () => {
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <div className="mt-6">
               <h2 className="mb-1 text-sm font-black uppercase tracking-wider text-slate-700">Add from Question Bank</h2>
-              <p className="mb-3 text-xs leading-5 text-slate-500">Only MCQs marked Ready for tests and matching this syllabus are shown. Publishing this test is the step that makes it available to students.</p>
+              <p className="mb-3 text-xs leading-5 text-slate-500">Matching saved MCQs appear here. Publish this test when it is ready for students.</p>
               <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Find a question">
                   <input value={questionFilters.search} onChange={(event) => setQuestionFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search question text" className="min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm" />

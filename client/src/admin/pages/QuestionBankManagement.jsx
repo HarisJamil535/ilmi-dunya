@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Download, FileSpreadsheet, Languages, Loader2, Plus, Save, SearchX, Upload, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, Download, Languages, Loader2, Plus, Save, SearchX, Upload, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -30,15 +31,15 @@ const defaultForm = {
   chapter: "",
   topic: "",
   tags: "",
-  status: "draft",
+  status: "published",
   scenario: "",
   scenarioTitle: "",
   scenarioText: "",
 };
 
 const contentModes = [
-  { value: "mcq", title: "MCQ / Test Questions", text: "For chapter tests, topic tests and scenario-based MCQ practice." },
-  { value: "written", title: "Short & Long Questions", text: "For topic pages where students read board-style written questions." },
+  { value: "mcq", title: "MCQ" },
+  { value: "written", title: "Short / Long question" },
 ];
 
 const Field = ({ label, helper, children }) => (
@@ -226,7 +227,7 @@ const QuestionBankManagement = () => {
       ...defaultForm,
       mode,
       contentType: mode === "mcq" ? "mcq" : "long_question",
-      status: mode === "mcq" ? "draft" : "published",
+      status: "published",
       board: form.board,
       class: form.class,
       group: form.group,
@@ -250,7 +251,7 @@ const QuestionBankManagement = () => {
       ...defaultForm,
       mode: form.mode,
       contentType: form.mode === "mcq" ? "mcq" : "long_question",
-      status: form.mode === "mcq" ? "draft" : "published",
+      status: "published",
       board: form.board,
       class: form.class,
       group: form.group,
@@ -327,7 +328,7 @@ const QuestionBankManagement = () => {
       } else {
         await axiosInstance.post("/questions", payload);
       }
-      setMessage(isEditing ? "Question updated successfully." : form.type === "scenario_mcq" ? "Question saved. Add the next question for this scenario if needed." : "Question saved successfully.");
+      setMessage(isEditing ? "Question updated." : form.type === "scenario_mcq" ? "Saved. Add another question to this scenario or continue later." : "Question saved.");
       const preservedScenario = payload.type === "scenario_mcq" ? payload.scenario : "";
       setForm({
         ...defaultForm,
@@ -368,15 +369,13 @@ const QuestionBankManagement = () => {
     }
   };
 
-  const updateQuestionStage = async (question, status) => {
+  const markQuestionReady = async (question) => {
     setSaving(true);
     setError("");
     setMessage("");
     try {
-      await axiosInstance.patch(`/questions/${question._id}/status`, { status });
-      setMessage(status === "published"
-        ? "Question is ready. It can now be selected in MCQ Test Builder."
-        : "Question moved back to Drafts and is hidden from the Test Builder.");
+      await axiosInstance.patch(`/questions/${question._id}/status`, { status: "published" });
+      setMessage("Question is now available in Test Builder.");
       await loadQuestions();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to update the question stage.");
@@ -484,15 +483,16 @@ const QuestionBankManagement = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-7 text-white">
-          <ClipboardList className="h-8 w-8" />
-          <h1 className="mt-4 text-3xl font-black">Question Bank</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/75">
-            Add MCQs for tests, create scenario-based question groups, and manage topic-wise short and long questions from one clean workspace.
-          </p>
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-6 text-white sm:p-7">
+          <div>
+            <ClipboardList className="h-7 w-7" />
+            <h1 className="mt-3 text-2xl font-black">Question Bank</h1>
+            <p className="mt-1 text-sm text-white/80">Add questions here. Students see MCQs after you publish a test.</p>
+          </div>
+          <Link to="/admin/assessments/builder" className="rounded-xl border border-white/30 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10">Create a student test</Link>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className="inline-flex w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" aria-label="Question format">
           {contentModes.map((mode) => {
             const active = form.mode === mode.value;
             return (
@@ -500,33 +500,22 @@ const QuestionBankManagement = () => {
                 key={mode.value}
                 type="button"
                 onClick={() => setMode(mode.value)}
-                className={`rounded-3xl border p-5 text-left shadow-sm transition ${active ? "border-primary bg-primary-soft text-primary-dark" : "border-slate-200 bg-white text-slate-700 hover:border-primary/30"}`}
+                className={`flex-1 rounded-xl px-4 py-3 text-left text-sm font-black transition ${active ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}
               >
                 <span className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">{mode.title}</span>
-                  {active && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                  <span>{mode.title}</span>
+                  {active && <CheckCircle2 className="h-4 w-4" />}
                 </span>
-                <span className="mt-2 block text-sm leading-6">{mode.text}</span>
               </button>
             );
           })}
         </section>
 
-        {form.mode === "mcq" && (
-          <section className="grid gap-3 rounded-3xl border border-primary/15 bg-white p-5 shadow-sm sm:grid-cols-3">
-            <div className="rounded-2xl bg-slate-50 p-4"><span className="text-xs font-black text-primary">1. CREATE</span><p className="mt-1 font-black text-slate-950">Save an MCQ</p><p className="mt-1 text-xs leading-5 text-slate-500">Keep unfinished questions in Drafts.</p></div>
-            <div className="rounded-2xl bg-primary-soft p-4"><span className="text-xs font-black text-primary">2. APPROVE</span><p className="mt-1 font-black text-slate-950">Mark Ready for tests</p><p className="mt-1 text-xs leading-5 text-slate-500">Ready MCQs become selectable in Test Builder.</p></div>
-            <div className="rounded-2xl bg-emerald-50 p-4"><span className="text-xs font-black text-emerald-700">3. PUBLISH</span><p className="mt-1 font-black text-slate-950">Publish a test</p><p className="mt-1 text-xs leading-5 text-slate-500">Students see questions only inside a published test.</p></div>
-          </section>
-        )}
-
         <form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-xl font-black text-slate-950">{isEditing ? "Update Question" : isMcq ? "Add MCQ Question" : "Add Written Question"}</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {isMcq ? "The form below is optimized for tests and scenario MCQs." : "The form below is optimized for topic short and long question pages."}
-              </p>
+              <p className="mt-1 text-sm text-slate-500">{isMcq ? "Complete the required fields, then save." : "Add a board question for the selected topic."}</p>
             </div>
             {isEditing && (
               <button type="button" onClick={resetForm} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600">
@@ -547,13 +536,9 @@ const QuestionBankManagement = () => {
               </Field>
             )}
             {isMcq ? (
-              <Field label="Question Stage" helper="Ready questions appear in MCQ Test Builder. Neither option exposes a question directly to students.">
-                <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "draft", label: "Draft - finish later" }, { value: "published", label: "Ready for tests" }]} placeholder="Choose stage" />
-              </Field>
+              <div className="self-end rounded-xl bg-primary-soft px-4 py-3 text-xs font-semibold leading-5 text-primary-dark">Saved MCQs are ready in Test Builder. Students see them after you publish a test.</div>
             ) : (
-              <Field label="Publish Status" helper="Published written questions appear on the selected topic page.">
-                <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "published", label: "Published" }, { value: "draft", label: "Draft" }]} placeholder="Choose status" />
-              </Field>
+              <div className="self-end rounded-xl bg-primary-soft px-4 py-3 text-xs font-semibold leading-5 text-primary-dark">Saved written questions appear on the selected topic page.</div>
             )}
             {!isMcq && (
               <Field label="Exam Session" helper="Optional label shown with the question.">
@@ -583,9 +568,7 @@ const QuestionBankManagement = () => {
 
           <div className="rounded-2xl border border-primary-soft bg-primary-soft/70 p-4">
             <p className="text-sm font-black text-primary-dark">Study Context</p>
-            <p className="mt-1 text-sm leading-6 text-primary-dark">
-              {isMcq ? "Topic is optional for chapter-wide MCQs. Select a topic when this question belongs to one topic only." : "Written questions must be attached to a topic so students see them in the correct topic page."}
-            </p>
+            <p className="mt-1 text-sm text-primary-dark">Choose where students should find this question.</p>
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
               <CustomSelect label="Board" value={form.board} onChange={(value) => setForm({ ...form, board: value, subject: "", chapter: "", topic: "", scenario: "" })} options={toSelectOptions(boards)} placeholder="Select board" isLoading={isLoadingContext} />
               <CustomSelect label="Class" value={form.class} onChange={(value) => setForm({ ...form, class: value, subject: "", chapter: "", topic: "", scenario: "" })} options={toSelectOptions(classes)} placeholder="Select class" isLoading={isLoadingContext} />
@@ -630,7 +613,7 @@ const QuestionBankManagement = () => {
           )}
 
           <div className="mt-5">
-            <Field label="Question Text" helper="Write exactly what the student will see.">
+              <Field label="Question" helper="Write the question exactly as students should read it.">
               <textarea required dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.questionText} onChange={(event) => setForm({ ...form, questionText: event.target.value })} placeholder={isUrdu ? "سوال یہاں لکھیں" : "Question text"} />
             </Field>
           </div>
@@ -640,25 +623,31 @@ const QuestionBankManagement = () => {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {form.options.map((option, index) => (
                   <Field key={option.key} label={`Option ${option.key}`} helper={index < 2 ? "Required" : "Optional"}>
-                    <input dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={isUrdu ? `جواب ${option.key}` : `Option ${option.key}`} />
+                    <input required={index < 2} dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={isUrdu ? `جواب ${option.key}` : `Option ${option.key}`} />
                   </Field>
                 ))}
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-4">
-                <Field label="Correct Answer" helper="Must match a filled option.">
-                  <SmartSelect value={form.correctOption} onChange={(value) => setForm({ ...form, correctOption: value })} options={form.options.map((option) => ({ value: option.key, label: `Option ${option.key}` }))} placeholder="Choose answer" />
-                </Field>
-                <Field label="Difficulty" helper="Used in filters.">
-                  <SmartSelect value={form.difficulty} onChange={(value) => setForm({ ...form, difficulty: value })} options={[{ value: "easy", label: "Easy" }, { value: "medium", label: "Medium" }, { value: "hard", label: "Hard" }]} placeholder="Difficulty" />
-                </Field>
-                <Field label="Marks" helper="Usually 1">
-                  <input type="number" min="1" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.marks} onChange={(event) => setForm({ ...form, marks: Number(event.target.value) })} />
-                </Field>
-                <Field label="Tags" helper="Comma separated">
-                  <input className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="important,board" />
+              <div className="mt-4 max-w-sm">
+                <Field label="Correct answer">
+                  <SmartSelect value={form.correctOption} onChange={(value) => setForm({ ...form, correctOption: value })} options={form.options.filter((option) => option.text.trim()).map((option) => ({ value: option.key, label: `Option ${option.key}` }))} placeholder="Select correct option" />
                 </Field>
               </div>
+
+              <details className="mt-4 rounded-xl border border-slate-200 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-bold text-slate-700">Optional question details</summary>
+                <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <Field label="Difficulty">
+                  <SmartSelect value={form.difficulty} onChange={(value) => setForm({ ...form, difficulty: value })} options={[{ value: "easy", label: "Easy" }, { value: "medium", label: "Medium" }, { value: "hard", label: "Hard" }]} placeholder="Difficulty" />
+                </Field>
+                <Field label="Marks">
+                  <input type="number" min="1" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.marks} onChange={(event) => setForm({ ...form, marks: Number(event.target.value) })} />
+                </Field>
+                <Field label="Tags" helper="Optional. Separate with commas.">
+                  <input className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="important,board" />
+                </Field>
+                </div>
+              </details>
 
               <Field label="Explanation" helper="Shown after result. Keep it short and helpful.">
                 <textarea dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-20 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.explanation} onChange={(event) => setForm({ ...form, explanation: event.target.value })} placeholder={isUrdu ? "صحیح جواب کی وضاحت لکھیں" : "Why is this answer correct?"} />
@@ -676,7 +665,7 @@ const QuestionBankManagement = () => {
           <div className="mt-5 flex justify-end">
             <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-60">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {isEditing ? "Update Question" : isMcq && form.type === "scenario_mcq" ? "Save & Add Next" : isMcq && form.status === "published" ? "Save as Ready" : "Save to Drafts"}
+              {isEditing ? "Save changes" : "Save question"}
             </button>
           </div>
         </form>
@@ -684,19 +673,25 @@ const QuestionBankManagement = () => {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Question Library</h2>
-              <p className="mt-1 text-sm text-slate-500">Open Drafts to finish questions, then approve each one for use in the Test Builder.</p>
+              <h2 className="text-xl font-black text-slate-950">Questions</h2>
+              <p className="mt-1 text-sm text-slate-500">Saved MCQs are ready for tests. Students see only published tests.</p>
             </div>
-            <button type="button" onClick={clearListFilters} className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-200">
-              Clear Filters
-            </button>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <input
+                value={listFilter.search}
+                onChange={(event) => updateListFilter({ search: event.target.value })}
+                placeholder="Search questions"
+                aria-label="Search questions"
+                className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-primary sm:w-64"
+              />
+              <button type="button" onClick={clearListFilters} className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-200">Clear</button>
+            </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Question stage">
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Question list">
             {[
               { value: "", label: "All questions" },
-              { value: "draft", label: "Drafts" },
-              { value: "published", label: "Ready for tests" },
+              { value: "draft", label: "Drafts to review" },
             ].map((stage) => (
               <button
                 key={stage.value || "all"}
@@ -711,7 +706,8 @@ const QuestionBankManagement = () => {
             ))}
           </div>
 
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <summary className="cursor-pointer text-sm font-bold text-slate-700">Filter questions</summary>
             <div className="grid gap-4 lg:grid-cols-4">
               <CustomSelect
                 label="Board"
@@ -769,16 +765,8 @@ const QuestionBankManagement = () => {
                 placeholder="All topics"
                 disabled={!listFilter.chapter}
               />
-              <Field label="Search">
-                <input
-                  value={listFilter.search}
-                  onChange={(event) => updateListFilter({ search: event.target.value })}
-                  placeholder="Search question text"
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-primary"
-                />
-              </Field>
             </div>
-          </div>
+          </details>
 
           {loading ? (
             <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
@@ -805,13 +793,8 @@ const QuestionBankManagement = () => {
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {question.contentType === "mcq" && question.status === "draft" && (
-                        <button type="button" onClick={() => updateQuestionStage(question, "published")} disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-50">
-                          <CheckCircle2 className="h-4 w-4" /> Ready for tests
-                        </button>
-                      )}
-                      {question.contentType === "mcq" && question.status === "published" && (
-                        <button type="button" onClick={() => updateQuestionStage(question, "draft")} disabled={saving} className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50">
-                          Move to drafts
+                          <button type="button" onClick={() => markQuestionReady(question)} disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-50">
+                          <CheckCircle2 className="h-4 w-4" /> Make available
                         </button>
                       )}
                       <EditButton onClick={() => editQuestion(question)} title="Edit question" />
@@ -830,22 +813,12 @@ const QuestionBankManagement = () => {
           )}
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <details className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <summary className="cursor-pointer text-base font-black text-slate-900">Bulk upload from Excel</summary>
+          <div className="pt-4">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <div className="flex items-center gap-2 text-sm font-black text-primary">
-                <FileSpreadsheet className="h-4 w-4" />
-                Bulk Excel Upload
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                First select Board, Class, Group, Subject and Chapter in the Study Context above. The Excel file should contain only question data.
-              </p>
-              <p className="mt-2 text-xs font-bold text-primary-dark">Imported MCQs are added to the reusable bank. Publish a student test separately from MCQ Test Builder.</p>
-              <p className="mt-2 text-xs font-bold leading-5 text-slate-400">
-                {writtenImport ? "Select a topic above. Columns: questionText, examYear, examSession. Year and session are optional; use morning or evening for session. No answers or options are needed." : "Columns: questionText, optionA, optionB, optionC, optionD, correctOption, explanation. Use A, B, C or D for the correct answer."}
-                {importKind === "scenario_mcq" && " Also fill scenarioTitle and scenarioText on every row. Repeat the same title and passage for all questions in one scenario; there is no fixed question count."}
-                {" Download the matching template and upload it unchanged to test, or replace the sample rows with your questions."}
-              </p>
+              <p className="text-sm text-slate-600">Select the syllabus location above, download a template, fill in questions, then upload it here.</p>
               <div className="mt-4 max-w-sm">
                 <Field label="Bulk question type">
                   <SmartSelect value={importKind} disabled={importBusy} onChange={(value) => { setImportKind(value); setImportPreview(null); setImportRows([]); }} options={[{ value: "standard_mcq", label: "Standard MCQs" }, { value: "scenario_mcq", label: "Scenario MCQs" }, { value: "short_question", label: "Short questions" }, { value: "long_question", label: "Long questions" }]} />
@@ -883,7 +856,8 @@ const QuestionBankManagement = () => {
               </div>
             </div>
           )}
-        </section>
+          </div>
+        </details>
       </div>
       <DeleteConfirmationModal
         isOpen={Boolean(questionToDelete)}

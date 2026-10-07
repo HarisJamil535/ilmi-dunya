@@ -90,14 +90,15 @@ const cleanQuestionPayload = (body, adminId) => {
 
     payload.contentType = body.contentType || "mcq";
     if (payload.contentType === "mcq") {
-        // A published MCQ is ready for the test builder; only a published Assessment exposes it to students.
-        payload.status = body.status === "published" ? "published" : "draft";
+        // MCQs are ready for the test builder after saving; only published tests are visible to students.
+        payload.status = "published";
         payload.examYear = undefined;
         payload.examSession = undefined;
     }
     if (!payload.examYear && payload.contentType !== "mcq") payload.examYear = undefined;
     if (!payload.examSession) payload.examSession = undefined;
     if (payload.contentType !== "mcq") {
+        payload.status = "published";
         payload.options = [];
         payload.correctOption = undefined;
         payload.type = "standard_mcq";
@@ -333,7 +334,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
             topic: values.topic,
         scenario,
         tags: row.tags,
-        status: (row.contentType || "mcq") === "mcq" ? "draft" : row.status || "published",
+        status: "published",
     }, adminId);
 };
 
