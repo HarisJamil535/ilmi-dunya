@@ -267,24 +267,26 @@ const Videos = () => {
                 {selectedTopic?.description && (
                   <p className="mt-2 text-sm leading-6 text-slate-500">{selectedTopic.description}</p>
                 )}
-                {selectedWatchUrl && (
-                  <a
-                    href={selectedWatchUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary-dark"
-                  >
-                    <PlayCircle className="h-4 w-4" /> Watch on YouTube
-                  </a>
-                )}
-                {selectedTopic?._id && (
-                  <Link
-                    to={`/tests/start?topic=${selectedTopic._id}`}
-                    className="mt-5 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-black text-white"
-                  >
-                    Start Topic MCQ Test
-                  </Link>
-                )}
+                <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  {selectedWatchUrl && (
+                    <a
+                      href={selectedWatchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary-soft px-4 py-2.5 text-sm font-bold text-primary transition hover:border-primary/40 hover:bg-primary/10"
+                    >
+                      <PlayCircle className="h-4 w-4 shrink-0" /> Watch on YouTube
+                    </a>
+                  )}
+                  {selectedTopic?._id && (
+                    <Link
+                      to={`/tests/start?topic=${selectedTopic._id}`}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-primary-dark"
+                    >
+                      Start Topic MCQ Test
+                    </Link>
+                  )}
+                </div>
               </div>
             </section>
 

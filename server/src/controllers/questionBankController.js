@@ -409,15 +409,17 @@ const updateQuestion = async (req, res) => {
     res.json({ success: true, question });
 };
 
-const deleteQuestion = async (req, res) => {
-    const question = await Question.findById(req.params.id);
-    if (!question) return res.status(404).json({ success: false, message: "Question not found." });
-    const assessments = await Assessment.find({ "questions.question": question._id, status: { $ne: "archived" } })
+const archiveQuestions = async (questionIds) => {
+    const ids = [...new Set(questionIds.map(String))].filter((id) => mongoose.isValidObjectId(id));
+    if (!ids.length) return { archivedCount: 0, removedFromTests: 0 };
+
+    const assessments = await Assessment.find({ "questions.question": { $in: ids }, status: { $ne: "archived" } })
         .select("questions totalMarks passingMarks status")
         .lean();
     if (assessments.length) {
         await Assessment.bulkWrite(assessments.map((assessment) => {
-            const questions = assessment.questions.filter((item) => String(item.question) !== String(question._id));
+            const idSet = new Set(ids);
+            const questions = assessment.questions.filter((item) => !idSet.has(String(item.question)));
             const totalMarks = questions.reduce((sum, item) => sum + Number(item.marks || 0), 0);
             return {
                 updateOne: {
@@ -432,9 +434,42 @@ const deleteQuestion = async (req, res) => {
             };
         }));
     }
-    question.status = "archived";
-    await question.save();
-    res.json({ success: true, question, removedFromTests: assessments.length });
+
+    const result = await Question.updateMany(
+        { _id: { $in: ids }, status: { $ne: "archived" } },
+        { status: "archived" }
+    );
+    return { archivedCount: result.modifiedCount, removedFromTests: assessments.length };
+};
+
+const deleteQuestion = async (req, res) => {
+    const question = await Question.findOne({ _id: req.params.id, status: { $ne: "archived" } }).select("_id").lean();
+    if (!question) return res.status(404).json({ success: false, message: "Question not found." });
+    const result = await archiveQuestions([question._id]);
+    res.json({ success: true, question, ...result });
+};
+
+const bulkDeleteQuestions = async (req, res) => {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    const allMatching = req.body.allMatching === true;
+    let questionIds = ids;
+
+    if (allMatching) {
+        const filters = req.body.filters || {};
+        const scopeKeys = ["board", "class", "group", "subject", "chapter", "topic"];
+        if (!scopeKeys.some((key) => filters[key])) {
+            return res.status(400).json({ success: false, message: "Select a board, class, group, subject, chapter or topic before deleting all matching questions." });
+        }
+        const filter = buildQuestionFilter(filters);
+        questionIds = (await Question.find(filter).select("_id").lean()).map((question) => question._id);
+    }
+
+    if (!questionIds.length || questionIds.length > 5000) {
+        return res.status(400).json({ success: false, message: questionIds.length > 5000 ? "Narrow the filters before deleting more than 5,000 questions." : "Select at least one question." });
+    }
+
+    const result = await archiveQuestions(questionIds);
+    res.json({ success: true, ...result });
 };
 
 const updateQuestionStatus = async (req, res) => {
@@ -625,6 +660,7 @@ module.exports = {
     updateQuestion,
     updateQuestionStatus,
     deleteQuestion,
+    bulkDeleteQuestions,
     getScenarios,
     createScenario,
     updateScenario,

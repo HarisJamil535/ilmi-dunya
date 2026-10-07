@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Download, Languages, Loader2, Plus, Save, SearchX, Upload, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
@@ -54,7 +54,7 @@ const toSelectOptions = (items) => items.map((item) => ({ _id: item._id, name: i
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortTopics = (items) => [...items].sort((a, b) => String(a.topicNumber || "").localeCompare(String(b.topicNumber || ""), undefined, { numeric: true, sensitivity: "base" }) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
-const sortQuestions = (items) => [...items].sort((a, b) => (a.questionText || "").localeCompare(b.questionText || "", undefined, { numeric: true, sensitivity: "base" }));
+const PAGE_SIZE = 15;
 
 const questionLabel = (question) => {
   if (question.contentType === "long_question") return "Long question";
@@ -114,6 +114,10 @@ const QuestionBankManagement = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState([]);
+  const [bulkDeleteRequest, setBulkDeleteRequest] = useState(null);
 
   const isMcq = form.mode === "mcq";
   const isUrdu = form.language === "ur";
@@ -124,7 +128,7 @@ const QuestionBankManagement = () => {
   const loadQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "100" });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (listFilter.contentType) params.set("contentType", listFilter.contentType);
       if (listFilter.status) params.set("status", listFilter.status);
       if (listFilter.board) params.set("board", listFilter.board);
@@ -135,13 +139,15 @@ const QuestionBankManagement = () => {
       if (listFilter.topic) params.set("topic", listFilter.topic);
       if (listFilter.search.trim()) params.set("search", listFilter.search.trim());
       const response = await axiosInstance.get(`/questions?${params.toString()}`);
-      setQuestions(sortQuestions(response.data.questions || []));
+      setQuestions(response.data.questions || []);
+      setPagination({ total: response.data.pagination?.total || 0, pages: Math.max(response.data.pagination?.pages || 1, 1) });
+      setSelectedQuestionIds([]);
     } catch (err) {
       setError(err.response?.data?.message || "Unable to load questions.");
     } finally {
       setLoading(false);
     }
-  }, [listFilter]);
+  }, [listFilter, page]);
 
   const loadScenarios = useCallback(async () => {
     const params = new URLSearchParams();
@@ -361,9 +367,34 @@ const QuestionBankManagement = () => {
       if (form.id === id) resetForm();
       setQuestionToDelete(null);
       setMessage("Question removed from new tests. Previous student attempts are preserved.");
-      await loadQuestions();
+      if (page > 1 && questions.length === 1) setPage((current) => current - 1);
+      else await loadQuestions();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to delete question.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteQuestionsInBulk = async () => {
+    if (!bulkDeleteRequest) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const payload = bulkDeleteRequest.mode === "all"
+        ? { allMatching: true, filters: listFilter }
+        : { ids: selectedQuestionIds };
+      const response = await axiosInstance.post("/questions/bulk-delete", payload);
+      const archivedCount = response.data.archivedCount || 0;
+      setBulkDeleteRequest(null);
+      setSelectedQuestionIds([]);
+      setMessage(`${archivedCount} question${archivedCount === 1 ? "" : "s"} removed. Previous student results are preserved.`);
+      if (bulkDeleteRequest.mode === "all" && page !== 1) setPage(1);
+      else if (page > 1 && archivedCount >= questions.length) setPage((current) => current - 1);
+      else await loadQuestions();
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to remove the selected questions.");
     } finally {
       setSaving(false);
     }
@@ -477,8 +508,21 @@ const QuestionBankManagement = () => {
     }
   };
 
-  const updateListFilter = (changes) => setListFilter((current) => ({ ...current, ...changes }));
-  const clearListFilters = () => setListFilter({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
+  const updateListFilter = (changes) => {
+    setPage(1);
+    setSelectedQuestionIds([]);
+    setListFilter((current) => ({ ...current, ...changes }));
+  };
+  const clearListFilters = () => {
+    setPage(1);
+    setSelectedQuestionIds([]);
+    setListFilter({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
+  };
+  const pageQuestionIds = questions.map((question) => question._id);
+  const allPageSelected = pageQuestionIds.length > 0 && pageQuestionIds.every((id) => selectedQuestionIds.includes(id));
+  const hasScopeFilter = ["board", "class", "group", "subject", "chapter", "topic"].some((key) => listFilter[key]);
+  const toggleQuestionSelection = (id) => setSelectedQuestionIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const togglePageSelection = () => setSelectedQuestionIds((current) => allPageSelected ? current.filter((id) => !pageQuestionIds.includes(id)) : [...new Set([...current, ...pageQuestionIds])]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -768,41 +812,77 @@ const QuestionBankManagement = () => {
             </div>
           </details>
 
+          {(selectedQuestionIds.length > 0 || hasScopeFilter) && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-3">
+              <p className="text-sm font-bold text-slate-700">
+                {selectedQuestionIds.length ? `${selectedQuestionIds.length} selected` : `${pagination.total} matching the current filters`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {selectedQuestionIds.length > 0 && (
+                  <button type="button" onClick={() => setBulkDeleteRequest({ mode: "selected" })} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-rose-700">
+                    <Trash2 className="h-4 w-4" /> Remove selected
+                  </button>
+                )}
+                {hasScopeFilter && pagination.total > 0 && (
+                  <button type="button" onClick={() => setBulkDeleteRequest({ mode: "all" })} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50">
+                    <Trash2 className="h-4 w-4" /> Remove all matching ({pagination.total})
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
           ) : questions.length ? (
-            <div className="mt-5 divide-y divide-slate-100">
-              {questions.map((question) => (
-                <article key={question._id} className="py-4">
-                  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span>
-                        {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-primary">اردو</span>}
-                        {question.contentType === "mcq" ? (
-                          <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{question.status === "published" ? "Ready for tests" : "Draft"}</span>
-                        ) : (
-                          <span className={`rounded-full px-3 py-1 text-xs font-black ${question.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{question.status}</span>
-                        )}
-                        {question.scenario?.title && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Scenario: {question.scenario.title}</span>}
-                      </div>
-                      <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`mt-2 font-black leading-7 text-slate-950 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>{question.questionText}</p>
-                      <p className="mt-1 text-xs font-bold uppercase tracking-wider text-slate-400">
-                        {question.subject?.name || "Subject"} / {question.chapter?.name || "Chapter"}{question.topic?.name ? ` / ${question.topic.name}` : ""} / {question.marks || 1} marks
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      {question.contentType === "mcq" && question.status === "draft" && (
-                          <button type="button" onClick={() => markQuestionReady(question)} disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-50">
-                          <CheckCircle2 className="h-4 w-4" /> Make available
-                        </button>
-                      )}
-                      <EditButton onClick={() => editQuestion(question)} title="Edit question" />
-                      <DeleteButton onClick={() => setQuestionToDelete(question)} disabled={saving} title="Delete question" />
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="w-12 px-4 py-3"><input type="checkbox" aria-label="Select all questions on this page" checked={allPageSelected} onChange={togglePageSelection} className="h-5 w-5 cursor-pointer rounded accent-[var(--color-primary)]" /></th>
+                      <th className="w-16 px-3 py-3 font-black">No.</th>
+                      <th className="px-3 py-3 font-black">Question</th>
+                      <th className="w-52 px-3 py-3 font-black">Location</th>
+                      <th className="w-36 px-3 py-3 font-black">Type</th>
+                      <th className="w-36 px-4 py-3 text-right font-black">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {questions.map((question, index) => (
+                      <tr key={question._id} className={`align-top transition hover:bg-slate-50/80 ${selectedQuestionIds.includes(question._id) ? "bg-primary-soft/50" : ""}`}>
+                        <td className="px-4 py-4"><input type="checkbox" aria-label={`Select question ${((page - 1) * PAGE_SIZE) + index + 1}`} checked={selectedQuestionIds.includes(question._id)} onChange={() => toggleQuestionSelection(question._id)} className="h-5 w-5 cursor-pointer rounded accent-[var(--color-primary)]" /></td>
+                        <td className="px-3 py-4 font-black text-slate-500">{((page - 1) * PAGE_SIZE) + index + 1}</td>
+                        <td className="max-w-xl px-3 py-4">
+                          <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`font-bold leading-6 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-lg" : ""}`}>{question.questionText}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-primary">اردو</span>}
+                            {question.status === "draft" && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">Draft</span>}
+                            {question.scenario?.title && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{question.scenario.title}</span>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-xs leading-5 text-slate-500">{question.subject?.name || "Subject"}<br />{question.chapter?.name || "Chapter"}{question.topic?.name ? <><br />{question.topic.name}</> : null}</td>
+                        <td className="px-3 py-4"><span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-black text-primary-dark">{questionLabel(question)}</span><p className="mt-2 text-xs text-slate-400">{question.marks || 1} mark{Number(question.marks || 1) === 1 ? "" : "s"}</p></td>
+                        <td className="px-4 py-4">
+                          <div className="flex justify-end gap-2">
+                            {question.contentType === "mcq" && question.status === "draft" && <button type="button" onClick={() => markQuestionReady(question)} disabled={saving} title="Make available in Test Builder" className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-white transition hover:bg-primary-dark disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /></button>}
+                            <EditButton onClick={() => editQuestion(question)} title="Edit question" />
+                            <DeleteButton onClick={() => setQuestionToDelete(question)} disabled={saving} title="Delete question" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/70 px-4 py-4 text-sm text-slate-500 sm:flex-row">
+                <span>Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, pagination.total)} of {pagination.total}</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setPage((current) => Math.max(current - 1, 1))} disabled={page <= 1} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> Previous</button>
+                  <span className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-white">{page} / {pagination.pages}</span>
+                  <button type="button" onClick={() => setPage((current) => Math.min(current + 1, pagination.pages))} disabled={page >= pagination.pages} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Next <ChevronRight className="h-4 w-4" /></button>
+                </div>
+              </footer>
             </div>
           ) : (
             <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-10 text-center">
@@ -869,6 +949,17 @@ const QuestionBankManagement = () => {
         confirmLabel="Archive question"
         isDeleting={saving}
         description="It will be removed from new tests and archived in the question bank. Existing student attempts and their results will be kept. Tests left with no questions will be archived."
+      />
+      <DeleteConfirmationModal
+        isOpen={Boolean(bulkDeleteRequest)}
+        onClose={() => setBulkDeleteRequest(null)}
+        onConfirm={deleteQuestionsInBulk}
+        itemName={bulkDeleteRequest?.mode === "all" ? `all ${pagination.total} questions matching the current filters` : `${selectedQuestionIds.length} selected question${selectedQuestionIds.length === 1 ? "" : "s"}`}
+        entityName="Questions"
+        actionVerb="archive"
+        confirmLabel="Remove questions"
+        isDeleting={saving}
+        description="They will be removed from active tests. Existing student attempts and results will remain available."
       />
     </div>
   );

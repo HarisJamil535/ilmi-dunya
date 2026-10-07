@@ -8,6 +8,7 @@ const {
     updateQuestion,
     updateQuestionStatus,
     deleteQuestion,
+    bulkDeleteQuestions,
     getScenarios,
     createScenario,
     updateScenario,
@@ -28,6 +29,7 @@ router.put("/scenarios/:id", authMiddleware, updateScenario);
 router.post("/import/preview", authMiddleware, upload.single("file"), importPreview);
 router.post("/import/commit", authMiddleware, importCommit);
 router.get("/import/template", authMiddleware, downloadImportTemplate);
+router.post("/bulk-delete", authMiddleware, bulkDeleteQuestions);
 router.put("/:id", authMiddleware, updateQuestion);
 router.patch("/:id/status", authMiddleware, updateQuestionStatus);
 router.delete("/:id", authMiddleware, deleteQuestion);
