@@ -36,6 +36,7 @@ const questionSchema = new mongoose.Schema(
         tags: [{ type: String, trim: true }],
         references: [{ title: String, url: String, type: String }],
         imageUrls: [{ type: String, trim: true }],
+        imageAlt: { type: String, trim: true, maxlength: 240, default: "" },
         status: {
             type: String,
             enum: ["draft", "published", "archived"],

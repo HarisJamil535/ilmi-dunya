@@ -6,6 +6,7 @@ import { CustomSelect } from "../components/CustomSelect";
 import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton } from "../components/AdminUI";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import MathText from "../../shared/MathText";
 
 const Field = ({ label, helper, children }) => (
   <label className="block">
@@ -285,7 +286,8 @@ const AssessmentBuilder = () => {
                 {!questions.length && <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Select board, class, group, subject and chapter to find matching MCQs.</p>}
                 {questions.map((question) => (
                   <button key={question._id} type="button" onClick={() => toggleQuestion(question._id)} className={`w-full rounded-2xl border p-4 text-left transition ${selected.includes(question._id) ? "border-primary-muted bg-primary-soft" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
-                    <p className="font-black text-slate-900">{question.questionText}</p>
+                    <p className="font-black text-slate-900"><MathText text={question.questionText} /></p>
+                    {question.imageUrls?.[0] && <img src={question.imageUrls[0]} alt={question.imageAlt || "Question diagram"} className="mt-2 max-h-28 max-w-full rounded-lg border border-slate-200 object-contain" loading="lazy" />}
                     <p className="mt-1 text-xs font-bold uppercase text-slate-400">{question.difficulty} · {question.marks} marks</p>
                   </button>
                 ))}

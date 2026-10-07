@@ -56,7 +56,7 @@ test('mounted private and write APIs reject missing authentication before databa
             ['POST', '/api/boards'], ['POST', '/api/classes'], ['POST', '/api/groups'],
             ['POST', '/api/subjects'], ['POST', '/api/chapters'], ['POST', '/api/topics'],
             ['POST', '/api/resources/books'], ['POST', '/api/resources/past-papers'], ['POST', '/api/resources/chapter-notes'], ['POST', '/api/resources/answer-sheets'],
-            ['POST', '/api/news'], ['POST', '/api/questions'], ['POST', '/api/assessments'],
+            ['POST', '/api/news'], ['POST', '/api/questions'], ['POST', '/api/questions/images'], ['POST', '/api/assessments'],
             ['GET', '/api/admin/me'], ['GET', '/api/students/me'], ['POST', '/api/attempts/start'],
             ['GET', '/api/admin/students'],
             ['GET', '/api/home-content/testimonials'], ['GET', '/api/home-content/stats'], ['GET', '/api/student-dashboard/summary'],

@@ -5,6 +5,7 @@ import axiosInstance from "../../api/axios";
 import { formatDuration, formatScore } from "../utils/resultFormat";
 import "./learning-experience.css";
 import Breadcrumbs from "../components/Breadcrumbs";
+import MathText from "../../shared/MathText";
 
 const AssessmentResult = () => {
   const { attemptId } = useParams();
@@ -96,19 +97,20 @@ const AssessmentResult = () => {
         {visible.map(({ answer, index }) => (
           <article key={answer.question?._id || index} dir={answer.question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={answer.question?.contentLanguage === "ur" ? "ur" : "en"} className={`learning-question ${category(answer)} ${answer.question?.contentLanguage === "ur" ? "urdu-content" : ""}`}>
             <div className="learning-question-meta"><span>QUESTION {index + 1} · {category(answer) === "wrong" ? "Incorrect" : category(answer) === "unanswered" ? "Unanswered" : "Correct"}</span><span>{formatScore(answer.marksAwarded)} marks earned</span></div>
-            {answer.question?.scenario && <div className="learning-scenario"><strong>{answer.question.scenario.title}</strong><p>{answer.question.scenario.scenarioText}</p></div>}
-            <h3>{answer.question?.questionText || "This question is no longer available."}</h3>
+            {answer.question?.scenario && <div className="learning-scenario"><strong>{answer.question.scenario.title}</strong><p><MathText text={answer.question.scenario.scenarioText} /></p></div>}
+            <h3><MathText text={answer.question?.questionText || "This question is no longer available."} /></h3>
+            {answer.question?.imageUrls?.[0] && <img src={answer.question.imageUrls[0]} alt={answer.question.imageAlt || "Question diagram"} className="my-4 max-h-80 max-w-full rounded-xl border border-slate-200 bg-white object-contain" loading="lazy" />}
             <div className="learning-options">
               {(answer.question?.options || []).map((option) => {
                 const isCorrect = option.key === answer.question.correctOption;
                 const selected = option.key === answer.selectedOption;
                 return <div key={option.key} className={"learning-option " + (isCorrect ? "correct" : selected && !answer.isCorrect ? "wrong" : "")}>
-                  <strong>{option.key}.</strong> {option.text}
+                  <strong>{option.key}.</strong> <MathText text={option.text} />
                   {(isCorrect || selected) && <small>{isCorrect ? "Correct answer" : "Your answer"}{isCorrect && selected ? " · Your answer" : ""}</small>}
                 </div>;
               })}
             </div>
-            {answer.question?.explanation && <p className="learning-explanation"><strong>Why this answer? </strong>{answer.question.explanation}</p>}
+            {answer.question?.explanation && <p className="learning-explanation"><strong>Why this answer? </strong><MathText text={answer.question.explanation} /></p>}
           </article>
         ))}
         <Link className="learning-button secondary" to="/dashboard">View my learning progress <ArrowRight size={16} /></Link>

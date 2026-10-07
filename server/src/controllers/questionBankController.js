@@ -63,8 +63,17 @@ const buildQuestionFilter = (query) => {
 };
 
 const cleanQuestionPayload = (body, adminId) => {
+    const imageUrls = body.imageUrls === undefined ? [] : body.imageUrls;
+    if (!Array.isArray(imageUrls) || imageUrls.length > 1 || imageUrls.some(url => typeof url !== "string" || !/^\/api\/questions\/images\/[a-f\d]{24}$/.test(url))) {
+        throw new Error("Choose one uploaded JPG, PNG or WebP diagram for this question.");
+    }
+    if (body.imageAlt !== undefined && typeof body.imageAlt !== "string") throw new Error("Describe the uploaded diagram in text.");
+    const imageAlt = String(body.imageAlt || "").trim();
+    if (imageAlt.length > 240 || (imageUrls.length && !imageAlt)) throw new Error("Describe the uploaded diagram in 240 characters or fewer.");
     const payload = {
         ...body,
+        imageUrls,
+        imageAlt,
         tags: parseTags(body.tags),
         createdBy: adminId,
         updatedBy: adminId,
@@ -98,6 +107,8 @@ const cleanQuestionPayload = (body, adminId) => {
     if (!payload.examYear && payload.contentType !== "mcq") payload.examYear = undefined;
     if (!payload.examSession) payload.examSession = undefined;
     if (payload.contentType !== "mcq") {
+        payload.imageUrls = [];
+        payload.imageAlt = "";
         payload.status = "published";
         payload.options = [];
         payload.correctOption = undefined;
@@ -398,7 +409,9 @@ const createQuestion = async (req, res) => {
 };
 
 const updateQuestion = async (req, res) => {
-    const payload = cleanQuestionPayload(req.body, req.admin?._id);
+    let payload;
+    try { payload = cleanQuestionPayload(req.body, req.admin?._id); }
+    catch (error) { return res.status(400).json({ success: false, message: error.message }); }
     await applyQuestionScope(payload);
     delete payload.createdBy;
 
@@ -654,6 +667,7 @@ const downloadImportTemplate = async (req, res) => {
 };
 
 module.exports = {
+    cleanQuestionPayload,
     getPublicTopicQuestions,
     getQuestions,
     createQuestion,

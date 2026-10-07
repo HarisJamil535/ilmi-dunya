@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Flag, Loader2, Send, SkipForward, 
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
+import MathText from "../../shared/MathText";
 import "./learning-experience.css";
 
 const formatTime = (seconds) => {
@@ -183,13 +184,14 @@ const AssessmentPlayer = ({ chapter, topic }) => {
             <div dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question?.contentLanguage === "ur" ? "ur" : "en"} className={`mb-6 rounded-2xl border border-primary-soft bg-primary-soft p-4 ${question?.contentLanguage === "ur" ? "urdu-content" : ""}`}>
               <p className="mb-2 text-sm font-bold text-primary-dark">Read this scenario and answer {scenarioIndices.length === 1 ? "the following question" : `the following ${scenarioIndices.length} questions`}.</p>
               <h2 className="font-black text-primary-dark">{scenario.title}</h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-primary-dark">{scenario.scenarioText}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-primary-dark"><MathText text={scenario.scenarioText} /></p>
               <p className="mt-3 text-xs font-semibold text-primary-dark">Scenario question {scenarioPosition} of {scenarioIndices.length}</p>
             </div>
           )}
 
           <p className="text-sm font-black text-primary">Question {currentIndex + 1} of {answers.length}</p>
-          <h2 dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question?.contentLanguage === "ur" ? "ur" : "en"} className={`mt-3 text-xl font-black leading-8 text-slate-950 ${question?.contentLanguage === "ur" ? "urdu-content text-2xl" : ""}`}>{question?.questionText}</h2>
+          <h2 dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question?.contentLanguage === "ur" ? "ur" : "en"} className={`mt-3 whitespace-pre-wrap text-xl font-black leading-8 text-slate-950 ${question?.contentLanguage === "ur" ? "urdu-content text-2xl" : ""}`}><MathText text={question?.questionText} /></h2>
+          {question?.imageUrls?.[0] && <img src={question.imageUrls[0]} alt={question.imageAlt || "Question diagram"} className="mt-4 max-h-80 max-w-full rounded-xl border border-slate-200 bg-white object-contain" loading="lazy" />}
 
           <div className="mt-6 grid gap-3">
             {question?.options?.map((option) => {
@@ -207,7 +209,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
                   }`}
                 >
                   <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black ${active ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{option.key}</span>
-                  <span className="text-sm font-bold leading-6">{option.text}</span>
+                  <span className="min-w-0 whitespace-pre-wrap text-sm font-bold leading-6"><MathText text={option.text} /></span>
                 </button>
               );
             })}

@@ -4,7 +4,7 @@ const Question = require("../models/Question");
 const LearningActivity = require("../models/LearningActivity");
 const { gradeAttempt } = require("../services/assessmentScoring");
 
-const attemptQuestionSelect = "type questionText contentLanguage options difficulty marks estimatedTimeSeconds scenario";
+const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
 
 const startAttempt = async (req, res) => {
     const { assessmentId, chapter, topic } = req.body;

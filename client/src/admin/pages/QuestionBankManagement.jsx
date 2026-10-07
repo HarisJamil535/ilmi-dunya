@@ -1,5 +1,5 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, ImagePlus, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
@@ -7,6 +7,7 @@ import { DeleteButton, EditButton } from "../components/AdminUI";
 import SmartSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import MathText from "../../shared/MathText";
 
 const optionKeys = ["A", "B", "C", "D"];
 
@@ -16,6 +17,8 @@ const defaultForm = {
   type: "standard_mcq",
   contentType: "mcq",
   questionText: "",
+  imageUrls: [],
+  imageAlt: "",
   language: "en",
   options: optionKeys.map((key) => ({ key, text: "" })),
   correctOption: "A",
@@ -72,6 +75,8 @@ const normalizeQuestionForForm = (question) => {
     contentType,
     type: question.type || "standard_mcq",
     questionText: question.questionText || "",
+    imageUrls: question.imageUrls || [],
+    imageAlt: question.imageAlt || "",
     language: question.contentLanguage || "en",
     options: optionKeys.map((key) => ({ key, text: optionMap.get(key) || "" })),
     correctOption: question.correctOption || "A",
@@ -111,6 +116,8 @@ const QuestionBankManagement = () => {
   const [listFilter, setListFilter] = useState({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const questionInput = useRef(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [questionToDelete, setQuestionToDelete] = useState(null);
@@ -250,6 +257,37 @@ const QuestionBankManagement = () => {
       ...form,
       options: form.options.map((option, optionIndex) => optionIndex === index ? { ...option, text } : option),
     });
+  };
+
+  const insertFormula = (formula) => {
+    const input = questionInput.current;
+    const start = input?.selectionStart ?? form.questionText.length;
+    const end = input?.selectionEnd ?? start;
+    setForm((current) => ({ ...current, questionText: current.questionText.slice(0, start) + formula + current.questionText.slice(end) }));
+    requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(start + formula.length, start + formula.length); });
+  };
+
+  const uploadQuestionImage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setError("Choose a JPG, PNG or WebP diagram under 2 MB.");
+      event.target.value = "";
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const data = new FormData();
+      data.append("image", file);
+      const response = await axiosInstance.post("/questions/images", data, { headers: { "Content-Type": "multipart/form-data" } });
+      setForm((current) => ({ ...current, imageUrls: [response.data.imageUrl] }));
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not upload this diagram. Please try again.");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
   };
 
   const resetForm = () => {
@@ -658,12 +696,25 @@ const QuestionBankManagement = () => {
 
           <div className="mt-5">
               <Field label="Question" helper="Write the question exactly as students should read it.">
-              <textarea required dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.questionText} onChange={(event) => setForm({ ...form, questionText: event.target.value })} placeholder={isUrdu ? "سوال یہاں لکھیں" : "Question text"} />
+              <textarea ref={questionInput} required dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`mt-2 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary-soft ${isUrdu ? "urdu-content text-right" : ""}`} value={form.questionText} onChange={(event) => setForm({ ...form, questionText: event.target.value })} placeholder={isUrdu ? "سوال یہاں لکھیں" : "Question text"} />
             </Field>
           </div>
 
           {isMcq ? (
             <>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-800">Math and formulas</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Write a formula between $ signs in the question, options or explanation. Example: $x^2 + y^2 = z^2$. Use the buttons to insert common formulas into the question.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[["Power", "$x^2$"], ["Fraction", String.raw`$\frac{a}{b}$`], ["Root", String.raw`$\sqrt{x}$`], ["Pi", String.raw`$\pi$`]].map(([label, formula]) => <button key={label} type="button" onClick={() => insertFormula(formula)} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-primary transition hover:border-primary" title={`Insert ${label.toLowerCase()} formula`}>{label}</button>)}
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm font-bold text-slate-800">Reference image <span className="font-normal text-slate-500">(optional)</span></p>
+                <p className="mt-1 text-xs text-slate-500">Add one clear diagram or graph for this MCQ. JPG, PNG or WebP, up to 2 MB.</p>
+                {form.imageUrls[0] ? <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start"><img src={form.imageUrls[0]} alt={form.imageAlt || "Question diagram preview"} className="max-h-52 w-full rounded-lg border border-slate-200 object-contain sm:w-64" /><button type="button" onClick={() => setForm({ ...form, imageUrls: [], imageAlt: "" })} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-sm font-bold text-rose-700"><X size={16} /> Remove image</button></div> : <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-4 text-sm font-bold text-primary"><ImagePlus size={17} /> {uploadingImage ? "Uploading..." : "Upload image"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadQuestionImage} disabled={uploadingImage} className="sr-only" /></label>}
+                {form.imageUrls[0] && <Field label="Describe the image" helper="Required for students using a screen reader. Example: A triangle with sides a, b and c."><input required maxLength={240} value={form.imageAlt} onChange={(event) => setForm({ ...form, imageAlt: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Describe the diagram" /></Field>}
+              </div>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {form.options.map((option, index) => (
                   <Field key={option.key} label={`Option ${option.key}`} helper={index < 2 ? "Required" : "Optional"}>
@@ -671,6 +722,8 @@ const QuestionBankManagement = () => {
                   </Field>
                 ))}
               </div>
+
+              {(form.questionText || form.options.some((option) => option.text)) && <div className="mt-4 rounded-2xl border border-primary/15 bg-primary-soft/30 p-4" aria-label="MCQ preview"><p className="mb-3 text-xs font-black uppercase text-primary">Student preview</p><div className="whitespace-pre-wrap text-base font-bold text-slate-900"><MathText text={form.questionText || "Question"} /></div>{form.imageUrls[0] && <img src={form.imageUrls[0]} alt={form.imageAlt || "Question diagram preview"} className="mt-3 max-h-56 max-w-full rounded-lg object-contain" />}<ol className="mt-3 grid gap-2 sm:grid-cols-2">{form.options.filter((option) => option.text).map((option) => <li key={option.key} className="min-w-0 rounded-lg bg-white p-2 text-sm text-slate-700"><strong>{option.key}. </strong><MathText text={option.text} /></li>)}</ol></div>}
 
               <div className="mt-4 max-w-sm">
                 <Field label="Correct answer">
@@ -707,7 +760,7 @@ const QuestionBankManagement = () => {
           {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
 
           <div className="mt-5 flex justify-end">
-            <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-60">
+            <button disabled={saving || uploadingImage} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-60">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {isEditing ? "Save changes" : "Save question"}
             </button>
@@ -854,8 +907,9 @@ const QuestionBankManagement = () => {
                         <td className="px-4 py-4"><input type="checkbox" aria-label={`Select question ${((page - 1) * PAGE_SIZE) + index + 1}`} checked={selectedQuestionIds.includes(question._id)} onChange={() => toggleQuestionSelection(question._id)} className="h-5 w-5 cursor-pointer rounded accent-[var(--color-primary)]" /></td>
                         <td className="px-3 py-4 font-black text-slate-500">{((page - 1) * PAGE_SIZE) + index + 1}</td>
                         <td className="max-w-xl px-3 py-4">
-                          <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`font-bold leading-6 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-lg" : ""}`}>{question.questionText}</p>
+                          <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`font-bold leading-6 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-lg" : ""}`}><MathText text={question.questionText} /></p>
                           <div className="mt-2 flex flex-wrap gap-1.5">
+                            {question.imageUrls?.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary"><ImagePlus size={12} /> Diagram</span>}
                             {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-primary">اردو</span>}
                             {question.status === "draft" && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">Draft</span>}
                             {question.scenario?.title && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{question.scenario.title}</span>}
