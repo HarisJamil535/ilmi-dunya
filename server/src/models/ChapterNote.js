@@ -10,7 +10,7 @@ const chapterNoteSchema = new mongoose.Schema(
         },
         noteType: {
             type: String,
-            enum: ["short_questions", "long_questions", "mcqs"],
+            enum: ["short_questions", "long_questions", "mcqs", "exercise"],
             required: [true, "Note type is required"],
         },
         pdfUrl: {

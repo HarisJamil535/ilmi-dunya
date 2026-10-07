@@ -77,7 +77,7 @@ const NotesManagement = () => {
     const existingNote = useMemo(() => notes.find((note) => note.noteType === selectedType), [notes, selectedType]);
     const title = drafts[selectedType]?.title ?? existingNote?.title ?? "";
     const pdfUrl = drafts[selectedType]?.pdfUrl ?? existingNote?.pdfUrl ?? "";
-    const canSave = selectedChapter && selectedType && title.trim() && title.trim().length <= 180 && isValidUrl(pdfUrl.trim()) && !loading && !saving;
+    const canSave = selectedChapter && selectedType && title.trim() && title.trim().length <= 140 && isValidUrl(pdfUrl.trim()) && !loading && !saving;
 
     const updateDraft = (patch) => {
         setDrafts((current) => ({ ...current, [selectedType]: { title, pdfUrl, ...current[selectedType], ...patch } }));
@@ -152,13 +152,13 @@ const NotesManagement = () => {
                 <form onSubmit={saveNote} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                     <div className="mb-5">
                         <h2 className="text-lg font-bold text-slate-900">{existingNote ? "Edit notes" : "Add notes"}</h2>
-                        <p className="mt-1 text-sm text-slate-500">Select a type, enter a clear title and paste the PDF link students will open.</p>
+                        <p className="mt-1 text-sm text-slate-500">Select a type, including Exercise Notes for chapter exercises, then add its title and PDF link.</p>
                     </div>
                     <div className="grid gap-4 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
                         <SmartSelect label="Notes type" value={selectedType} onChange={setSelectedType} options={noteTypes} placeholder="Select notes type" disabled={!selectedChapter || loading || saving} />
                         <label className="block min-w-0">
                             <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Notes title</span>
-                            <input value={title} onChange={(event) => updateDraft({ title: event.target.value })} disabled={!selectedType || saving} maxLength={180} placeholder="FBISE Class 10 Physics - Chapter 2 Short Questions" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
+                            <input value={title} onChange={(event) => updateDraft({ title: event.target.value })} disabled={!selectedType || saving} maxLength={140} placeholder="FBISE Class 10 Physics - Chapter 2 Exercise Notes" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
                         </label>
                     </div>
                     <label className="mt-4 block min-w-0">

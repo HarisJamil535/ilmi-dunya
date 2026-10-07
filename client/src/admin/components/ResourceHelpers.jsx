@@ -18,4 +18,5 @@ export const noteTypeLabels = {
     short_questions: "Short Question Notes",
     long_questions: "Long Question Notes",
     mcqs: "MCQs Notes",
+    exercise: "Exercise Notes",
 };

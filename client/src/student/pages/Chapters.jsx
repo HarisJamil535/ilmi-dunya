@@ -312,7 +312,7 @@ const Chapters = () => {
                       <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 transition-transform ${expandedChapter === chapter._id ? "rotate-180" : ""}`} />
                     </button>
 
-                    <div className="chapter-actions ml-auto grid shrink-0 grid-cols-3 gap-2">
+                    <div className="chapter-actions ml-auto grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
                       <Link
                         to={videoLink}
                         title={`Watch videos for the complete ${chapterTitle}`}
@@ -328,6 +328,14 @@ const Chapters = () => {
                       >
                         <Download className="h-4 w-4" />
                         Notes
+                      </Link>
+                      <Link
+                        to={`/notes?${notesParams.toString()}&type=exercise`}
+                        title={`View exercise notes for ${chapterTitle}`}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-xs font-bold text-primary transition hover:border-primary hover:bg-primary hover:text-white"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Exercise notes
                       </Link>
                       <Link
                         to={`/tests/start?chapter=${chapter._id}&type=chapter_test`}

@@ -8,19 +8,21 @@ const labels = {
   short_questions: "Short Question Notes",
   long_questions: "Long Question Notes",
   mcqs: "MCQs Notes",
+  exercise: "Exercise Notes",
 };
 
 const ChapterNotes = () => {
   const [searchParams] = useSearchParams();
   const chapterId = searchParams.get("chapterId") || "";
+  const requestedType = searchParams.get("type") === "exercise" ? "exercise" : "";
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(Boolean(chapterId));
   const [error, setError] = useState("");
   const isStudentLoggedIn = Boolean(localStorage.getItem("studentToken"));
 
   useEffect(() => {
-    document.title = "Chapter Notes | IlmiDunya";
-  }, []);
+    document.title = `${requestedType ? "Exercise Notes" : "Chapter Notes"} | IlmiDunya`;
+  }, [requestedType]);
 
   useEffect(() => {
     const loadNotes = async () => {
@@ -40,7 +42,7 @@ const ChapterNotes = () => {
     loadNotes();
   }, [chapterId]);
 
-  const notesByType = Object.keys(labels).map((type) => ({
+  const notesByType = (requestedType ? [requestedType] : Object.keys(labels)).map((type) => ({
     type,
     label: labels[type],
     note: notes.find((item) => item.noteType === type),
@@ -51,10 +53,10 @@ const ChapterNotes = () => {
       <section className="mx-auto max-w-6xl space-y-6">
         <header className="border-b border-slate-200 pb-6">
           <div className="mb-2 flex items-center gap-2 text-sm font-bold text-primary">
-            <FileText className="h-4 w-4" /> Chapter Notes
+            <FileText className="h-4 w-4" /> {requestedType ? "Exercise Notes" : "Chapter Notes"}
           </div>
-          <h1 className="text-3xl font-black text-slate-950">Download chapter notes</h1>
-          <p className="mt-2 text-sm text-slate-500">Choose short questions, long questions or MCQs notes.</p>
+          <h1 className="text-3xl font-black text-slate-950">{requestedType ? "Chapter exercise notes" : "Download chapter notes"}</h1>
+          <p className="mt-2 text-sm text-slate-500">{requestedType ? "View the exercise notes for this chapter when available." : "Choose short questions, long questions, MCQs or exercise notes."}</p>
         </header>
 
         {loading ? (
@@ -64,15 +66,15 @@ const ChapterNotes = () => {
         ) : notes.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
             <SearchX className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-            <h2 className="text-lg font-bold text-slate-900">No notes uploaded yet</h2>
+            <h2 className="text-lg font-bold text-slate-900">{requestedType ? "Exercise notes are not available yet" : "No notes uploaded yet"}</h2>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className={`grid gap-5 sm:grid-cols-2 ${requestedType ? "max-w-xl" : "xl:grid-cols-4"}`}>
             {notesByType.map(({ type, label, note }) => (
               <article key={type} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <FileText className="mb-4 h-8 w-8 text-primary" />
                 <h2 className="text-lg font-black text-slate-900">{label}</h2>
-                <p className="mt-1 text-sm text-slate-500">{note ? "Ready to view or download." : "Not uploaded yet."}</p>
+                <p className="mt-1 text-sm text-slate-500">{note ? note.pdfUrl ? "Ready to view or download." : "Sign in to view or download." : "Not uploaded yet."}</p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                   {note ? (
                     <>

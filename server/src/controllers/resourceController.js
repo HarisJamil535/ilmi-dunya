@@ -237,7 +237,7 @@ const saveChapterNote = async (req, res, next) => {
         if (!title?.trim() || !noteType || !pdfUrl?.trim() || !isValidObjectId(chapter)) {
             return res.status(400).json({ success: false, message: "Title, note type, PDF URL, and chapter are required." });
         }
-        if (!["short_questions", "long_questions", "mcqs"].includes(noteType)) {
+        if (!["short_questions", "long_questions", "mcqs", "exercise"].includes(noteType)) {
             return res.status(400).json({ success: false, message: "Invalid note type." });
         }
         if (!isValidUrl(pdfUrl.trim())) {
