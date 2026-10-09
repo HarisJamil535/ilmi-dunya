@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const LeaderboardState = require("../models/LeaderboardState");
 const Student = require("../models/Student");
+const { MIN_RANKED_QUESTIONS } = require("../services/leaderboardScoring");
 const leaderboardCache = new Map();
 
 const cachedLeaders = async (key, load) => {
@@ -37,42 +38,46 @@ const getLeaderboard = async (req, res) => {
     const cacheKey = JSON.stringify([limit, ...["board", "class", "group", "subject"].map(key => req.query[key] || "")]);
     const result = await cachedLeaders(cacheKey, async () => {
     const state = await LeaderboardState.findOne({ key: "global" }).lean();
-    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null } };
+    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, [`answers.${MIN_RANKED_QUESTIONS - 1}`]: { $exists: true } };
     if (state?.resetAt) attemptMatch.submittedAt.$gte = state.resetAt;
 
     const leaders = await AssessmentAttempt.aggregate([
         { $match: attemptMatch },
         { $lookup: { from: "assessments", localField: "assessment", foreignField: "_id", as: "assessment" } },
         { $unwind: "$assessment" },
+        { $match: { "assessment.type": "chapter_test", "assessment.chapter": { $ne: null } } },
         ...(Object.keys(assessmentMatch).length ? [{ $match: assessmentMatch }] : []),
         { $set: {
             safeScore: { $min: ["$totalMarks", { $max: [0, "$score"] }] },
+            safeRatio: { $divide: [{ $min: ["$totalMarks", { $max: [0, "$score"] }] }, "$totalMarks"] },
+            safePoints: { $round: [{ $multiply: [100, { $divide: [{ $min: ["$totalMarks", { $max: [0, "$score"] }] }, "$totalMarks"] }] }, 2] },
             safeTime: { $max: [0, { $divide: [{ $subtract: [
                 { $min: ["$submittedAt", { $ifNull: ["$expiresAt", "$submittedAt"] }] }, "$startedAt",
             ] }, 1000] }] },
         } },
-        // Count each test once, choosing highest marks and then fastest completion.
-        { $sort: { safeScore: -1, safeTime: 1, submittedAt: 1, _id: 1 } },
-        { $group: { _id: { student: "$student", assessment: "$assessment._id" }, best: { $first: "$$ROOT" } } },
+        // A chapter may have multiple published test versions; count one best result per student and chapter.
+        { $sort: { safeRatio: -1, safeTime: 1, submittedAt: 1, _id: 1 } },
+        { $group: { _id: { student: "$student", board: "$assessment.board", class: "$assessment.class", group: "$assessment.group", subject: "$assessment.subject", chapter: "$assessment.chapter" }, best: { $first: "$$ROOT" } } },
         { $replaceRoot: { newRoot: "$best" } },
         { $group: {
             _id: "$student",
             totalScore: { $sum: "$safeScore" }, totalMarks: { $sum: "$totalMarks" },
+            points: { $sum: "$safePoints" }, percentageSum: { $sum: "$safePoints" },
             totalTimeSeconds: { $sum: "$safeTime" }, testsTaken: { $sum: 1 },
             bestPercentage: { $max: { $multiply: [{ $divide: ["$safeScore", "$totalMarks"] }, 100] } },
             lastSubmittedAt: { $max: "$submittedAt" },
         } },
         { $set: {
-            points: { $round: [{ $multiply: ["$totalScore", 100] }, 2] },
+            points: { $round: ["$points", 2] },
             totalTimeSeconds: { $round: ["$totalTimeSeconds", 3] },
-            averagePercentage: { $round: [{ $multiply: [{ $divide: ["$totalScore", "$totalMarks"] }, 100] }, 2] },
+            averagePercentage: { $round: [{ $divide: ["$percentageSum", "$testsTaken"] }, 2] },
             averageTimeSeconds: { $divide: ["$totalTimeSeconds", "$testsTaken"] },
             bestPercentage: { $round: ["$bestPercentage", 2] },
         } },
         { $lookup: { from: "students", localField: "_id", foreignField: "_id", as: "student" } },
         { $unwind: "$student" },
         { $match: { "student.status": "active" } },
-        { $sort: { points: -1, totalTimeSeconds: 1, _id: 1 } },
+        { $sort: { points: -1, testsTaken: -1, averagePercentage: -1, totalTimeSeconds: 1, lastSubmittedAt: 1, _id: 1 } },
         { $limit: limit },
         { $lookup: { from: "classes", localField: "student.class", foreignField: "_id", as: "classDoc" } },
         { $project: {
@@ -85,7 +90,7 @@ const getLeaderboard = async (req, res) => {
     let rank = 0;
     const ranked = leaders.map((leader, index) => {
         const previous = leaders[index - 1];
-        if (!previous || previous.points !== leader.points || previous.totalTimeSeconds !== leader.totalTimeSeconds) rank = index + 1;
+        if (!previous || previous.points !== leader.points || previous.testsTaken !== leader.testsTaken || previous.averagePercentage !== leader.averagePercentage || previous.totalTimeSeconds !== leader.totalTimeSeconds) rank = index + 1;
         return { ...leader, rank };
     });
 
@@ -93,8 +98,8 @@ const getLeaderboard = async (req, res) => {
         success: true,
         leaders: ranked,
         scoring: {
-            formula: "100 points per earned mark. Only your best attempt per test counts.",
-            tieBreaker: "Equal points use total completion time across counted tests. Exact ties share a rank.",
+            formula: `Each chapter can earn up to 100 points. The best completed chapter attempt counts; tests with fewer than ${MIN_RANKED_QUESTIONS} questions are practice only.`,
+            tieBreaker: "Ties use chapters completed, average accuracy, then total completion time. Exact ties share a rank.",
         },
         generatedAt: new Date(),
         cycleStartedAt: state?.resetAt || null,

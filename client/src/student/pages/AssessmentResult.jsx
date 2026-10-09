@@ -76,10 +76,11 @@ const AssessmentResult = () => {
         </header>
         <section className="result-overview" aria-label="Result summary">
           <div className="result-stat"><span className="result-stat-icon score"><Target /></span><div><span>Marks</span><strong>{formatScore(attempt.score)}<small> / {formatScore(attempt.totalMarks)}</small></strong></div></div>
-          <div className="result-stat"><span className="result-stat-icon points"><Trophy /></span><div><span>Points earned</span><strong>{formatScore(attempt.points ?? attempt.score * 100)}</strong></div></div>
+          <div className="result-stat"><span className="result-stat-icon points"><Trophy /></span><div><span>This attempt's points</span><strong>{formatScore(attempt.points || 0)}</strong></div></div>
           <div className="result-stat"><span className="result-stat-icon time"><Clock3 /></span><div><span>Time taken</span><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div></div>
           <div className="result-stat"><span className="result-stat-icon correct"><CheckCircle2 /></span><div><span>Correct</span><strong>{correct}<small> / {answers.length}</small></strong></div></div>
         </section>
+        <p className="leaderboard-rule" role="status">{attempt.ranking?.eligible ? "Your best completed result for this chapter counts toward your leaderboard position. Retake it anytime; a lower result will not reduce your points." : attempt.ranking?.reason || "This test is for practice and does not award leaderboard points."}</p>
         <section className="result-breakdown" aria-label="Answer breakdown">
           <div><CircleCheckBig /><strong>{correct}</strong><span>Correct</span></div>
           <div><CircleX /><strong>{wrong}</strong><span>Incorrect</span></div>

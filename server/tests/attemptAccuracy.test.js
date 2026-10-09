@@ -18,16 +18,20 @@ test("flagging a question preserves its selected answer and requires an unexpire
     assert.ok(filter.expiresAt.$gt instanceof Date);
 });
 
-test("equal points and exact times share rank; subsequent ranks skip ties", async (t) => {
+test("equal points, coverage, accuracy, and time share rank; subsequent ranks skip ties", async (t) => {
     t.mock.method(LeaderboardState, "findOne", () => ({ lean: async () => null }));
     let aggregations = 0;
-    t.mock.method(AssessmentAttempt, "aggregate", async () => {
+    t.mock.method(AssessmentAttempt, "aggregate", async (pipeline) => {
         aggregations += 1;
+        assert.equal(pipeline[0].$match["answers.4"].$exists, true);
+        assert.equal(pipeline[3].$match["assessment.type"], "chapter_test");
+        assert.equal(pipeline.find((stage) => stage.$group?._id?.chapter)?.$group._id.chapter, "$assessment.chapter");
+        assert.deepEqual(pipeline.find((stage) => stage.$sort?.safeRatio)?.$sort, { safeRatio: -1, safeTime: 1, submittedAt: 1, _id: 1 });
         return [
-        { studentId: "a", points: 1000, totalTimeSeconds: 20.001 },
-        { studentId: "b", points: 1000, totalTimeSeconds: 20.001 },
-        { studentId: "c", points: 1000, totalTimeSeconds: 20.002 },
-        { studentId: "d", points: 900, totalTimeSeconds: 1 },
+        { studentId: "a", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.001 },
+        { studentId: "b", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.001 },
+        { studentId: "c", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.002 },
+        { studentId: "d", points: 90, testsTaken: 1, averagePercentage: 90, totalTimeSeconds: 1 },
         ];
     });
     let result;

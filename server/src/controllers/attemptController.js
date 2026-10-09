@@ -3,6 +3,8 @@ const AssessmentAttempt = require("../models/AssessmentAttempt");
 const Question = require("../models/Question");
 const LearningActivity = require("../models/LearningActivity");
 const { gradeAttempt } = require("../services/assessmentScoring");
+const { pointsForAttempt, rankEligibility } = require("../services/leaderboardScoring");
+const LeaderboardState = require("../models/LeaderboardState");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
 
@@ -170,7 +172,7 @@ const submitAttempt = async (req, res) => {
 const getResult = async (req, res) => {
     const attempt = await AssessmentAttempt.findOne({ _id: req.params.id, student: req.student._id })
         .select("+gradingSnapshot")
-        .populate("assessment", "title type totalMarks passingMarks showCorrectAnswers")
+        .populate("assessment", "title type board class group subject chapter totalMarks passingMarks showCorrectAnswers")
         .populate({
             path: "answers.question",
             populate: { path: "scenario", select: "title scenarioText contentLanguage" },
@@ -194,7 +196,11 @@ const getResult = async (req, res) => {
     }
     delete attempt.gradingSnapshot;
     attempt.percentage = attempt.totalMarks > 0 ? Number((attempt.score / attempt.totalMarks * 100).toFixed(2)) : 0;
-    attempt.points = Number((attempt.score * 100).toFixed(2));
+    const eligibility = rankEligibility(attempt.assessment, attempt);
+    const state = await LeaderboardState.findOne({ key: "global" }).select("resetAt").lean();
+    const inCycle = !state?.resetAt || (attempt.submittedAt && attempt.submittedAt >= state.resetAt);
+    attempt.ranking = { eligible: eligibility.eligible && inCycle, reason: inCycle ? eligibility.reason : "This result belongs to a previous leaderboard cycle." };
+    attempt.points = attempt.ranking.eligible ? pointsForAttempt(attempt.score, attempt.totalMarks) : 0;
     res.json({ success: true, attempt });
 };
 
