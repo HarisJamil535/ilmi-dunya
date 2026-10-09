@@ -5,7 +5,7 @@ import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
 import { showStudentToast } from "../../shared/studentNotifications";
 import StudentAuthShell from "../components/StudentAuthShell";
-import { AuthField, AuthSubmit, GoogleIdentityButton, PasswordField } from "../components/StudentAuthControls";
+import { AuthField, AuthSubmit, PasswordField } from "../components/StudentAuthControls";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
@@ -49,27 +49,8 @@ const StudentLogin = () => {
     }
   };
 
-  const handleGoogleCredential = async (credential, googleChallengeId, nonce) => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await axiosInstance.post("/students/google", { credential, challengeId: googleChallengeId, nonce });
-      if (response.data.needsProfile) {
-        navigate("/register", { replace: true, state: { from: returnTo, googleSignup: { profile: response.data.profile, googleRegistrationToken: response.data.googleRegistrationToken } } });
-      } else {
-        finishLogin(response, "Signed in with Google");
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || "Google sign-in failed. Please use your email or phone number instead.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return <StudentAuthShell eyebrow="Your study space" title="Welcome back" description="Sign in with your email address or phone number to continue learning.">
     <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
-      <GoogleIdentityButton onCredential={handleGoogleCredential} disabled={loading} intent="signin_with" />
-      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or use your password<span className="h-px flex-1 bg-slate-200" /></div>
       <form onSubmit={submitPassword} className="space-y-4" noValidate>
         <AuthField label="Email or phone number" autoComplete="username" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setFieldErrors((current) => ({ ...current, identifier: "" })); setError(""); }} placeholder="you@example.com or 0300 1234567" error={fieldErrors.identifier} />
         <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setFieldErrors((current) => ({ ...current, password: "" })); setError(""); }} placeholder="Enter your password" error={fieldErrors.password} />

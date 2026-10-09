@@ -149,15 +149,14 @@ const Chapters = () => {
   const toggleChapter = (chapterId) => setExpandedChapter(current => current === chapterId ? null : chapterId);
 
   return (
-    <main className="chapters-page min-h-screen bg-slate-50 px-4 py-10 font-sans sm:px-6 lg:px-10">
-      <section className="mx-auto flex max-w-6xl flex-col gap-8">
+    <main className="chapters-page min-h-screen bg-slate-50 px-4 py-8 font-sans sm:px-6 lg:px-10">
+      <section className="mx-auto flex max-w-6xl flex-col gap-6">
         <Breadcrumbs items={[
           { label: "Subjects", to: `/subjects?${searchParams.toString()}` },
           { label: pageContext.subject || "Chapters" },
         ]} />
-        <header className="chapters-header relative overflow-hidden rounded-3xl border border-primary/10 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
-          <div className="chapters-header-glow" aria-hidden="true" />
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(330px,0.62fr)] lg:items-end">
+        <header className="chapters-header relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 lg:p-8">
+          <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.62fr)] lg:items-center">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
               <Layers className="h-4 w-4" />
@@ -165,7 +164,7 @@ const Chapters = () => {
             </div>
 
             <div className="space-y-2">
-              <h1 className="max-w-4xl text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+              <h1 className="max-w-4xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">
                 {hasRequiredContext ? (
                   <>
                     <span className="capitalize">{pageContext.subject}</span>
@@ -175,7 +174,7 @@ const Chapters = () => {
                 )}
               </h1>
               {hasRequiredContext && <div className="chapter-context"><span>Class {pageContext.grade}</span><span className="capitalize">{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>{pageContext.group && <span className="capitalize">{pageContext.group}</span>}</div>}
-              <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 Select a chapter to explore its topics, notes, videos and tests.
               </p>
             </div>
@@ -266,7 +265,7 @@ const Chapters = () => {
         ) : (
           <div className="flex flex-col gap-4">
             <div className="topic-discovery-callout">
-              <span className="topic-discovery-icon"><Lightbulb size={20} /></span>
+              <span className="topic-discovery-icon"><Lightbulb size={18} /></span>
               <div><h2>Important questions are inside every topic</h2><p>Expand a chapter, then click any topic name to view its board-focused long and short questions.</p></div>
               <span className="topic-discovery-hint"><ListChecks size={16} /> Click a topic</span>
             </div>
