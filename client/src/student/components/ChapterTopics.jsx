@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, FileText, ListChecks, Video, Loader2 } from "lucide-react";
+import { ArrowRight, FileText, ListChecks, Loader2 } from "lucide-react";
+import { IoLogoYoutube } from "react-icons/io5";
 
 import axiosInstance from "../../api/axios";
 
@@ -29,7 +30,7 @@ export default function ChapterTopics({ chapter, context }) {
         <ArrowRight className="topic-link-arrow" size={18} />
       </Link>
       <div className="topic-actions">
-        <Link title={`Watch video lessons for ${topic.name}`} to={`/topics?${params}`} className="topic-video-action"><Video size={16} /><span>Video</span></Link>
+        <Link title={`Watch video lessons for ${topic.name}`} to={`/topics?${params}`} className="topic-video-action"><IoLogoYoutube size={18} /><span>Video</span></Link>
         <Link title={`Take the MCQ test for ${topic.name}`} to={`/tests/start?topic=${topic._id}`} className="topic-test-action"><FileText size={16} /><span>Test</span></Link>
       </div>
     </li>;

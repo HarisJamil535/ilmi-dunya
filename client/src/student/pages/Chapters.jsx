@@ -197,7 +197,7 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-600 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-50 hover:text-blue-600"
             >
               <BookOpen className="h-4 w-4" />
-              <span>Download Full Book</span>
+              <span>Download full book</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>
             <Link
@@ -215,7 +215,7 @@ const Chapters = () => {
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-amber-100 hover:text-amber-600"
             >
               <FileText className="h-4 w-4" />
-              <span>Past Papers</span>
+              <span>Past papers</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>
             {answerSheet && <Link
@@ -223,7 +223,7 @@ const Chapters = () => {
               className="answer-sheet-resource"
             >
               <FileCheck2 className="h-4 w-4" />
-              <span>Answer Sheet</span>
+              <span>Answer sheet</span>
               <ArrowRight className="resource-arrow" size={16} />
             </Link>}
             </div>
@@ -289,9 +289,9 @@ const Chapters = () => {
               return (
                 <article
                   key={chapter._id || chapter.chapterNumber}
-                  className={`chapter-item group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-primary-muted hover:shadow-md sm:p-5 ${expandedChapter === chapter._id ? "is-expanded" : ""}`}
+                  className={`chapter-item group border border-slate-200 bg-white p-4 transition-colors hover:border-primary-muted sm:p-5 ${expandedChapter === chapter._id ? "is-expanded" : ""}`}
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                  <div className="chapter-heading-row">
                     <button type="button" aria-expanded={expandedChapter === chapter._id} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="flex min-w-0 flex-1 items-center gap-4 text-left focus-visible:outline-primary">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-black tracking-wider text-primary transition group-hover:bg-primary group-hover:text-white">
                         {chapterNumStr}
