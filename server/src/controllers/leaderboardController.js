@@ -2,6 +2,19 @@ const mongoose = require("mongoose");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const LeaderboardState = require("../models/LeaderboardState");
 const Student = require("../models/Student");
+const leaderboardCache = new Map();
+
+const cachedLeaders = async (key, load) => {
+    const existing = leaderboardCache.get(key);
+    if (existing && existing.expires > Date.now()) return existing.value;
+    const value = Promise.resolve().then(load);
+    if (leaderboardCache.size >= 64) leaderboardCache.delete(leaderboardCache.keys().next().value);
+    leaderboardCache.set(key, { value, expires: Date.now() + 10000 });
+    try { return await value; } catch (error) {
+        if (leaderboardCache.get(key)?.value === value) leaderboardCache.delete(key);
+        throw error;
+    }
+};
 
 const toObjectId = (value) => {
     if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
@@ -21,6 +34,8 @@ const getLeaderboard = async (req, res) => {
     const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 15, 1), 50);
     if (["board", "class", "group", "subject"].some((key) => req.query[key] && !toObjectId(req.query[key]))) return res.status(400).json({ message: "Choose valid leaderboard filters." });
     const assessmentMatch = buildAssessmentMatch(req.query);
+    const cacheKey = JSON.stringify([limit, ...["board", "class", "group", "subject"].map(key => req.query[key] || "")]);
+    const result = await cachedLeaders(cacheKey, async () => {
     const state = await LeaderboardState.findOne({ key: "global" }).lean();
     const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null } };
     if (state?.resetAt) attemptMatch.submittedAt.$gte = state.resetAt;
@@ -74,8 +89,7 @@ const getLeaderboard = async (req, res) => {
         return { ...leader, rank };
     });
 
-    res.set("Cache-Control", "no-store");
-    res.json({
+    return {
         success: true,
         leaders: ranked,
         scoring: {
@@ -84,7 +98,10 @@ const getLeaderboard = async (req, res) => {
         },
         generatedAt: new Date(),
         cycleStartedAt: state?.resetAt || null,
+    };
     });
+    res.set("Cache-Control", "no-store");
+    res.json(result);
 };
 
 const getLeaderboardAdminSummary = async (req, res) => {
@@ -120,6 +137,7 @@ const resetLeaderboard = async (req, res) => {
         { $set: { resetAt, resetBy: req.admin._id } },
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+    leaderboardCache.clear();
     res.json({
         success: true,
         message: "A new leaderboard cycle has started. Student test history was preserved.",

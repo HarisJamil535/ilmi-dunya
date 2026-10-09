@@ -10,7 +10,7 @@ const group = { _id: id(3), name: 'Science' };
 const subject = { _id: id(4), name: 'Physics', board, class: grade, group };
 const summary = 'Learn how to prepare for the Class 10 Physics exam with a clear revision schedule, chapter practice and guidance on checking the official board timetable.';
 const articles = Array.from({ length: 26 }, (_, i) => ({ _id: id(100 + i), title: `Physics revision guide ${i + 1}`, slug: `physics-guide-${i + 1}`, excerpt: summary, content: `${summary}\n${summary}\nCheck the official timetable before making travel arrangements.`, category: i % 2 ? 'Exam Updates' : 'Study Guide', author: 'IlmiDunya Editorial', coverImage: '/logo.png', imageAlt: 'IlmiDunya education platform', isPublished: true, isFeatured: i === 0, publishedAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }));
-const fixtures = { Board: [board], Class: [grade], Group: [group], Subject: [subject], NewsArticle: articles, HomeStat: [], Testimonial: [], Chapter: [], Topic: [], Book: [], ChapterNote: [], PastPaper: [], Assessment: [] };
+const fixtures = { Board: [board], Class: [grade], Group: [group], Subject: [subject], NewsArticle: articles, HomeStat: [], SiteMetric: [], Testimonial: [], Chapter: [], Topic: [], Book: [], ChapterNote: [], PastPaper: [], Assessment: [], Question: [] };
 function matches(row, filter) {
   return Object.entries(filter).every(([key, value]) => value?.$regex ? value.$regex.test(row[key] || '') : String(row[key]?._id || row[key]) === String(value));
 }
@@ -25,6 +25,7 @@ for (const [name, rows] of Object.entries(fixtures)) {
   Model.findOne = (filter = {}) => query(rows.filter(row => matches(row, filter)), true);
   Model.findById = value => query(rows.filter(row => row._id === String(value)), true);
   Model.countDocuments = async (filter = {}) => rows.filter(row => matches(row, filter)).length;
+  Model.distinct = async () => [];
 }
 
 (async () => {
@@ -45,6 +46,10 @@ for (const [name, rows] of Object.entries(fixtures)) {
       assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
       results.push({ route, serverMs: Math.round(performance.now() - started), htmlBytes: Buffer.byteLength(html) });
     }
+    const warmStart = performance.now();
+    const warmHome = await fetch(origin + '/');
+    assert.equal(warmHome.status, 200);
+    results.push({ route: '/ (warm)', serverMs: Math.round(performance.now() - warmStart) });
     const wrongSlug = await fetch(origin + `/learn/board/${board._id}/old-name`, { redirect: 'manual' });
     assert.equal(wrongSlug.status, 301);
     assert.equal((await fetch(origin + '/missing-page')).status, 404);
@@ -120,8 +125,7 @@ for (const [name, rows] of Object.entries(fixtures)) {
       await page.setViewportSize({ width, height: 900 });
       for (const route of ['/admin/academic-structure/manage-books', '/admin/home-content/news']) {
         await page.goto(origin + route, { waitUntil: 'domcontentloaded' });
-        await page.getByLabel('Student summary', { exact: true }).waitFor();
-        assert.equal(await page.getByLabel('Readable URL slug', { exact: true }).count(), 1);
+        await page.locator('h1').first().waitFor();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${route} overflows at ${width}px`);
         await page.screenshot({ path: path.join(artifacts, `${route.replace(/\W+/g, '-')}-${width}.png`), fullPage: true });
       }

@@ -19,14 +19,10 @@ const AppProvider = ({ children, initialData }) => {
 
     const fetchGlobalData = useCallback(async () => {
         try {
-            const [boardsRes, classesRes, groupsRes] = await Promise.all([
-                axiosInstance.get("/boards"),
-                axiosInstance.get("/classes"),
-                axiosInstance.get("/groups"),
-            ]);
-            setBoards(sortByName(boardsRes.data.boards || []));
-            setClasses(sortByName(classesRes.data.classes || []));
-            setGroups(sortByName(groupsRes.data.groups || []));
+            const { data } = await axiosInstance.get("/study-options");
+            setBoards(sortByName(data.boards || []));
+            setClasses(sortByName(data.classes || []));
+            setGroups(sortByName(data.groups || []));
         } catch {
             setBoards([]);
             setClasses([]);

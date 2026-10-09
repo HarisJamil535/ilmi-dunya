@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "../../urdu-font.css";
 import { AlertTriangle, CheckCircle2, Clock3, Flag, Loader2, Send, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";

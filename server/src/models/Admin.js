@@ -57,8 +57,6 @@ const adminSchema = new mongoose.Schema(
 
 );
 
-adminSchema.index({ email: 1 }, { unique: true });
-
 adminSchema.statics.permissions = adminPermissions;
 
 const Admin = mongoose.model("Admin", adminSchema);

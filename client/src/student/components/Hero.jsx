@@ -37,7 +37,7 @@ const Hero = ({ stats = [] }) => {
   return (
     <>
       <section className="home-hero" data-motion={wordsPaused ? "paused" : "playing"}>
-        <img src={heroImg} alt="" className="home-hero-photo" fetchPriority="high" />
+        <img src={heroImg} alt="" className="home-hero-photo" fetchPriority="low" decoding="async" />
         <div className="home-hero-content home-width">
           <p className="home-eyebrow"><BookOpen size={16} /> Built for Classes 9–12 in Pakistan</p>
           <h1>IlmiDunya<span className="home-tagline"><span className="sr-only">Your world of learning.</span><span className="home-tagline-visual" aria-hidden="true">Your world of <span className="home-word-window">{["learning.", "discovery.", "progress."].map((word, index) => <span className="home-changing-word" key={word} style={{ "--word-index": index }}>{word}</span>)}</span></span></span></h1>

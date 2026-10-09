@@ -1,15 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Crown, Trophy, Medal } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 
 export default function LeaderboardPreview() {
+  const section = useRef(null);
+  const [active, setActive] = useState(false);
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    if (!section.current || !('IntersectionObserver' in window)) {
+      const frame = requestAnimationFrame(() => setActive(true));
+      return () => cancelAnimationFrame(frame);
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setActive(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '400px' });
+    observer.observe(section.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     let pending = false;
     const load = async () => {
@@ -34,9 +52,9 @@ export default function LeaderboardPreview() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", load);
     };
-  }, [retry]);
+  }, [active, retry]);
 
-  return <section className="home-section home-leaders">
+  return <section ref={section} className="home-section home-leaders">
     <div className="home-width">
       <div className="home-section-heading"><div><p className="home-eyebrow"><Trophy size={17} /> The learning leaderboard</p><h2>A little practice.<br /><span>A place at the top.</span></h2><p className="home-leaders-intro">Celebrating the students turning their knowledge into progress. Your next test could move you up.</p></div><Link className="home-text-link" to="/leaderboard">View all rankings <ArrowRight size={18} /></Link></div>
       {loading ? <div className="home-leader-loading" role="status" aria-label="Loading top learners"><div /><div /><div /></div> :

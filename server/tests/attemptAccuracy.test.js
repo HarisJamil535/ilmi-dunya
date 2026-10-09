@@ -20,13 +20,19 @@ test("flagging a question preserves its selected answer and requires an unexpire
 
 test("equal points and exact times share rank; subsequent ranks skip ties", async (t) => {
     t.mock.method(LeaderboardState, "findOne", () => ({ lean: async () => null }));
-    t.mock.method(AssessmentAttempt, "aggregate", async () => [
+    let aggregations = 0;
+    t.mock.method(AssessmentAttempt, "aggregate", async () => {
+        aggregations += 1;
+        return [
         { studentId: "a", points: 1000, totalTimeSeconds: 20.001 },
         { studentId: "b", points: 1000, totalTimeSeconds: 20.001 },
         { studentId: "c", points: 1000, totalTimeSeconds: 20.002 },
         { studentId: "d", points: 900, totalTimeSeconds: 1 },
-    ]);
+        ];
+    });
     let result;
     await getLeaderboard({ query: {} }, { set() {}, json(value) { result = value; } });
     assert.deepEqual(result.leaders.map((item) => item.rank), [1, 1, 3, 4]);
+    await getLeaderboard({ query: {} }, { set() {}, json(value) { result = value; } });
+    assert.equal(aggregations, 1);
 });

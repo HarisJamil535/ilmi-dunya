@@ -44,7 +44,8 @@ app.use(helmet({
     contentSecurityPolicy: { directives: {
         "img-src": ["'self'", "data:", "https:", ...(process.env.NODE_ENV !== 'production' ? ['http:'] : [])],
         "script-src": ["'self'", "https://accounts.google.com/gsi/client"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://accounts.google.com/gsi/style"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://accounts.google.com/gsi/style", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
         "frame-src": ["'self'", "https:"],
         "connect-src": ["'self'", "https:"],
     } },

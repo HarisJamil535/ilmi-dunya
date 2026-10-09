@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "../../urdu-font.css";
 import { Award, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Loader2, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";

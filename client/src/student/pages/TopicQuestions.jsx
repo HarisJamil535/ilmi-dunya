@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import "../../urdu-font.css";
 import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Loader2, Moon, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";

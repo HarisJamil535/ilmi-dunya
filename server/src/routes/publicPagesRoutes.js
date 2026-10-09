@@ -13,6 +13,23 @@ const HomeStat = require("../models/HomeStat");
 const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
+let templateFile;
+let renderingFiles;
+async function frontendTemplate() {
+    if (!templateFile) templateFile = fs.readFile(path.join(root, 'dist/index.html'), 'utf8')
+        .catch(error => { templateFile = undefined; throw error; });
+    return templateFile;
+}
+async function frontendRendering() {
+    if (!renderingFiles) {
+        renderingFiles = Promise.all([
+            fs.readFile(path.join(root, 'dist/.vite/manifest.json'), 'utf8'),
+            import(pathToFileURL(path.join(root, 'dist-server/entry-server.js')).href),
+        ]).then(([manifest, entry]) => ({ manifest: JSON.parse(manifest), render: entry.render }))
+            .catch(error => { renderingFiles = undefined; throw error; });
+    }
+    return renderingFiles;
+}
 async function cached(key, load, ttl = 30000) {
     const item = cache.get(key);
     if (item && item.expires > Date.now()) return item.value;
@@ -51,6 +68,17 @@ async function dataFor(req) {
 
 function publicRoutes() {
     const router = express.Router();
+    router.get('/api/study-options', async (req, res) => {
+        const options = await cached('study-options', async () => {
+            const [boards, classes, groups] = await Promise.all([
+                Board.find().sort({ name: 1 }).lean(),
+                ClassModel.find().sort({ name: 1 }).lean(),
+                Group.find().sort({ name: 1 }).lean(),
+            ]);
+            return { boards, classes, groups };
+        }, 60000);
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=30').json(options);
+    });
     router.get('/api/public-page', async (req, res) => {
         const resourcePath = typeof req.query.path === 'string' ? req.query.path : '';
         const study = await cached(`study:${resourcePath}:${pageNumber(req.query.page)}`, () => publicPage(resourcePath, req.query));
@@ -102,27 +130,29 @@ function frontendRoutes() {
     router.get('/{*path}', async (req, res, next) => {
         if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
         let template;
-        try { template = await fs.readFile(path.join(root, 'dist/index.html'), 'utf8'); } catch { return next(); }
+        try { template = await frontendTemplate(); } catch { return next(); }
         try {
             if (req.path === '/' || req.path === '/news' || req.path.startsWith('/news/') || req.path === '/learn' || req.path.startsWith('/learn/')) {
                 const data = await cached(`page:${req.originalUrl}`, () => dataFor(req));
                 if (req.path.startsWith('/learn/') && req.path !== data.meta.path.split('?')[0]) return res.redirect(301, data.meta.path);
-                const { render } = await import(pathToFileURL(path.join(root, 'dist-server/entry-server.js')).href);
-                const manifest = JSON.parse(await fs.readFile(path.join(root, 'dist/.vite/manifest.json'), 'utf8'));
-                const styles = new Set();
-                const visited = new Set();
-                const addStyles = key => {
-                    if (visited.has(key) || !manifest[key]) return;
-                    visited.add(key);
-                    const entry = manifest[key];
-                    (entry.css || []).forEach(file => styles.add(`/${file}`));
-                    (entry.imports || []).forEach(addStyles);
-                };
-                const pageName = { home: 'Home', news: 'News', article: 'NewsArticle', study: 'PublicStudyPage' }[data.type];
-                Object.keys(manifest).filter(key => manifest[key].name === pageName).forEach(addStyles);
+                const { manifest, render } = await frontendRendering();
+                const html = await cached(`html:${req.originalUrl}`, () => {
+                    const styles = new Set();
+                    const visited = new Set();
+                    const addStyles = key => {
+                        if (visited.has(key) || !manifest[key]) return;
+                        visited.add(key);
+                        const entry = manifest[key];
+                        (entry.css || []).forEach(file => styles.add(`/${file}`));
+                        (entry.imports || []).forEach(addStyles);
+                    };
+                    const pageName = { home: 'Home', news: 'News', article: 'NewsArticle', study: 'PublicStudyPage' }[data.type];
+                    Object.keys(manifest).filter(key => manifest[key].name === pageName).forEach(addStyles);
+                    return renderDocument(template, data, render(data), [...styles]);
+                });
                 res.set('Cache-Control','public, max-age=0, must-revalidate');
                 if (!data.meta.indexable) res.set('X-Robots-Tag','noindex, follow');
-                return res.send(renderDocument(template, data, render(data), [...styles]));
+                return res.send(html);
             }
             const known = /^\/(admin(?:\/.*)?|subjects|chapters|topics|videos|book|notes|past-papers|answer-sheet|topic-questions|login|register|forgot-password|dashboard|leaderboard|tests(?:\/.*)?|assessments(?:\/.*)?)$/.test(req.path);
             res.status(known ? 200 : 404).set('X-Robots-Tag','noindex, follow').set('Cache-Control','private, no-store').send(renderDocument(template, { requestPath: req.originalUrl, meta: meta(known ? 'IlmiDunya Study Tools' : 'Page not found', known ? 'Student study tools and account access.' : 'This page could not be found.', req.path, false) }));

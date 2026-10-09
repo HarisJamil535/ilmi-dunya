@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import "../../urdu-font.css";
 import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, ImagePlus, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import axiosInstance from "@/api/axios";
