@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import SmartSelect from "../../shared/CustomSelect";
 
@@ -43,7 +44,7 @@ const AssessmentAnalytics = () => {
 
         <SmartSelect value={selected} onChange={setSelected} options={assessments.map((assessment) => ({ value: assessment._id, label: assessment.title }))} placeholder="Choose an assessment" />
 
-        {loading ? <Loader2 className="h-7 w-7 animate-spin text-primary" /> : analytics && (
+        {loading ? <div className="flex justify-center py-12"><BookLoader size={72} /></div> : analytics && (
           <>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[

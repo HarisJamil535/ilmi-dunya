@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import React, { useState, useEffect, useContext } from "react";
-import { BookOpen, Plus, ChevronRight, Loader2 } from "lucide-react";
+import { BookOpen, Plus, ChevronRight } from "lucide-react";
 import axiosInstance from "../../api/axios"; 
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../../admin/components/CustomSelect";
@@ -175,8 +176,8 @@ const SubjectManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingSubjects ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
-                                <p className="text-sm">Fetching subjects...</p>
+                                <BookLoader size={72} />
+
                             </div>
                         ) : subjects.length === 0 ? (
                             <SubjectEmptyState type="no-subjects" onAction={handleOpenAddModal} />

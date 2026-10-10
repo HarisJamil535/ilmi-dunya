@@ -10,6 +10,7 @@ const PastPaper = require("../models/PastPaper");
 const Assessment = require("../models/Assessment");
 const Question = require("../models/Question");
 const NewsArticle = require("../models/NewsArticle");
+const mongoose = require("mongoose");
 
 const models = { board: Board, class: ClassModel, subject: Subject, chapter: Chapter, topic: Topic, book: Book, notes: ChapterNote, "past-paper": PastPaper, mcqs: Assessment };
 const name = value => value?.name || "";
@@ -18,6 +19,18 @@ const pagePath = (kind, doc) => `/learn/${kind}/${id(doc)}/${encodeURIComponent(
 const link = (kind, doc) => ({ title: doc.title || doc.name, href: pagePath(kind, doc), summary: doc.summary || doc.description || "" });
 const context = doc => [name(doc.board), name(doc.class), name(doc.group), name(doc.subject)].filter(Boolean).join(" / ");
 const meta = (title, description, path, indexable = true) => ({ title: `${title} | IlmiDunya`, description: description.slice(0, 180), path, indexable });
+const resourceTitle = (kind, doc) => {
+    const className = name(doc.class);
+    const subjectName = name(doc.subject);
+    const boardName = name(doc.board);
+    const chapterName = name(doc.chapter);
+    const contextName = [className, subjectName, boardName].filter(Boolean).join(" ");
+    if (kind === "book") return `${contextName} Book${doc.sourceName ? ` - ${doc.sourceName}` : ""}`;
+    if (kind === "notes") return `${contextName} ${chapterName} ${String(doc.noteType || "").replaceAll("_", " ")} Notes`;
+    if (kind === "past-paper") return `${contextName} ${doc.year} ${doc.session || ""} ${doc.examType || ""} Past Paper`.replace(/\s+/g, " ").trim();
+    if (kind === "mcqs") return `${contextName} ${name(doc.topic) || chapterName} MCQ Test`.replace(/\s+/g, " ").trim();
+    return [doc.title || doc.name, context(doc)].filter(Boolean).join(" - ");
+};
 const pageNumber = value => Math.max(1, Math.min(10000, Number.parseInt(value, 10) || 1));
 const hasAcademicContext = (kind, doc) => {
     if (['board', 'class', 'news'].includes(kind)) return true;
@@ -40,6 +53,7 @@ async function publicPage(path, query = {}) {
     if (["subject", "chapter", "book", "notes", "past-paper", "mcqs"].includes(kind)) request = request.populate("board class group" + (kind !== "subject" ? " subject" : ""));
     if (kind === "topic") request = request.populate("boardId classId groupId subjectId chapterId");
     if (kind === 'notes') request = request.populate('chapter');
+    if (kind === 'mcqs') request = request.populate('chapter topic');
     const doc = await request.lean();
     if (!doc || (kind === "mcqs" && doc.status !== "published")) fail("Study page not found.", 404);
     if (!hasAcademicContext(kind, doc)) fail("This resource's academic context is unavailable.", 404);
@@ -47,7 +61,7 @@ async function publicPage(path, query = {}) {
     if (["subject", "chapter", "topic", "book", "notes", "past-paper", "mcqs"].includes(kind) && (!name(doc.board) || !name(doc.class) || (kind !== "subject" && !name(doc.subject)))) fail("This resource's academic context is unavailable.", 404);
     const canonicalPath = pagePath(kind, doc);
     const scope = context(doc);
-    const title = [doc.title || doc.name, scope].filter(Boolean).join(" - ");
+    const title = resourceTitle(kind, doc);
     const sections = [];
     const actions = [];
     let questions = [];
@@ -55,7 +69,8 @@ async function publicPage(path, query = {}) {
     const breadcrumbs = [{ title: "Home", href: "/" }, { title: "Study library", href: "/learn" }];
     if (name(doc.board)) breadcrumbs.push({ title: name(doc.board), href: pagePath("board", doc.board) });
     if (name(doc.subject)) breadcrumbs.push({ title: name(doc.subject), href: pagePath("subject", doc.subject) });
-    if (kind === "topic" && doc.chapterId) breadcrumbs.push({ title: doc.chapterId.name, href: pagePath("chapter", doc.chapterId) });
+    const parentChapter = kind === 'topic' ? doc.chapterId : doc.chapter;
+    if (parentChapter && ['topic', 'notes', 'mcqs'].includes(kind) && name(parentChapter)) breadcrumbs.push({ title: name(parentChapter), href: pagePath('chapter', parentChapter) });
     if (["board", "class"].includes(kind)) {
         const subjects = await Subject.find({ [kind]: doc._id }).populate("board class group").sort({ name: 1, _id: 1 }).skip((page - 1) * size).limit(size + 1).lean();
         hasNext = subjects.length > size;
@@ -84,6 +99,24 @@ async function publicPage(path, query = {}) {
     } else {
         const destination = kind === "book" ? `/book?${scopeParams(doc)}` : kind === "notes" ? `/notes?chapterId=${id(doc.chapter)}&${scopeParams(doc)}` : `/past-papers?${scopeParams(doc)}`;
         actions.push({ title: kind === "past-paper" ? "View past papers" : "View resource and download options", href: destination });
+        if (kind === 'book') {
+            const [chapters, papers] = await Promise.all([
+                Chapter.find({ subject: doc.subject._id }).sort({ chapterNumber: 1 }).select('name slug chapterNumber').limit(30).lean(),
+                PastPaper.find({ subject: doc.subject._id }).sort({ year: -1 }).select('title slug year session').limit(8).lean(),
+            ]);
+            sections.push({ title: 'Study this book chapter by chapter', links: chapters.map(item => ({ ...link('chapter', item), title: `Chapter ${item.chapterNumber}: ${item.name}` })) });
+            sections.push({ title: 'Related past papers', links: papers.map(item => link('past-paper', item)) });
+        } else if (kind === 'notes') {
+            const [topics, otherNotes] = await Promise.all([
+                Topic.find({ chapterId: doc.chapter._id }).sort({ topicNumber: 1 }).select('name slug topicNumber').limit(30).lean(),
+                ChapterNote.find({ chapter: doc.chapter._id, _id: { $ne: doc._id } }).select('title slug').limit(5).lean(),
+            ]);
+            sections.push({ title: 'Chapter topics and questions', links: topics.map(item => ({ ...link('topic', item), title: `${item.topicNumber} ${item.name}` })) });
+            sections.push({ title: 'Other notes in this chapter', links: otherNotes.map(item => link('notes', item)) });
+        } else if (kind === 'past-paper') {
+            const papers = await PastPaper.find({ subject: doc.subject._id, _id: { $ne: doc._id } }).sort({ year: -1, session: 1 }).select('title slug year session').limit(8).lean();
+            sections.push({ title: 'More papers for this subject', links: papers.map(item => link('past-paper', item)) });
+        }
     }
     const summary = doc.summary || doc.description || "";
     const count = sections.reduce((total, section) => total + section.links.length, 0);
@@ -99,22 +132,26 @@ const resourceReady = { summary: { $regex: /[\s\S]{80}/ } };
 const sitemapModels = { ...models, news: NewsArticle };
 function sitemapFilter(kind) {
     if (kind === "news") return { isPublished: true, excerpt: { $regex: /[\s\S]{60}/ }, content: { $regex: /[\s\S]{160}/ } };
-    if (kind === "mcqs") return { status: "published", ...resourceReady };
+    if (kind === "mcqs") return { status: "published", $or: [resourceReady, { description: { $regex: /[\s\S]{80}/ } }] };
     // Curated descriptions avoid indexing empty academic shells and thin legacy resources.
-    if (["board", "class"].includes(kind)) return null;
+    if (["board", "class"].includes(kind)) return {};
     return resourceReady;
 }
 
 async function sitemapCriteria(kind) {
     const base = sitemapFilter(kind);
+    if (['board', 'class'].includes(kind)) {
+        const ids = (await Subject.distinct(kind)).filter(value => mongoose.isValidObjectId(value));
+        return { _id: { $in: ids } };
+    }
     if (!['subject', 'chapter', 'topic'].includes(kind)) return base;
     const sources = kind === 'subject'
         ? [[Chapter, 'subject', {}], [Book, 'subject', {}], [PastPaper, 'subject', {}]]
         : kind === 'chapter'
             ? [[Topic, 'chapterId', {}], [ChapterNote, 'chapter', {}], [Assessment, 'chapter', { status: 'published' }]]
             : [[Question, 'topic', { status: 'published', contentType: { $in: ['short_question', 'long_question'] } }]];
-    const ids = (await Promise.all(sources.map(([Model, field, filter]) => Model.distinct(field, filter)))).flat().filter(Boolean);
+    const ids = (await Promise.all(sources.map(([Model, field, filter]) => Model.distinct(field, filter)))).flat().filter(value => mongoose.isValidObjectId(value));
     return { $or: [base, { _id: { $in: ids } }] };
 }
 
-module.exports = { publicPage, pagePath, meta, sitemapModels, sitemapFilter, sitemapCriteria, pageNumber, hasAcademicContext };
+module.exports = { publicPage, pagePath, meta, resourceTitle, sitemapModels, sitemapFilter, sitemapCriteria, pageNumber, hasAcademicContext };

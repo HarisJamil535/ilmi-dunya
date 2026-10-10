@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Loader2, Newspaper, SearchX } from "lucide-react";
+import { ArrowLeft, CalendarDays, Newspaper, SearchX } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import "./news.css";
@@ -60,7 +61,7 @@ export default function NewsArticle({ initialData }) {
     };
   }, [slug, seed]);
 
-  if (loading || (slug && loadedSlug !== slug)) return <main className="news-state"><Loader2 className="animate-spin" size={28} />Loading story...</main>;
+  if (loading || (slug && loadedSlug !== slug)) return <main className="news-state"><BookLoader size={72} /></main>;
   if (error || !article) return <main className="news-state"><SearchX size={30} />This story is unavailable.<Link to="/news">Back to news</Link></main>;
 
   return (

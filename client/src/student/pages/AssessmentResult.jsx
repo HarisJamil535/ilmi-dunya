@@ -1,6 +1,7 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
 import "../../urdu-font.css";
-import { Award, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Loader2, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
+import { Award, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { formatDuration, formatScore } from "../utils/resultFormat";
@@ -33,7 +34,7 @@ const AssessmentResult = () => {
     return () => controller.abort();
   }, [attemptId, retry]);
 
-  if (loading) return <div className="flex min-h-[60vh] items-center justify-center" role="status"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="sr-only">Loading result</span></div>;
+  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><BookLoader size={72} label="Loading result" /></div>;
   if (error || !attempt) return <main className="learning-page"><div className="learning-wrap"><p className="learning-alert" role="alert">{error || "Result unavailable."}</p><button className="learning-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></div></main>;
 
   const answers = attempt.answers || [];

@@ -1,6 +1,7 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, FileText, ListChecks, Loader2 } from "lucide-react";
+import { ArrowRight, FileText, ListChecks } from "lucide-react";
 import { IoLogoYoutube } from "react-icons/io5";
 
 import axiosInstance from "../../api/axios";
@@ -14,7 +15,7 @@ export default function ChapterTopics({ chapter, context }) {
       .catch(() => { if (!controller.signal.aborted) setState({ loading: false, topics: [], error: "Topics could not be loaded. Close and reopen this chapter to retry." }); });
     return () => controller.abort();
   }, [chapter._id]);
-  if (state.loading) return <p className="flex items-center gap-2 p-5 text-sm"><Loader2 size={16} className="animate-spin" />Loading topics...</p>;
+  if (state.loading) return <div className="flex justify-center p-6"><BookLoader size={56} /></div>;
   if (state.error) return <p role="alert" className="p-5 text-sm text-red-600">{state.error}</p>;
   if (!state.topics.length) return <p className="p-5 text-sm text-slate-500">No topics added yet.</p>;
   return <div className="chapter-topics-wrap">

@@ -1,3 +1,4 @@
+import BookLoader from "../../shared/BookLoader";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink, Filter, Loader2, Plus, Save, SearchX, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -14,6 +15,9 @@ const blankForm = {
   subject: "",
   title: "",
   pdfUrl: "",
+  summary: "",
+  sourceName: "",
+  edition: "",
 };
 
 const Field = ({ label, helper, children }) => (
@@ -102,6 +106,9 @@ const BookManagement = () => {
       subject: book.subject?._id || book.subject || "",
       title: book.title || "",
       pdfUrl: book.pdfUrl || "",
+      summary: book.summary || "",
+      sourceName: book.sourceName || "",
+      edition: book.edition || "",
     });
     setMessage("Editing selected book. Update the fields and save.");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -212,6 +219,17 @@ const BookManagement = () => {
               <input type="url" value={form.pdfUrl} onChange={(event) => setForm({ ...form, pdfUrl: event.target.value })} placeholder="https://example.com/book.pdf" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
             </Field>
           </div>
+          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+            <Field label="Verified publisher" helper="Only name NBF, PCTB or another publisher if it appears on this PDF's title/copyright page.">
+              <input value={form.sourceName} onChange={(event) => setForm({ ...form, sourceName: event.target.value })} maxLength={160} placeholder="e.g. National Book Foundation" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+            </Field>
+            <Field label="Edition" helper="Use the edition printed in the book; leave blank if unknown.">
+              <input value={form.edition} onChange={(event) => setForm({ ...form, edition: event.target.value })} maxLength={80} placeholder="e.g. 2025 edition" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+            </Field>
+          </div>
+          <Field label="Student summary" helper="Describe the actual chapters, language and edition in your own words. This appears on the public page and in its search preview; 80+ useful characters make the page eligible for indexing.">
+            <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} maxLength={2400} rows={3} placeholder="Describe what students will find in this specific textbook." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+          </Field>
 
           {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-600">{error}</p>}
           {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
@@ -249,7 +267,7 @@ const BookManagement = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-14"><BookLoader size={72} /></div>
           ) : books.length ? (
             <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
               {books.map((book) => (

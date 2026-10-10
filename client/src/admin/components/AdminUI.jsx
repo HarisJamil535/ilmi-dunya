@@ -1,4 +1,5 @@
 import { CheckCircle2, Loader2, Pencil, Save, Trash2, XCircle } from "lucide-react";
+import BookLoader from "../../shared/BookLoader";
 
 export const AdminPageHeader = ({ icon: Icon, eyebrow, title, description, statLabel, statValue }) => (
   <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-7 text-white shadow-lg shadow-primary/10">
@@ -73,11 +74,8 @@ export const AdminAlert = ({ type = "success", children }) => {
   );
 };
 
-export const AdminLoader = ({ label = "Loading..." }) => (
+export const AdminLoader = ({ label = "Loading ..." }) => (
   <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-white p-12 text-center">
-    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft text-primary">
-      <Loader2 className="h-6 w-6 animate-spin" />
-    </span>
-    <p className="text-sm font-black text-slate-500">{label}</p>
+    <BookLoader size={72} label={label} />
   </div>
 );

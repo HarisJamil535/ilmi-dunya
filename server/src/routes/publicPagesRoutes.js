@@ -109,11 +109,10 @@ function publicRoutes() {
             }
             const filter = await sitemapCriteria(kind);
             if (!filter) return null;
-            const fields = kind === 'topic' ? 'boardId classId subjectId chapterId' : kind === 'news' ? '' : `board class${kind !== 'subject' ? ' subject' : ''}${kind === 'notes' ? ' chapter' : ''}`;
+            const fields = kind === 'topic' ? 'boardId classId subjectId chapterId' : ['news', 'board', 'class'].includes(kind) ? '' : `board class${kind !== 'subject' ? ' subject' : ''}${kind === 'notes' ? ' chapter' : ''}`;
             let request = sitemapModels[kind].find(filter).sort({_id:1}).skip((p - 1) * 1000).limit(1000).select(`name title slug updatedAt ${fields}`);
             if (fields) request = request.populate(fields, 'name');
             const docs = (await request.lean()).filter(doc => hasAcademicContext(kind, doc));
-            if (!docs.length) return null;
             return sitemapXml(docs.map(doc => ({ path: kind === 'news' ? `/news/${encodeURIComponent(doc.slug)}` : pagePath(kind,doc), updatedAt: doc.updatedAt })));
         }, 300000);
         if (!xml) return res.sendStatus(404);
@@ -134,7 +133,10 @@ function frontendRoutes() {
         try {
             if (req.path === '/' || req.path === '/news' || req.path.startsWith('/news/') || req.path === '/learn' || req.path.startsWith('/learn/')) {
                 const data = await cached(`page:${req.originalUrl}`, () => dataFor(req));
-                if (req.path.startsWith('/learn/') && req.path !== data.meta.path.split('?')[0]) return res.redirect(301, data.meta.path);
+                if (req.path === '/learn' || req.path.startsWith('/learn/') || req.path === '/news' || req.path.startsWith('/news/')) {
+                    const requested = new URL(req.originalUrl, siteOrigin());
+                    if (requested.pathname + requested.search !== data.meta.path) return res.redirect(301, data.meta.path);
+                }
                 const { manifest, render } = await frontendRendering();
                 const html = await cached(`html:${req.originalUrl}`, () => {
                     const styles = new Set();

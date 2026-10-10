@@ -1,6 +1,7 @@
+import BookLoader from "../../shared/BookLoader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Flag, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Flag, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
@@ -200,7 +201,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex min-h-screen items-center justify-center"><BookLoader size={72} /></div>;
   }
 
   if (!confirmed) return (

@@ -1,3 +1,4 @@
+import BookLoader from "../../shared/BookLoader";
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
@@ -114,8 +115,8 @@ export default function AdminLogin() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-600 shadow-sm">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          Checking secure session...
+          <BookLoader size={72} />
+
         </div>
       </div>
     );

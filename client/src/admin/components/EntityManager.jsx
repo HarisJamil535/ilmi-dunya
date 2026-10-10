@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import React, { useState, useEffect, useCallback } from "react";
-import { Layers, Loader2, CheckCircle2, X } from "lucide-react";
+import { Layers, CheckCircle2, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import DeleteConfirmationModal from "../../shared/DeleteConfirmationModal"; 
 import { AdminActionButton, DeleteButton, EditButton, SaveButton } from "./AdminUI";
@@ -196,8 +197,8 @@ const EntityManager = ({
 
           {isLoading ? (
             <div className="p-12 text-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-              <p className="text-sm">Loading {entityName}...</p>
+              <BookLoader size={72} />
+
             </div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center text-slate-400 text-sm">

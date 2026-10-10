@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, Layers, Lightbulb, ListChecks, Loader2, SearchX } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, Layers, Lightbulb, ListChecks, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from "../../api/axios";
@@ -247,8 +248,8 @@ const Chapters = () => {
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <p className="font-semibold">Loading chapters...</p>
+            <BookLoader size={64} />
+
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-sm font-semibold text-rose-600">

@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { Award, Crown, Filter, Loader2, Medal, RefreshCw, School, Timer, Trophy, UserRound, Sparkles } from "lucide-react";
+import { Award, Crown, Filter, Medal, RefreshCw, School, Timer, Trophy, UserRound, Sparkles } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import CustomSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
@@ -128,7 +129,7 @@ const Leaderboard = () => {
 
         {loading ? (
           <div className="flex justify-center rounded-3xl border border-slate-200 bg-white py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <BookLoader size={72} />
           </div>
         ) : leaders.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">

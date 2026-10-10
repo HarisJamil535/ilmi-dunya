@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, CalendarDays, Loader2, Newspaper, SearchX } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Newspaper, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import "./news.css";
@@ -94,7 +95,7 @@ export default function News({ initialData }) {
         </nav>
 
         {loading ? (
-          <div className="news-state"><Loader2 className="animate-spin" size={28} />Loading the latest stories...</div>
+          <div className="news-state"><BookLoader size={72} /></div>
         ) : error ? (
           <div className="news-state"><SearchX size={30} />News could not be loaded right now.<button type="button" onClick={() => { setLoadedKey(null); setRetry(value => value + 1); }}>Try again</button></div>
         ) : !articles.length ? (

@@ -1,3 +1,4 @@
+import BookLoader from "../../shared/BookLoader";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { ExternalLink, FileText, Loader2, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -77,10 +78,11 @@ const NotesManagement = () => {
     const existingNote = useMemo(() => notes.find((note) => note.noteType === selectedType), [notes, selectedType]);
     const title = drafts[selectedType]?.title ?? existingNote?.title ?? "";
     const pdfUrl = drafts[selectedType]?.pdfUrl ?? existingNote?.pdfUrl ?? "";
+    const summary = drafts[selectedType]?.summary ?? existingNote?.summary ?? "";
     const canSave = selectedChapter && selectedType && title.trim() && title.trim().length <= 140 && isValidUrl(pdfUrl.trim()) && !loading && !saving;
 
     const updateDraft = (patch) => {
-        setDrafts((current) => ({ ...current, [selectedType]: { title, pdfUrl, ...current[selectedType], ...patch } }));
+        setDrafts((current) => ({ ...current, [selectedType]: { title, pdfUrl, summary, ...current[selectedType], ...patch } }));
     };
 
     const saveNote = async (event) => {
@@ -94,6 +96,7 @@ const NotesManagement = () => {
                 title: title.trim(),
                 noteType: selectedType,
                 pdfUrl: pdfUrl.trim(),
+                summary: summary.trim(),
                 chapter: selectedChapter,
             });
             setMessage(existingNote ? "Notes updated successfully." : "Notes added successfully.");
@@ -166,6 +169,11 @@ const NotesManagement = () => {
                         <input type="url" value={pdfUrl} onChange={(event) => updateDraft({ pdfUrl: event.target.value })} disabled={!selectedType || saving} placeholder="https://example.com/chapter-2-notes.pdf" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
                         <span className="mt-1.5 block text-xs text-slate-500">Use a public HTTPS link that opens the complete PDF.</span>
                     </label>
+                    <label className="mt-4 block min-w-0">
+                        <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Student summary</span>
+                        <textarea value={summary} onChange={(event) => updateDraft({ summary: event.target.value })} disabled={!selectedType || saving} maxLength={2400} rows={3} placeholder="Explain which chapter concepts and question types these notes cover." className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary disabled:bg-slate-50" />
+                        <span className="mt-1.5 block text-xs text-slate-500">Write an original, specific summary. It appears on the public notes page and in its search preview; 80+ useful characters make it indexable.</span>
+                    </label>
                     <div className="mt-5 flex justify-end">
                         <button type="submit" disabled={!canSave} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -182,7 +190,7 @@ const NotesManagement = () => {
                             <h2 className="font-bold text-slate-900">Notes in this chapter</h2>
                         </div>
                         {loading ? (
-                            <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading notes...</div>
+                            <div className="flex justify-center p-8"><BookLoader size={64} /></div>
                         ) : notes.length === 0 ? (
                             <p className="p-6 text-sm text-slate-500">No notes have been added for this chapter yet.</p>
                         ) : (

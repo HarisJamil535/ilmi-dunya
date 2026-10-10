@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from "react";
 import { ExternalLink, FileCheck2, Loader2, Plus, Save, SearchX, X } from "lucide-react";
+import BookLoader from "../../shared/BookLoader";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "@/context/AppContext";
 import { CustomSelect } from "@/admin/components/CustomSelect";
@@ -145,7 +146,7 @@ export default function AnswerSheetManagement() {
             <div><h2 className="text-lg font-black text-slate-950">Published answer sheets</h2><p className="mt-1 text-sm text-slate-500">Only boards and classes listed here display the student-page button.</p></div>
             <span className="rounded-full bg-primary-soft px-3 py-1.5 text-xs font-black text-primary">{answerSheets.length} total</span>
           </div>
-          {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div> : answerSheets.length ? (
+          {loading ? <div className="flex justify-center py-12"><BookLoader size={72} /></div> : answerSheets.length ? (
             <div className="grid gap-4 lg:grid-cols-2">
               {answerSheets.map((item) => <article key={item._id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-primary/30 hover:bg-white hover:shadow-sm sm:p-5">
                 <p className="text-xs font-black uppercase tracking-wider text-primary">{getName(item.board)} · {getName(item.class)}</p>

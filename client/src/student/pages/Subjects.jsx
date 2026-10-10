@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, GraduationCap, Loader2, SearchX } from "lucide-react";
+import { BookOpen, GraduationCap, SearchX } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import SubjectCard from "../components/SubjectCard";
@@ -151,8 +152,8 @@ const Subjects = () => {
               </div>
             ) : isLoading ? (
               <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <p className="font-semibold">Loading subjects...</p>
+                <BookLoader size={64} />
+
               </div>
             ) : error ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-600">

@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
-import { Activity, BarChart3, Clock3, Loader2, LogOut, Play, Trophy, UserCircle } from "lucide-react";
+import { Activity, BarChart3, Clock3, LogOut, Play, Trophy, UserCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
@@ -19,7 +20,7 @@ const StudentDashboard = () => {
   }, []);
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex min-h-screen items-center justify-center"><BookLoader size={72} /></div>;
   }
 
   const cards = [

@@ -1,3 +1,4 @@
+import BookLoader from "../../shared/BookLoader";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { FileText, Loader2, Plus } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -7,7 +8,7 @@ import { isValidUrl } from "@/admin/components/ResourceHelpers";
 import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
 
-const initialForm = { title: "", year: new Date().getFullYear(), session: "morning", examType: "annual", isNewPattern: false, pdfUrl: "" };
+const initialForm = { title: "", year: new Date().getFullYear(), session: "morning", examType: "annual", isNewPattern: false, pdfUrl: "", summary: "", sourceName: "" };
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortPapers = (items) => [...items].sort((a, b) => (b.year || 0) - (a.year || 0) || (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
@@ -91,7 +92,7 @@ const PastPaperManagement = () => {
 
     const handleEdit = (paper) => {
         setEditingId(paper._id);
-        setForm({ ...paper, title: paper.title, year: paper.year, session: paper.session, examType: paper.examType || "annual", isNewPattern: Boolean(paper.isNewPattern), pdfUrl: paper.pdfUrl });
+        setForm({ ...paper, title: paper.title, year: paper.year, session: paper.session, examType: paper.examType || "annual", isNewPattern: Boolean(paper.isNewPattern), pdfUrl: paper.pdfUrl, summary: paper.summary || "", sourceName: paper.sourceName || "" });
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -151,6 +152,14 @@ const PastPaperManagement = () => {
                             <input value={form.pdfUrl} onChange={(e) => setForm({ ...form, pdfUrl: e.target.value })} placeholder="https://example.com/paper.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
                         </Field>
                     </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <Field label="Paper source" helper="Name the issuing board or document source only when verified.">
+                            <input value={form.sourceName} onChange={(e) => setForm({ ...form, sourceName: e.target.value })} maxLength={160} placeholder="e.g. BISE Lahore" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+                        </Field>
+                        <Field label="Student summary" helper="Mention the actual paper, part, year and session. This appears on the public page and in its search description; 80+ original characters enable indexing.">
+                            <textarea value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} maxLength={2400} rows={3} placeholder="Describe the questions or paper sections students will find." className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+                        </Field>
+                    </div>
                     <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-primary/15 bg-primary-soft/50 p-4 transition hover:border-primary/35">
                         <input type="checkbox" checked={Boolean(form.isNewPattern)} onChange={(e) => setForm({ ...form, isNewPattern: e.target.checked })} className="mt-0.5 h-5 w-5 accent-[var(--color-primary)]" />
                         <span>
@@ -172,7 +181,7 @@ const PastPaperManagement = () => {
                         <h2 className="text-sm font-black uppercase tracking-wider text-slate-600">Uploaded Past Papers</h2>
                     </div>
                     {loading ? (
-                        <div className="p-10 text-center text-slate-400"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>
+                        <div className="p-10 text-center text-slate-400"><BookLoader size={72} /></div>
                     ) : papers.length === 0 ? (
                         <div className="p-10 text-center text-sm font-semibold text-slate-400">No past papers uploaded for this context yet.</div>
                     ) : (

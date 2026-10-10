@@ -247,8 +247,8 @@ const AssessmentBuilder = () => {
               </Field>
             </div>
             <div className="mt-4">
-              <Field label="Student Instructions" helper="Optional. Add timing rules, syllabus scope, or attempt guidance.">
-                <textarea className="min-h-20 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Instructions or description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <Field label="Test overview" helper="Describe the actual chapter/topic concepts and question coverage in your own words. This appears on the public test page and in its search preview; 80+ useful characters enable indexing.">
+                <textarea className="min-h-20 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="What will students practise in this test?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </Field>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">

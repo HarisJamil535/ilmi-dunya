@@ -1,3 +1,4 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
 import { Loader2, MessageSquareQuote, Plus, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -119,7 +120,7 @@ const TestimonialsManagement = () => {
 
         <div className="grid gap-4 md:grid-cols-2">
           {isLoading ? (
-            <div className="col-span-full flex justify-center rounded-2xl bg-white p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="col-span-full flex justify-center rounded-2xl bg-white p-12"><BookLoader size={72} /></div>
           ) : testimonials.length === 0 ? (
             <div className="col-span-full rounded-2xl bg-white p-12 text-center text-sm font-bold text-slate-400">No testimonials added yet.</div>
           ) : testimonials.map((item) => (

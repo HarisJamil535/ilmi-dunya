@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, FileText, Loader2, SearchX, Sparkles } from "lucide-react";
+import { Download, ExternalLink, FileText, SearchX, Sparkles } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axios";
@@ -50,7 +51,7 @@ const PastPapers = () => {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+          <div className="flex justify-center py-20"><BookLoader size={72} /></div>
         ) : error ? (
           <div className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-600">{error}</div>
         ) : papers.length === 0 ? (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "../../urdu-font.css";
-import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Loader2, Moon, SearchX } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Moon, SearchX } from "lucide-react";
+import BookLoader from "../../shared/BookLoader";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -54,13 +55,7 @@ function QuestionList({ topic, type, onTopicName }) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col items-center justify-center gap-4 py-14 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
-            <Loader2 className="animate-spin" size={24} />
-          </span>
-          <div>
-            <p className="text-base font-black text-slate-900">Loading questions</p>
-            <p className="mt-1 text-sm text-slate-500">Preparing this topic for revision.</p>
-          </div>
+          <BookLoader size={72} />
         </div>
       </section>
     );

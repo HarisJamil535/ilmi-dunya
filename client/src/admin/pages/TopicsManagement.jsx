@@ -1,6 +1,7 @@
+import BookLoader from "../../shared/BookLoader";
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText, Plus, ChevronRight, Loader2, Bookmark, ArrowLeft } from "lucide-react";
+import { FileText, Plus, ChevronRight, Bookmark, ArrowLeft } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../../admin/components/CustomSelect";
@@ -358,8 +359,8 @@ const TopicManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingTopics ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
-                                <p className="text-sm font-medium">Loading topics...</p>
+                                <BookLoader size={72} />
+
                             </div>
                         ) : topics.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-4">

@@ -1,5 +1,6 @@
+import BookLoader from "../../shared/BookLoader";
 import { useEffect, useState } from "react";
-import { BookOpen, Download, ExternalLink, Loader2, SearchX } from "lucide-react";
+import { BookOpen, Download, ExternalLink, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 
@@ -71,7 +72,7 @@ const BookViewer = () => {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+          <div className="flex justify-center py-20"><BookLoader size={72} /></div>
         ) : error ? (
           <div className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-600">{error}</div>
         ) : !book ? (

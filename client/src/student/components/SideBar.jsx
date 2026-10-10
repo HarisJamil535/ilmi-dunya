@@ -1,6 +1,7 @@
+import BookLoader from "../../shared/BookLoader";
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { GraduationCap, Building2, Users, Loader2, SlidersHorizontal, X } from "lucide-react";
+import { GraduationCap, Building2, Users, SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
 
@@ -170,7 +171,7 @@ const SideBar = ({ drawerMode = false }) => {
       </button>
       <div id="study-filter-options" className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="space-y-3 pb-4">
-          {isLoading ? <Loader2 className="mx-auto animate-spin text-primary" /> : filterCategories.map((category) => <section key={category.id} className="rounded-xl bg-slate-50 p-3">
+          {isLoading ? <div className="flex justify-center py-6"><BookLoader size={64} /></div> : filterCategories.map((category) => <section key={category.id} className="rounded-xl bg-slate-50 p-3">
             <h3 className="mb-3 flex items-center gap-2 text-xs font-black text-slate-500"><category.icon size={18} />{category.label}</h3>
             <div className="flex flex-wrap gap-2">{category.options.map((option) => <button type="button" key={option.id || option.label} aria-pressed={isChipSelected(category.id, option)} onClick={() => updateParams(category.id, option)} className={`rounded-full border px-3 py-2 text-sm font-bold ${isChipSelected(category.id, option) ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}>{category.id === "class" ? `Class ${option.label}` : option.label}</button>)}</div>
           </section>)}
