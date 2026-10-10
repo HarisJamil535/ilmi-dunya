@@ -123,7 +123,7 @@ const Leaderboard = () => {
           </div>
         </section>
 
-        <p className="leaderboard-rule"><Sparkles size={16} /> Unlimited attempts. Your best chapter result earns up to 100 points; chapter tests with fewer than 5 questions are practice only. Equal points are settled by chapters completed, accuracy, then time.</p>
+        <p className="leaderboard-rule"><Sparkles size={16} /> Unlimited attempts. Your best result for each test earns up to 100 points. Equal points are settled by tests completed, accuracy, then time.</p>
         {error && <p className="learning-alert" role="alert">{error}</p>}
 
         {loading ? (
@@ -159,7 +159,7 @@ const Leaderboard = () => {
                   </div>
                   <div className="podium-metrics">
                     <span><strong>{Number(leader.averagePercentage).toFixed(2)}%</strong><small>Accuracy</small></span>
-                    <span><strong>{leader.testsTaken}</strong><small>Chapters</small></span>
+                    <span><strong>{leader.testsTaken}</strong><small>Tests</small></span>
                     <span><strong>{formatTime(leader.totalTimeSeconds)}</strong><small>Total time</small></span>
                   </div>
                   <div className="podium-progress" aria-hidden="true"><div style={{ width: `${Math.min(100, Math.max(0, leader.averagePercentage))}%` }} /></div>

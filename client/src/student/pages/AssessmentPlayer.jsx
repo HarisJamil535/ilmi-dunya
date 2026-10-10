@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, CheckCircle2, Clock3, Flag, Loader2, Send, SkipForward, Volume2, VolumeX } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Flag, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
 import MathText from "../../shared/MathText";
@@ -17,6 +17,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -104,6 +106,16 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   }, [attempt, navigate]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams(chapter || topic ? { ...(chapter ? { chapter } : {}), ...(topic ? { topic } : {}) } : { assessmentId: id });
+    axiosInstance.get(`/attempts/preview?${params}`, { signal: controller.signal })
+      .then(({ data }) => { setPreview(data.test); setLoading(false); })
+      .catch((err) => { if (!controller.signal.aborted) { setError(err.response?.data?.message || "Unable to load test details. Please try again."); setLoading(false); } });
+    return () => controller.abort();
+  }, [id, chapter, topic]);
+
+  useEffect(() => {
+    if (!confirmed) return;
     const start = async () => {
       setLoading(true);
       if (!startRequest.current) startRequest.current = axiosInstance.post("/attempts/start", chapter || topic ? { chapter, topic } : { assessmentId: id });
@@ -118,7 +130,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       setError(err.response?.data?.message || "Unable to start the test. Please try again.");
       setLoading(false);
     });
-  }, [id, chapter, topic]);
+  }, [id, chapter, topic, confirmed]);
 
   useEffect(() => {
     const onPageHide = () => submitWhenLeaving();
@@ -190,6 +202,30 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
+
+  if (!confirmed) return (
+    <main className="min-h-[70vh] bg-slate-50 px-4 py-8 sm:py-14">
+      <section className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
+        <p className="text-xs font-bold uppercase text-primary">Before you begin</p>
+        <h1 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">{preview?.title}</h1>
+        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-slate-200 py-4 text-sm font-semibold text-slate-700">
+          <span>{preview?.questionCount} questions</span><span>{preview?.durationMinutes} minutes</span><span>{preview?.totalMarks} marks</span>
+        </div>
+        <h2 className="mt-6 text-base font-bold text-slate-950">Test rules</h2>
+        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+          <li>{preview?.resume ? "Your earlier attempt is still in progress. Its timer is already running." : "The timer starts when you select Start test."} Your answers save as you go.</li>
+          <li>You can skip questions and return to them before submitting.</li>
+          <li>Leaving or switching away from the test page submits your saved answers.</li>
+          <li>{preview?.ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "This is a practice test and does not affect the leaderboard."}</li>
+        </ul>
+        {preview?.instructions?.length > 0 && <div className="mt-5 border-l-2 border-primary pl-4 text-sm leading-6 text-slate-700">{preview.instructions.map((instruction, index) => <p key={index}>{instruction}</p>)}</div>}
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+          <Link to="/tests" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 px-5 text-sm font-semibold text-slate-700"><ArrowLeft size={16} /> Back to tests</Link>
+          <button type="button" onClick={() => { setConfirmed(true); setLoading(true); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-bold text-white hover:bg-primary-dark"><Trophy size={16} /> {preview?.resume ? "Continue test" : "Start test"}</button>
+        </div>
+      </section>
+    </main>
+  );
 
   return (
     <main className="min-h-screen bg-slate-100" onPointerDown={enableAudio} onKeyDown={enableAudio}>

@@ -5,8 +5,39 @@ const LearningActivity = require("../models/LearningActivity");
 const { gradeAttempt } = require("../services/assessmentScoring");
 const { pointsForAttempt, rankEligibility } = require("../services/leaderboardScoring");
 const LeaderboardState = require("../models/LeaderboardState");
+const mongoose = require("mongoose");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
+
+const previewAttempt = async (req, res) => {
+    const { assessmentId, chapter, topic } = req.query;
+    if (!chapter && !topic && !mongoose.isValidObjectId(assessmentId)) return res.status(400).json({ success: false, message: "Choose a valid test." });
+    let assessment;
+    try {
+        assessment = chapter || topic
+            ? await require("../services/scopeTest").createScopeTest(chapter, topic)
+            : await Assessment.findById(assessmentId).lean();
+    } catch (error) {
+        return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Unable to load test details. Please try again." });
+    }
+    if (!assessment || assessment.status !== "published" || !assessment.createdBy) return res.status(404).json({ success: false, message: "Test not found." });
+    const existing = assessment.allowResume && await AssessmentAttempt.findOne({
+        assessment: assessment._id,
+        student: req.student._id,
+        status: "in_progress",
+        expiresAt: { $gt: new Date() },
+    }).select("_id").lean();
+    res.json({ success: true, test: {
+        title: assessment.title,
+        type: assessment.type,
+        questionCount: assessment.questions.length,
+        durationMinutes: assessment.durationMinutes,
+        totalMarks: assessment.totalMarks,
+        instructions: assessment.instructions,
+        ranked: assessment.type !== "custom_practice",
+        resume: Boolean(existing),
+    } });
+};
 
 const startAttempt = async (req, res) => {
     const { assessmentId, chapter, topic } = req.body;
@@ -28,6 +59,7 @@ const startAttempt = async (req, res) => {
             assessment: assessment._id,
             student: req.student._id,
             status: "in_progress",
+            expiresAt: { $gt: new Date() },
         });
         if (existing) {
             return getAttemptById(req, res, existing._id);
@@ -214,6 +246,7 @@ const getStudentAttempts = async (req, res) => {
 };
 
 module.exports = {
+    previewAttempt,
     startAttempt,
     getAttemptById,
     saveAnswer,

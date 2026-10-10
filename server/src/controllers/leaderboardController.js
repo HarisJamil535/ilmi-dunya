@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const LeaderboardState = require("../models/LeaderboardState");
 const Student = require("../models/Student");
-const { MIN_RANKED_QUESTIONS } = require("../services/leaderboardScoring");
 const leaderboardCache = new Map();
 
 const cachedLeaders = async (key, load) => {
@@ -38,14 +37,14 @@ const getLeaderboard = async (req, res) => {
     const cacheKey = JSON.stringify([limit, ...["board", "class", "group", "subject"].map(key => req.query[key] || "")]);
     const result = await cachedLeaders(cacheKey, async () => {
     const state = await LeaderboardState.findOne({ key: "global" }).lean();
-    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, [`answers.${MIN_RANKED_QUESTIONS - 1}`]: { $exists: true } };
+    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, "answers.0": { $exists: true } };
     if (state?.resetAt) attemptMatch.submittedAt.$gte = state.resetAt;
 
     const leaders = await AssessmentAttempt.aggregate([
         { $match: attemptMatch },
         { $lookup: { from: "assessments", localField: "assessment", foreignField: "_id", as: "assessment" } },
         { $unwind: "$assessment" },
-        { $match: { "assessment.type": "chapter_test", "assessment.chapter": { $ne: null } } },
+        { $match: { "assessment.type": { $ne: "custom_practice" } } },
         ...(Object.keys(assessmentMatch).length ? [{ $match: assessmentMatch }] : []),
         { $set: {
             safeScore: { $min: ["$totalMarks", { $max: [0, "$score"] }] },
@@ -55,9 +54,9 @@ const getLeaderboard = async (req, res) => {
                 { $min: ["$submittedAt", { $ifNull: ["$expiresAt", "$submittedAt"] }] }, "$startedAt",
             ] }, 1000] }] },
         } },
-        // A chapter may have multiple published test versions; count one best result per student and chapter.
+        // A new publication for the same syllabus scope replaces, rather than duplicates, that test's points.
         { $sort: { safeRatio: -1, safeTime: 1, submittedAt: 1, _id: 1 } },
-        { $group: { _id: { student: "$student", board: "$assessment.board", class: "$assessment.class", group: "$assessment.group", subject: "$assessment.subject", chapter: "$assessment.chapter" }, best: { $first: "$$ROOT" } } },
+        { $group: { _id: { student: "$student", type: "$assessment.type", board: "$assessment.board", class: "$assessment.class", group: "$assessment.group", subject: "$assessment.subject", chapter: "$assessment.chapter", topic: "$assessment.topic" }, best: { $first: "$$ROOT" } } },
         { $replaceRoot: { newRoot: "$best" } },
         { $group: {
             _id: "$student",
@@ -98,8 +97,8 @@ const getLeaderboard = async (req, res) => {
         success: true,
         leaders: ranked,
         scoring: {
-            formula: `Each chapter can earn up to 100 points. The best completed chapter attempt counts; tests with fewer than ${MIN_RANKED_QUESTIONS} questions are practice only.`,
-            tieBreaker: "Ties use chapters completed, average accuracy, then total completion time. Exact ties share a rank.",
+            formula: "Each published MCQ test can earn up to 100 points. Only your best completed attempt for that test's syllabus scope counts.",
+            tieBreaker: "Ties use tests completed, average accuracy, then total completion time. Exact ties share a rank.",
         },
         generatedAt: new Date(),
         cycleStartedAt: state?.resetAt || null,
