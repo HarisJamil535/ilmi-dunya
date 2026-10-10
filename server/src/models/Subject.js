@@ -12,6 +12,7 @@ const subjectSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        cardImage: { type: String, default: "", maxlength: 200 },
         board: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Board",

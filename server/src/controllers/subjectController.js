@@ -177,6 +177,12 @@ const Class = require("../models/Class");
 const Group = require("../models/Group");
 const mongoose = require("mongoose");
 
+const subjectImage = (body) => {
+    if (body.cardImage === undefined) return {};
+    if (typeof body.cardImage !== "string" || (body.cardImage && !/^\/uploads\/subjects\/[a-f0-9-]+\.(png|jpg|webp)$/.test(body.cardImage))) fail("Please upload a valid subject image.");
+    return { cardImage: body.cardImage };
+};
+
 // Helper function to escape regex characters safely
 const createCaseInsensitiveRegex = (text) => {
     if (!text) return null;
@@ -301,6 +307,7 @@ const createSubject = async (req, res, next) => {
         }
 
         const newSubject = new Subject({
+            ...subjectImage(req.body),
             ...publication(req.body),
             name: trimmedName,
             code: code ? code.trim() : "",
@@ -395,6 +402,7 @@ const updateSubject = async (req, res, next) => {
         const updatedSubject = await Subject.findByIdAndUpdate(
             id,
             {
+                ...subjectImage(req.body),
                 ...publication(req.body),
                 name: trimmedName,
                 code: code ? code.trim() : "",

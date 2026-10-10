@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import SubjectCard from "../components/SubjectCard";
 import SideBar from "../components/SideBar";
+import "./subjects.css";
 
 const setMetaDescription = (content) => {
   let meta = document.querySelector('meta[name="description"]');
@@ -116,13 +117,13 @@ const Subjects = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg-main)]">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-0 px-0 lg:flex-row lg:items-start lg:gap-6 lg:px-6 lg:py-8">
-        <SideBar />
+    <div className="subjects-page min-h-screen">
+      <div className="subjects-layout">
+        <SideBar subjectStyle />
 
         <main className="min-w-0 flex-1 px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-0 lg:py-0">
           <section className="mx-auto flex max-w-6xl flex-col gap-8">
-            <header className="flex flex-col gap-3 border-b border-slate-200 pb-6">
+            <header className="subjects-heading flex flex-col gap-3 pb-1">
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <GraduationCap className="h-4 w-4" />
                 <span>Academic Subjects</span>
@@ -132,7 +133,7 @@ const Subjects = () => {
                 <h1 className="max-w-3xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl">
                   {hasRequiredContext ? (
                     <>
-                      Choose your <span className="text-primary">subject</span>
+                      Choose your subject
                     </>
                   ) : (
                     "Choose your class and board to explore subjects"
@@ -176,6 +177,7 @@ const Subjects = () => {
                   <SubjectCard
                     key={subject._id || subject.name}
                     subj={subject.name || subject}
+                    image={subject.cardImage}
                     to={subjectHref(subject)}
                   />
                 ))}

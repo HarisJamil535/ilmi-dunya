@@ -5,7 +5,9 @@ import { GraduationCap, Building2, Users, SlidersHorizontal, X } from "lucide-re
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
 
-const SideBar = ({ drawerMode = false }) => {
+import CustomSelect from "../../shared/CustomSelect";
+
+const SideBar = ({ drawerMode = false, subjectStyle = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -82,7 +84,7 @@ const SideBar = ({ drawerMode = false }) => {
       id: "class",
       label: "CLASS",
       icon: GraduationCap,
-      options: classes.map((c) => {
+      options: [...classes].sort((a,b) => String(a.classNumber || a.name).localeCompare(String(b.classNumber || b.name), undefined, { numeric: true })).map((c) => {
         const val = c.classNumber ? String(c.classNumber) : c.name || String(c);
         return {
           id: c._id,
@@ -163,18 +165,19 @@ const SideBar = ({ drawerMode = false }) => {
 
   const modalMode = drawerMode || !isDesktop;
   const panel = (
-      <div role={modalMode ? "dialog" : undefined} aria-modal={modalMode ? true : undefined} aria-label="Study filters" className={`flex min-h-0 w-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl ${modalMode ? "max-w-[560px] h-full" : "max-h-[calc(100vh-96px)] p-5"}`}>
+      <div role={modalMode ? "dialog" : undefined} aria-modal={modalMode ? true : undefined} aria-label="Study filters" className={`${subjectStyle ? "subject-filter-panel " : ""}flex min-h-0 w-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl ${modalMode ? "max-w-[560px] h-full" : "max-h-[calc(100vh-96px)] p-5"}`}>
       {/* Title */}
       <button type="button" onClick={() => setIsMobileOpen(false)} className="mb-4 flex shrink-0 items-center justify-between text-left">
-        <div><p className="text-xs font-bold uppercase tracking-wider text-primary">Study Filters</p><h2 className="text-lg font-black text-slate-950">Find content</h2></div>
+        <div><p className="text-xs font-bold uppercase tracking-wider text-primary">Study Filters</p><h2 className="text-lg font-black text-slate-950">{subjectStyle ? "Find your content" : "Find content"}</h2></div>
         {modalMode && <X className="h-6 w-6 text-primary" />}
       </button>
       <div id="study-filter-options" className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="space-y-3 pb-4">
-          {isLoading ? <div className="flex justify-center py-6"><Spinner /></div> : filterCategories.map((category) => <section key={category.id} className="rounded-xl bg-slate-50 p-3">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-black text-slate-500"><category.icon size={18} />{category.label}</h3>
-            <div className="flex flex-wrap gap-2">{category.options.map((option) => <button type="button" key={option.id || option.label} aria-pressed={isChipSelected(category.id, option)} onClick={() => updateParams(category.id, option)} className={`rounded-full border px-3 py-2 text-sm font-bold ${isChipSelected(category.id, option) ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}>{category.id === "class" ? `Class ${option.label}` : option.label}</button>)}</div>
+          {isLoading ? <div className="flex justify-center py-6"><Spinner /></div> : filterCategories.map((category) => <section key={category.id} className={subjectStyle ? "subject-filter-section" : "rounded-xl bg-slate-50 p-3"}>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-black text-slate-500"><category.icon size={18} />{subjectStyle ? category.label.toLowerCase() : category.label}</h3>
+            {subjectStyle && category.id !== "class" ? <CustomSelect label={category.id === "board" ? "Board" : "Group"} value={category.options.find(option => isChipSelected(category.id, option))?.id || ""} placeholder={`Choose ${category.id}`} options={category.options.map(option => ({value: option.id, label: option.label === "All" ? "All groups" : option.label}))} onChange={value => {const option = category.options.find(option => option.id === value); if(option) updateParams(category.id, option);}} className="subject-filter-select" /> : <div className={subjectStyle ? "subject-class-options" : "flex flex-wrap gap-2"}>{category.options.map((option) => <button type="button" key={option.id || option.label} aria-pressed={isChipSelected(category.id, option)} onClick={() => updateParams(category.id, option)} className={`rounded-full border px-3 py-2 text-sm font-bold ${isChipSelected(category.id, option) ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700"}`}>{category.id === "class" ? `Class ${option.label}` : option.label}</button>)}</div>}
           </section>)}
+          {subjectStyle && <p className="subject-filter-hint">Subjects update with your selection.</p>}
         </div>
       </div>
       {modalMode && <div className="shrink-0 border-t border-slate-100 pt-3"><button type="button" onClick={() => setIsMobileOpen(false)} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-black text-white">Show results</button></div>}
