@@ -1,0 +1,39 @@
+.test-introduction { min-height: 70vh; padding: 40px 20px; background: var(--app-bg-main); color: var(--app-text-primary); }
+.test-introduction-panel { max-width: 760px; margin: 0 auto; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-bg-card); overflow: hidden; }
+.test-introduction-header { padding: 32px 36px 28px; border-top: 4px solid var(--color-primary); border-bottom: 1px solid var(--app-border); }
+.test-introduction-eyebrow { margin: 0 0 12px; color: var(--color-primary); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.test-introduction-header h1 { margin: 0; font-size: 28px; line-height: 1.3; font-weight: 750; overflow-wrap: anywhere; }
+.test-introduction-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; }
+.test-introduction-stats > div { display: grid; grid-template-columns: 20px auto auto; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--app-border)); border-radius: 6px; background: color-mix(in srgb, var(--color-primary) 6%, var(--app-bg-card)); font-size: 14px; }
+.test-introduction-stats svg { color: var(--color-primary); }
+.test-introduction-stats dt { grid-column: 3; grid-row: 1; color: var(--app-text-muted); }
+.test-introduction-stats dd { grid-column: 2; grid-row: 1; margin: 0; font-weight: 750; font-variant-numeric: tabular-nums; }
+.test-introduction-body { padding: 28px 36px; }
+.test-introduction-body h2 { margin: 0 0 20px; font-size: 18px; font-weight: 700; }
+.test-introduction-rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 22px; }
+.test-introduction-rules > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 14px; }
+.test-introduction-rules > li > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--color-primary) 9%, var(--app-bg-card)); color: var(--color-primary); font-size: 13px; font-weight: 700; }
+.test-introduction-rules h3 { margin: 2px 0 4px; font-size: 15px; line-height: 1.5; font-weight: 700; }
+.test-introduction-rules p { margin: 0; color: var(--app-text-muted); font-size: 14px; line-height: 1.7; }
+.test-introduction-extra { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--app-border); }
+.test-introduction-extra h2 { margin-bottom: 10px; font-size: 15px; }
+.test-introduction-extra ul { padding-left: 20px; color: var(--app-text-muted); font-size: 14px; line-height: 1.7; list-style: disc; }
+.test-introduction-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 36px; border-top: 1px solid var(--app-border); }
+.test-introduction-actions a, .test-introduction-actions button { display: inline-flex; justify-content: center; align-items: center; gap: 10px; min-height: 46px; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 650; text-decoration: none; transition: background-color 160ms ease; }
+.test-introduction-back { color: var(--app-text-muted); border: 1px solid var(--app-border); }
+.test-introduction-back:hover { background: var(--app-bg-muted); color: var(--app-text-primary); }
+.test-introduction-start { color: white; background: var(--color-primary); cursor: pointer; }
+.test-introduction-start:hover { background: var(--color-primary-dark); }
+.test-introduction-actions :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+@media (max-width: 540px) {
+  .test-introduction { padding: 20px 12px; }
+  .test-introduction-header { padding: 24px 20px; }
+  .test-introduction-header h1 { font-size: 23px; }
+  .test-introduction-stats { gap: 8px; margin-top: 20px; }
+  .test-introduction-stats > div { padding: 8px 10px; gap: 6px; font-size: 13px; }
+  .test-introduction-body { padding: 24px 20px; }
+  .test-introduction-rules > li { gap: 10px; }
+  .test-introduction-actions { padding: 18px 20px; flex-direction: column-reverse; gap: 10px; }
+  .test-introduction-actions a, .test-introduction-actions button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .test-introduction-actions a, .test-introduction-actions button { transition: none; } }

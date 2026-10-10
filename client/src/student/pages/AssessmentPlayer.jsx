@@ -2,12 +2,13 @@ import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Flag, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Flag, ListChecks, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
 import MathText from "../../shared/MathText";
 import "./learning-experience.css";
+import "./test-introduction.css";
 
 const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
@@ -207,25 +208,31 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   }
 
   if (!confirmed) return (
-    <main className="min-h-[70vh] bg-slate-50 px-4 py-8 sm:py-14">
-      <section className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
-        <p className="text-xs font-bold uppercase text-primary">Before you begin</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">{preview?.title}</h1>
-        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-slate-200 py-4 text-sm font-semibold text-slate-700">
-          <span>{preview?.questionCount} questions</span><span>{preview?.durationMinutes} minutes</span><span>{preview?.totalMarks} marks</span>
+    <main className="test-introduction">
+      <section className="test-introduction-panel" aria-labelledby="test-introduction-title">
+        <header className="test-introduction-header">
+          <p className="test-introduction-eyebrow">Before you begin</p>
+          <h1 id="test-introduction-title">{preview?.title}</h1>
+          <dl className="test-introduction-stats" aria-label="Test overview">
+            <div><ListChecks size={20} aria-hidden="true" /><dt>Questions</dt><dd>{preview?.questionCount}</dd></div>
+            <div><Clock3 size={20} aria-hidden="true" /><dt>Minutes</dt><dd>{preview?.durationMinutes}</dd></div>
+            <div><Trophy size={20} aria-hidden="true" /><dt>Marks</dt><dd>{preview?.totalMarks}</dd></div>
+          </dl>
+        </header>
+        <div className="test-introduction-body">
+          <h2>Test rules</h2>
+          <ol className="test-introduction-rules">
+            <li><span aria-hidden="true">1</span><div><h3>{preview?.resume ? "Your timer is already running" : "Start when you are ready"}</h3><p>{preview?.resume ? "Your earlier attempt is still in progress." : "The timer starts when you select Start test."} Your answers save as you go.</p></div></li>
+            <li><span aria-hidden="true">2</span><div><h3>Answer at your own pace</h3><p>You can skip questions and return to them before submitting.</p></div></li>
+            <li className="test-introduction-exit-rule"><span aria-hidden="true">3</span><div><h3>Stay on the test page</h3><p>Leaving or switching away submits your saved answers automatically.</p></div></li>
+            <li><span aria-hidden="true">4</span><div><h3>{preview?.ranked ? "Only your best attempt counts" : "Practise without ranking"}</h3><p>{preview?.ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "This is a practice test and does not affect the leaderboard."}</p></div></li>
+          </ol>
+          {preview?.instructions?.length > 0 && <aside className="test-introduction-extra"><h2>Teacher instructions</h2><ul>{preview.instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ul></aside>}
         </div>
-        <h2 className="mt-6 text-base font-bold text-slate-950">Test rules</h2>
-        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-          <li>{preview?.resume ? "Your earlier attempt is still in progress. Its timer is already running." : "The timer starts when you select Start test."} Your answers save as you go.</li>
-          <li>You can skip questions and return to them before submitting.</li>
-          <li>Leaving or switching away from the test page submits your saved answers.</li>
-          <li>{preview?.ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "This is a practice test and does not affect the leaderboard."}</li>
-        </ul>
-        {preview?.instructions?.length > 0 && <div className="mt-5 border-l-2 border-primary pl-4 text-sm leading-6 text-slate-700">{preview.instructions.map((instruction, index) => <p key={index}>{instruction}</p>)}</div>}
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-          <Link to="/tests" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 px-5 text-sm font-semibold text-slate-700"><ArrowLeft size={16} /> Back to tests</Link>
-          <button type="button" onClick={() => { setConfirmed(true); setLoading(true); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-bold text-white hover:bg-primary-dark"><Trophy size={16} /> {preview?.resume ? "Continue test" : "Start test"}</button>
-        </div>
+        <footer className="test-introduction-actions">
+          <Link to="/tests" className="test-introduction-back"><ArrowLeft size={18} aria-hidden="true" /> Back to tests</Link>
+          <button type="button" onClick={() => { setConfirmed(true); setLoading(true); }} className="test-introduction-start">{preview?.resume ? "Continue test" : "Start test"}<ArrowRight size={18} aria-hidden="true" /></button>
+        </footer>
       </section>
     </main>
   );
