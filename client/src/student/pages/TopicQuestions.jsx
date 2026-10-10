@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "../../urdu-font.css";
 import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Moon, SearchX } from "lucide-react";
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
+import { usePageLoading } from "../../shared/pageLoading";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -24,7 +25,7 @@ const typeText = {
   short_question: "short questions",
 };
 
-function QuestionList({ topic, type, onTopicName }) {
+function QuestionList({ topic, type, onTopicName, onReady }) {
   const [state, setState] = useState({ loading: true, questions: [], name: "", error: "" });
 
   useEffect(() => {
@@ -48,14 +49,15 @@ function QuestionList({ topic, type, onTopicName }) {
           });
         }
       })
+      .finally(() => { if (!controller.signal.aborted) onReady(); });
     return () => controller.abort();
-  }, [topic, type, onTopicName]);
+  }, [topic, type, onTopicName, onReady]);
 
   if (state.loading) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col items-center justify-center gap-4 py-14 text-center">
-          <BookLoader size={72} />
+          <Spinner />
         </div>
       </section>
     );
@@ -138,7 +140,10 @@ export default function TopicQuestions() {
   const [params] = useSearchParams();
   const [type, setType] = useState("long_question");
   const [topicName, setTopicName] = useState("Topic Questions");
+  const [readyTopic, setReadyTopic] = useState(null);
   const topic = params.get("topic");
+  usePageLoading(readyTopic !== topic);
+  const onQuestionsReady = useCallback(() => setReadyTopic(topic), [topic]);
 
   const back = useMemo(() => {
     const next = new URLSearchParams(params);
@@ -212,7 +217,7 @@ export default function TopicQuestions() {
           <p className="mt-1 text-sm leading-6 text-slate-500">{activeType.description}</p>
         </div>
 
-        <QuestionList key={`${topic}-${type}`} topic={topic} type={type} onTopicName={setTopicName} />
+        <QuestionList key={`${topic}-${type}`} topic={topic} type={type} onTopicName={setTopicName} onReady={onQuestionsReady} />
       </section>
     </main>
   );

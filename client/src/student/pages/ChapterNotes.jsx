@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, FileText, SearchX } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -18,6 +19,7 @@ const ChapterNotes = () => {
   const requestedType = searchParams.get("type") === "exercise" ? "exercise" : "";
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(Boolean(chapterId));
+  usePageLoading(loading);
   const [error, setError] = useState("");
   const isStudentLoggedIn = Boolean(localStorage.getItem("studentToken"));
 
@@ -61,7 +63,7 @@ const ChapterNotes = () => {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20"><BookLoader size={72} /></div>
+          <div className="flex justify-center py-20"><Spinner /></div>
         ) : error ? (
           <div className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-600">{error}</div>
         ) : notes.length === 0 ? (

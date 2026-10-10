@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { Activity, BarChart3, Clock3, LogOut, Play, Trophy, UserCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,6 +9,7 @@ import { notifyStudentAuthChanged } from "../../auth/authEvents";
 const StudentDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,7 +22,7 @@ const StudentDashboard = () => {
   }, []);
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center"><BookLoader size={72} /></div>;
+    return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
   }
 
   const cards = [

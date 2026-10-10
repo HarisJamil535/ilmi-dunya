@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Download, FileText, PlayCircle, SearchX, Video } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -80,6 +81,7 @@ const Videos = () => {
   const [chapter, setChapter] = useState(null);
   const [selectedTopicId, setSelectedTopicId] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(chapterId));
+  usePageLoading(isLoading);
   const [error, setError] = useState(null);
 
   const pageContext = useMemo(
@@ -199,7 +201,7 @@ const Videos = () => {
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-            <BookLoader size={64} />
+            <Spinner />
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-sm font-semibold text-rose-600">

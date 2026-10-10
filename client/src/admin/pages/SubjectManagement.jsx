@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import React, { useState, useEffect, useContext } from "react";
 import { BookOpen, Plus, ChevronRight } from "lucide-react";
 import axiosInstance from "../../api/axios"; 
@@ -176,7 +176,7 @@ const SubjectManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingSubjects ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <BookLoader size={72} />
+                                <Spinner />
 
                             </div>
                         ) : subjects.length === 0 ? (

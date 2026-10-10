@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, Layers, Lightbulb, ListChecks, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -65,6 +66,7 @@ const Chapters = () => {
 
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  usePageLoading(isLoading);
   const [error, setError] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
   const [answerSheet, setAnswerSheet] = useState(null);
@@ -248,7 +250,7 @@ const Chapters = () => {
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-            <BookLoader size={64} />
+            <Spinner />
 
           </div>
         ) : error ? (

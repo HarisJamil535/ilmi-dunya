@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
@@ -115,7 +115,7 @@ export default function AdminLogin() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-600 shadow-sm">
-          <BookLoader size={72} />
+          <Spinner />
 
         </div>
       </div>

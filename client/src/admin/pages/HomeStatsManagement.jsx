@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { BarChart3, Loader2, Plus, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -118,7 +118,7 @@ const HomeStatsManagement = () => {
 
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           {isLoading ? (
-            <div className="flex justify-center p-12"><BookLoader size={72} /></div>
+            <div className="flex justify-center p-12"><Spinner /></div>
           ) : (
             <div className="divide-y divide-slate-100">
               {stats.map((stat) => (

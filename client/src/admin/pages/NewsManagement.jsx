@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import PublishingFields from "../components/PublishingFields";
 import { ImagePlus, Loader2, Newspaper, Plus, Save, Upload } from "lucide-react";
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import axiosInstance from "@/api/axios";
 import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -210,7 +210,7 @@ const NewsManagement = () => {
         </nav>
         <section className="grid gap-4 md:grid-cols-2">
           {loading ? (
-            <div className="col-span-full flex justify-center p-12"><BookLoader size={72} /></div>
+            <div className="col-span-full flex justify-center p-12"><Spinner /></div>
           ) : articles.map((article) => (
             <article key={article._id} className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10">
               {article.coverImage && (

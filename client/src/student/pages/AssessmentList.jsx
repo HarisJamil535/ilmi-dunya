@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useContext, useEffect, useState } from "react";
 import { ArrowRight, BookOpen, Building2, CheckCircle2, ClipboardCheck, Clock3, GraduationCap, ListChecks, Play, SearchX, Target } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -22,6 +23,7 @@ const AssessmentList = () => {
   const [finderWarning, setFinderWarning] = useState("");
   const { boards, classes, isLoadingContext } = useContext(AppContext);
   const navigate = useNavigate();
+  usePageLoading(loading || isLoadingContext);
   const hasStudyContext = ["board", "class", "group", "subject", "chapter", "topic", "boardId", "classId", "groupId", "subjectId", "chapterId", "topicId"]
     .some((key) => Boolean(searchParams.get(key)));
 
@@ -98,7 +100,7 @@ const AssessmentList = () => {
             </div>
           </section>
         ) : loading ? (
-          <div className="flex justify-center py-20"><BookLoader size={72} /></div>
+          <div className="flex justify-center py-20"><Spinner /></div>
         ) : error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm font-bold text-rose-700">{error}</div>
         ) : assessments.length === 0 ? (

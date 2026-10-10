@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { ExternalLink, FileText, Loader2, Save } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -190,7 +190,7 @@ const NotesManagement = () => {
                             <h2 className="font-bold text-slate-900">Notes in this chapter</h2>
                         </div>
                         {loading ? (
-                            <div className="flex justify-center p-8"><BookLoader size={64} /></div>
+                            <div className="flex justify-center p-8"><Spinner /></div>
                         ) : notes.length === 0 ? (
                             <p className="p-6 text-sm text-slate-500">No notes have been added for this chapter yet.</p>
                         ) : (

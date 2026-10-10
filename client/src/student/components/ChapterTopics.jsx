@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, FileText, ListChecks } from "lucide-react";
@@ -15,7 +15,7 @@ export default function ChapterTopics({ chapter, context }) {
       .catch(() => { if (!controller.signal.aborted) setState({ loading: false, topics: [], error: "Topics could not be loaded. Close and reopen this chapter to retry." }); });
     return () => controller.abort();
   }, [chapter._id]);
-  if (state.loading) return <div className="flex justify-center p-6"><BookLoader size={56} /></div>;
+  if (state.loading) return <div className="flex justify-center p-6"><Spinner /></div>;
   if (state.error) return <p role="alert" className="p-5 text-sm text-red-600">{state.error}</p>;
   if (!state.topics.length) return <p className="p-5 text-sm text-slate-500">No topics added yet.</p>;
   return <div className="chapter-topics-wrap">

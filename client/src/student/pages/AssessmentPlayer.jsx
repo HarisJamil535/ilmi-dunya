@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Flag, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
@@ -24,6 +25,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const [remaining, setRemaining] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading);
   const [error, setError] = useState("");
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const submittingRef = useRef(false);
@@ -201,7 +203,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center"><BookLoader size={72} /></div>;
+    return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
   }
 
   if (!confirmed) return (

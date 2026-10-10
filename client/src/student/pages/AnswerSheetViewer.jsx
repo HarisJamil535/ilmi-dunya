@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Download, ExternalLink, FileCheck2, SearchX } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
@@ -9,6 +10,7 @@ export default function AnswerSheetViewer() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [state, setState] = useState({ loading: true, answerSheet: null, error: "" });
+  usePageLoading(state.loading);
   const isLoggedIn = Boolean(localStorage.getItem("studentToken"));
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function AnswerSheetViewer() {
         </div>
       </header>
 
-      {state.loading ? <div className="flex justify-center py-20"><BookLoader size={72} /></div> : state.error ? <div role="alert" className="rounded-xl bg-rose-50 p-5 text-center text-sm font-bold text-rose-700">{state.error}</div> : !answerSheet ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><SearchX className="mx-auto text-slate-400" /><h2 className="mt-3 text-lg font-black text-slate-950">Answer sheet not available</h2><p className="mt-2 text-sm text-slate-500">No pattern has been uploaded for this board and class.</p></div> : !answerSheet.pdfUrl ? <div className="rounded-2xl border border-primary/15 bg-white p-7 text-center shadow-sm"><FileCheck2 className="mx-auto text-primary" size={36} /><h2 className="mt-4 text-xl font-black text-slate-950">Sign in to view the answer sheet</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">The resource is available for your board and class. Sign in to open or download the PDF.</p><Link to="/login" state={{ from: `${location.pathname}${location.search}` }} className="mt-5 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-black text-white">Sign in to continue</Link></div> : <>
+      {state.loading ? <div className="flex justify-center py-20"><Spinner /></div> : state.error ? <div role="alert" className="rounded-xl bg-rose-50 p-5 text-center text-sm font-bold text-rose-700">{state.error}</div> : !answerSheet ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><SearchX className="mx-auto text-slate-400" /><h2 className="mt-3 text-lg font-black text-slate-950">Answer sheet not available</h2><p className="mt-2 text-sm text-slate-500">No pattern has been uploaded for this board and class.</p></div> : !answerSheet.pdfUrl ? <div className="rounded-2xl border border-primary/15 bg-white p-7 text-center shadow-sm"><FileCheck2 className="mx-auto text-primary" size={36} /><h2 className="mt-4 text-xl font-black text-slate-950">Sign in to view the answer sheet</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">The resource is available for your board and class. Sign in to open or download the PDF.</p><Link to="/login" state={{ from: `${location.pathname}${location.search}` }} className="mt-5 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-black text-white">Sign in to continue</Link></div> : <>
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5"><p className="text-sm font-semibold text-slate-600">Preview the pattern below or open the full PDF in a new tab.</p><div className="flex gap-2"><a href={answerSheet.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white"><ExternalLink size={16} />Open PDF</a>{isLoggedIn && <a href={answerSheet.pdfUrl} download className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white"><Download size={16} />Download</a>}</div></div>
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><iframe title={answerSheet.title} src={answerSheet.pdfUrl} className="h-[72vh] min-h-[520px] w-full" /></div>
       </>}

@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import "../../urdu-font.css";
 import { Award, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Target, Trophy, CircleCheckBig, CircleX, CircleDashed } from "lucide-react";
@@ -13,6 +14,7 @@ const AssessmentResult = () => {
   const { attemptId } = useParams();
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [retry, setRetry] = useState(0);
@@ -34,7 +36,7 @@ const AssessmentResult = () => {
     return () => controller.abort();
   }, [attemptId, retry]);
 
-  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><BookLoader size={72} label="Loading result" /></div>;
+  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Spinner /></div>;
   if (error || !attempt) return <main className="learning-page"><div className="learning-wrap"><p className="learning-alert" role="alert">{error || "Result unavailable."}</p><button className="learning-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></div></main>;
 
   const answers = attempt.answers || [];

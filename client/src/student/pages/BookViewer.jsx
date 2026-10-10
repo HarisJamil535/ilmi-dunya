@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { BookOpen, Download, ExternalLink, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -8,6 +9,7 @@ const BookViewer = () => {
   const [searchParams] = useSearchParams();
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading);
   const [error, setError] = useState("");
 
   const subject = searchParams.get("subject") || "Book";
@@ -72,7 +74,7 @@ const BookViewer = () => {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20"><BookLoader size={72} /></div>
+          <div className="flex justify-center py-20"><Spinner /></div>
         ) : error ? (
           <div className="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-600">{error}</div>
         ) : !book ? (

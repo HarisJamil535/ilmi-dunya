@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { AppContext } from "../../context/AppContext";
+import { usePageLoading } from "../../shared/pageLoading";
 import { ArrowRight, Check, GraduationCap, LayoutDashboard, Plus, Newspaper } from "lucide-react";
 import { Link } from "react-router-dom";
 import Features from "../components/Features";
@@ -22,6 +24,8 @@ export default function Home({ initialData }) {
   const [seed] = useState(() => initialData || initialPage());
   const [content, setContent] = useState(seed?.home || { stats: [], testimonials: [] });
   const [loading, setLoading] = useState(!seed?.home);
+  const { isLoadingContext } = useContext(AppContext);
+  usePageLoading(loading || isLoadingContext);
   const [news, setNews] = useState(seed?.news || []);
   const signedIn = useStudentSession();
 

@@ -1,3 +1,4 @@
+import { usePageLoading } from "../../shared/pageLoading";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, BookOpen, RefreshCw } from "lucide-react";
@@ -12,6 +13,7 @@ export default function PublicStudyPage({ initialData }) {
   const [state, setState] = useState(() => ({ path: seed?.requestPath, data: seed?.study, error: "" }));
   const [retry, setRetry] = useState(0);
   const data = state.path === requestPath ? state.data : null;
+  usePageLoading(!data && !(state.path === requestPath && state.error));
   useEffect(() => {
     if (data) { applyMetadata(data.meta); return; }
     const controller = new AbortController();

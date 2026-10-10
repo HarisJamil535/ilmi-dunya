@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, Newspaper, SearchX } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -15,6 +16,7 @@ export default function NewsArticle({ initialData }) {
   const [article, setArticle] = useState(seed?.article || null);
   const [loading, setLoading] = useState(!seed?.article);
   const [loadedSlug, setLoadedSlug] = useState(seed?.article?.slug);
+  usePageLoading(loading || Boolean(slug && loadedSlug !== slug));
   const [error, setError] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -61,7 +63,7 @@ export default function NewsArticle({ initialData }) {
     };
   }, [slug, seed]);
 
-  if (loading || (slug && loadedSlug !== slug)) return <main className="news-state"><BookLoader size={72} /></main>;
+  if (loading || (slug && loadedSlug !== slug)) return <main className="news-state"><Spinner /></main>;
   if (error || !article) return <main className="news-state"><SearchX size={30} />This story is unavailable.<Link to="/news">Back to news</Link></main>;
 
   return (

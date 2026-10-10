@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { FileText, Loader2, Plus } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -181,7 +181,7 @@ const PastPaperManagement = () => {
                         <h2 className="text-sm font-black uppercase tracking-wider text-slate-600">Uploaded Past Papers</h2>
                     </div>
                     {loading ? (
-                        <div className="p-10 text-center text-slate-400"><BookLoader size={72} /></div>
+                        <div className="p-10 text-center text-slate-400"><Spinner /></div>
                     ) : papers.length === 0 ? (
                         <div className="p-10 text-center text-sm font-semibold text-slate-400">No past papers uploaded for this context yet.</div>
                     ) : (

@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Award, Crown, Filter, Medal, RefreshCw, School, Timer, Trophy, UserRound, Sparkles } from "lucide-react";
 import axiosInstance from "../../api/axios";
@@ -30,6 +31,7 @@ const Leaderboard = () => {
   const [subjects, setSubjects] = useState([]);
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading || isLoadingContext);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -129,7 +131,7 @@ const Leaderboard = () => {
 
         {loading ? (
           <div className="flex justify-center rounded-3xl border border-slate-200 bg-white py-20">
-            <BookLoader size={72} />
+            <Spinner />
           </div>
         ) : leaders.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">

@@ -3,6 +3,7 @@ import StudentRoutes from "./routes/StudentRoutes";
 import AdminRoutes from "./routes/AdminRoutes";
 import { useLayoutEffect } from "react";
 import { applyMetadata, initialPage } from "./seo/pageMetadata";
+import PageLoadingProvider from "./shared/PageLoadingProvider";
 
 function AppRoutes({ initialData, initialView }) {
   const location = useLocation();
@@ -22,7 +23,7 @@ function App({ initialData, initialView, routerComponent, routerProps = {} }) {
   const Router = routerComponent || BrowserRouter;
   return (
     <Router {...routerProps}>
-      <AppRoutes initialData={initialData} initialView={initialView} />
+      <PageLoadingProvider><AppRoutes initialData={initialData} initialView={initialView} /></PageLoadingProvider>
     </Router>
   );
 }

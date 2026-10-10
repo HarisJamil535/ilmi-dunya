@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, GraduationCap, SearchX } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -33,6 +34,7 @@ const Subjects = () => {
 
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  usePageLoading(isLoading);
   const [error, setError] = useState(null);
 
   const hasRequiredContext = Boolean(board && grade);
@@ -152,7 +154,7 @@ const Subjects = () => {
               </div>
             ) : isLoading ? (
               <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-                <BookLoader size={64} />
+                <Spinner />
 
               </div>
             ) : error ? (

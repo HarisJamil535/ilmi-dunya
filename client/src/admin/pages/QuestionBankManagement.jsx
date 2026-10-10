@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
 import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, ImagePlus, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
@@ -888,7 +888,7 @@ const QuestionBankManagement = () => {
           )}
 
           {loading ? (
-            <div className="flex justify-center py-14"><BookLoader size={72} /></div>
+            <div className="flex justify-center py-14"><Spinner /></div>
           ) : questions.length ? (
             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
               <div className="overflow-x-auto">

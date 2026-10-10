@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, Plus, ChevronRight, Bookmark, ArrowLeft } from "lucide-react";
@@ -359,7 +359,7 @@ const TopicManagement = () => {
                     <div className="flex-1 flex flex-col">
                         {isLoadingTopics ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400">
-                                <BookLoader size={72} />
+                                <Spinner />
 
                             </div>
                         ) : topics.length === 0 ? (

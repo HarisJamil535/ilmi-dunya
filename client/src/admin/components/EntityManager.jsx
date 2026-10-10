@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import React, { useState, useEffect, useCallback } from "react";
 import { Layers, CheckCircle2, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -197,7 +197,7 @@ const EntityManager = ({
 
           {isLoading ? (
             <div className="p-12 text-center text-slate-400">
-              <BookLoader size={72} />
+              <Spinner />
 
             </div>
           ) : items.length === 0 ? (

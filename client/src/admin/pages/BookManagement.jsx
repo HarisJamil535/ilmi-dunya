@@ -1,4 +1,4 @@
-import BookLoader from "../../shared/BookLoader";
+import Spinner from "../../shared/Spinner";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink, Filter, Loader2, Plus, Save, SearchX, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
@@ -267,7 +267,7 @@ const BookManagement = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-14"><BookLoader size={72} /></div>
+            <div className="flex justify-center py-14"><Spinner /></div>
           ) : books.length ? (
             <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
               {books.map((book) => (

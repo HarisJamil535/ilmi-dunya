@@ -1,4 +1,5 @@
-import BookLoader from "../../shared/BookLoader";
+import { usePageLoading } from "../../shared/pageLoading";
+import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, CalendarDays, Newspaper, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -40,6 +41,7 @@ export default function News({ initialData }) {
   const page = Math.max(1, Math.min(10000, Number.parseInt(params.get("page"), 10) || 1));
   const key = `${category}:${page}`;
   const loading = loadedKey !== key;
+  usePageLoading(loading);
   const pageHref = (number) => {
     const query = new URLSearchParams();
     if (category !== "All") query.set("category", category);
@@ -95,7 +97,7 @@ export default function News({ initialData }) {
         </nav>
 
         {loading ? (
-          <div className="news-state"><BookLoader size={72} /></div>
+          <div className="news-state"><Spinner /></div>
         ) : error ? (
           <div className="news-state"><SearchX size={30} />News could not be loaded right now.<button type="button" onClick={() => { setLoadedKey(null); setRetry(value => value + 1); }}>Try again</button></div>
         ) : !articles.length ? (
