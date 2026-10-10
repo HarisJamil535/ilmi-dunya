@@ -37,15 +37,18 @@ const AppProvider = ({ children, initialData }) => {
     }, [fetchGlobalData, initialData]);
 
     useEffect(() => {
+        const controller = new AbortController();
+        setSelectedSubject("");
         const fetchSubjectsForContext = async () => {
             if (selectedBoard && selectedClass && selectedGroup) {
                 try {
                     const response = await axiosInstance.get(
-                        `/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`
+                        `/subjects?boardId=${selectedBoard}&classId=${selectedClass}&groupId=${selectedGroup}`,
+                        { signal: controller.signal }
                     );
                     setSubjects(sortByName(response.data.subjects || []));
                 } catch {
-                    setSubjects([]);
+                    if (!controller.signal.aborted) setSubjects([]);
                 }
             } else {
                 setSubjects([]);
@@ -53,6 +56,7 @@ const AppProvider = ({ children, initialData }) => {
             }
         };
         fetchSubjectsForContext();
+        return () => controller.abort();
     }, [selectedBoard, selectedClass, selectedGroup]);
 
     return (

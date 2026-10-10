@@ -1,9 +1,9 @@
 import Spinner from "../../shared/Spinner";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import { GraduationCap, Building2, Users, SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import axiosInstance from "../../api/axios"; // Adjust path to your axios instance
+import { AppContext } from "../../context/AppContext";
 
 import CustomSelect from "../../shared/CustomSelect";
 
@@ -33,38 +33,8 @@ const SideBar = ({ drawerMode = false, subjectStyle = false }) => {
     };
   }, []);
 
-  // Dynamic filter state from DB
-  const [boards, setBoards] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { boards, classes, groups, isLoadingContext: isLoading } = useContext(AppContext);
   const activeFilterCount = ["class", "board", "group"].filter((key) => searchParams.get(key)).length;
-
-  // 1. Fetch Boards, Classes, and Groups from backend database
-  useEffect(() => {
-    const fetchFilters = async () => {
-      setIsLoading(true);
-      try {
-        const [boardsRes, classesRes, groupsRes] = await Promise.all([
-          axiosInstance.get("/boards"),
-          axiosInstance.get("/classes"),
-          axiosInstance.get("/groups"),
-        ]);
-
-        setBoards(boardsRes.data.boards || boardsRes.data || []);
-        setClasses(classesRes.data.classes || classesRes.data || []);
-        setGroups(groupsRes.data.groups || groupsRes.data || []);
-      } catch {
-        setBoards([]);
-        setClasses([]);
-        setGroups([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchFilters();
-  }, []);
 
   useEffect(() => {
     if (!isMobileOpen) return undefined;

@@ -26,8 +26,10 @@
     "mongoose": "^9.7.3",
     "multer": "^2.3.0",
     "nodemailer": "^10.0.9",
-    "nodemon": "^3.1.14",
     "read-excel-file": "^9.3.10",
     "write-excel-file": "^4.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

@@ -21,7 +21,7 @@ const setMetaDescription = (content) => {
 };
 
 const normalizeLabel = (value, fallback = "") =>
-  decodeURIComponent(value || fallback).replace(/-/g, " ").trim();
+  String(value || fallback).replace(/-/g, " ").trim();
 
 const Subjects = () => {
   const [searchParams] = useSearchParams();
@@ -37,6 +37,7 @@ const Subjects = () => {
   const [isLoading, setIsLoading] = useState(false);
   usePageLoading(isLoading);
   const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
 
   const hasRequiredContext = Boolean(board && grade);
   const pageContext = useMemo(
@@ -61,6 +62,7 @@ const Subjects = () => {
   }, [hasRequiredContext, pageContext]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchSubjects = async () => {
       if (!hasRequiredContext) {
         setSubjects([]);
@@ -83,19 +85,21 @@ const Subjects = () => {
         if (classId) params.set("classId", classId);
         if (groupId) params.set("groupId", groupId);
 
-        const response = await axiosInstance.get(`/subjects?${params.toString()}`);
+        const response = await axiosInstance.get(`/subjects?${params.toString()}`, { signal: controller.signal });
         const data = response.data.subjects || response.data || [];
         setSubjects(Array.isArray(data) ? data : []);
       } catch {
+        if (controller.signal.aborted) return;
         setError("Subjects could not be loaded right now. Please try again.");
         setSubjects([]);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
     fetchSubjects();
-  }, [board, grade, group, boardId, classId, groupId, hasRequiredContext]);
+    return () => controller.abort();
+  }, [board, grade, group, boardId, classId, groupId, hasRequiredContext, retry]);
 
   const subjectHref = (subject) => {
     const subjectName = typeof subject === "string" ? subject : subject.name;
@@ -160,7 +164,8 @@ const Subjects = () => {
               </div>
             ) : error ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-600">
-                {error}
+                <p role="alert">{error}</p>
+                <button type="button" onClick={() => setRetry(value => value + 1)} className="mt-3 rounded-md border border-current px-3 py-2">Try again</button>
               </div>
             ) : subjects.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">

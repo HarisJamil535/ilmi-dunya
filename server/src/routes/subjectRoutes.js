@@ -7,6 +7,7 @@ const {
     deleteSubject,
 } = require("../controllers/subjectController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { protectDelete, validateWrite } = require('../middleware/academicIntegrity');
 const multer = require("multer");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -28,9 +29,9 @@ router.post("/upload-image", authMiddleware, upload.single("image"), async (req,
     } catch (error) { next(error); }
 });
 
-router.post("/", authMiddleware, createSubject);
+router.post("/", authMiddleware, validateWrite('Subject'), createSubject);
 router.get("/", getSubjects);
-router.put("/:id", authMiddleware, updateSubject);
-router.delete("/:id", authMiddleware, deleteSubject);
+router.put("/:id", authMiddleware, validateWrite('Subject'), updateSubject);
+router.delete("/:id", authMiddleware, protectDelete('Subject'), deleteSubject);
 
 module.exports = router;

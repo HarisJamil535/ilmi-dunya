@@ -40,7 +40,7 @@ axiosInstance.interceptors.response.use(
             localStorage.removeItem("adminUser");
         }
 
-        if ((status === 401 || status === 403 || status >= 500) && isAdminRequest && typeof window !== "undefined") {
+        if ((status === 401 || status === 403 || status === 409 || status >= 500) && isAdminRequest && typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("admin-toast", {
                 detail: { type: "error", message: error.response?.data?.message || "Something went wrong. Please try again." },
             }));

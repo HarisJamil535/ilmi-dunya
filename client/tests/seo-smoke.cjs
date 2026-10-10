@@ -123,7 +123,8 @@ for (const [name, rows] of Object.entries(fixtures)) {
     await page.getByRole('link', { name: 'My dashboard', exact: true }).waitFor();
     for (const width of [375, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const route of ['/admin/academic-structure/manage-books', '/admin/home-content/news']) {
+      for (const route of ['/admin/dashboard', '/admin/academic-structure/add-class', '/admin/academic-structure/add-board', '/admin/academic-structure/add-group', '/admin/academic-structure/manage-subject', '/admin/academic-structure/manage-chapters', '/admin/academic-structure/manage-topics', '/admin/academic-structure/manage-books', '/admin/academic-structure/manage-notes', '/admin/academic-structure/manage-past-papers', '/admin/academic-structure/manage-answer-sheets', '/admin/home-content/news', '/admin/assessments/questions', '/admin/assessments/builder', '/admin/students']) {
+        console.log(`Checking ${route} at ${width}px`);
         await page.goto(origin + route, { waitUntil: 'domcontentloaded' });
         await page.locator('h1').first().waitFor();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${route} overflows at ${width}px`);

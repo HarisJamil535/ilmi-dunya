@@ -33,6 +33,7 @@ const buildReferenceCondition = (field, value, referenceId, regexFactory = creat
     if (!value && !referenceId) return null;
 
     if (referenceId) {
+        if (!mongoose.Types.ObjectId.isValid(referenceId)) fail(`Invalid ${field} filter.`);
         return { [field]: new mongoose.Types.ObjectId(referenceId) };
     }
 

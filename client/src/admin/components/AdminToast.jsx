@@ -17,13 +17,14 @@ const AdminToast = () => {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[80] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3">
+    <div className="pointer-events-none fixed right-4 top-4 z-[300] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3">
       {toasts.map((toast) => {
         const isError = toast.type === "error";
         const Icon = isError ? XCircle : CheckCircle2;
         return (
           <div
             key={toast.id}
+            role={isError ? "alert" : "status"}
             className={`pointer-events-auto animate-in fade-in slide-in-from-top-2 rounded-2xl border bg-white p-4 shadow-2xl shadow-slate-900/12 ${isError ? "border-rose-100" : "border-emerald-100"}`}
           >
             <div className="flex items-start gap-3">

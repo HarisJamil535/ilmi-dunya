@@ -22,7 +22,7 @@ const setMetaDescription = (content) => {
 };
 
 const normalizeLabel = (value, fallback = "") =>
-  decodeURIComponent(value || fallback).replace(/-/g, " ").trim();
+  String(value || fallback).replace(/-/g, " ").trim();
 
 const buildTopicLink = ({ chapter, subject, grade, board, group, type }) => {
   const params = new URLSearchParams({
@@ -70,6 +70,7 @@ const Chapters = () => {
   const [error, setError] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
   const [answerSheet, setAnswerSheet] = useState(null);
+  const [retry, setRetry] = useState(0);
 
   const hasRequiredContext = Boolean(boardParam && classParam && (subjectParam || subjectId));
   const pageContext = useMemo(
@@ -95,6 +96,9 @@ const Chapters = () => {
   }, [hasRequiredContext, pageContext]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setAnswerSheet(null);
+    setExpandedChapter(null);
     const fetchChapters = async () => {
       if (!hasRequiredContext) {
         setChapters([]);
@@ -119,35 +123,38 @@ const Chapters = () => {
         if (classId) params.set("classId", classId);
         if (groupId) params.set("groupId", groupId);
 
-        const response = await axiosInstance.get(`/chapters?${params.toString()}`);
+        const response = await axiosInstance.get(`/chapters?${params.toString()}`, { signal: controller.signal });
         const data = response.data.chapters || response.data || [];
         const sortedChapters = Array.isArray(data)
           ? [...data].sort((a, b) => (a.chapterNumber || 1) - (b.chapterNumber || 1))
           : [];
 
         setChapters(sortedChapters);
+        setIsLoading(false);
         const resolvedBoardId = boardId || sortedChapters[0]?.board?._id;
         const resolvedClassId = classId || sortedChapters[0]?.class?._id;
         if (resolvedBoardId && resolvedClassId) {
           try {
-            const answerResponse = await axiosInstance.get(`/resources/answer-sheets?board=${resolvedBoardId}&class=${resolvedClassId}`);
+            const answerResponse = await axiosInstance.get(`/resources/answer-sheets?board=${resolvedBoardId}&class=${resolvedClassId}`, { signal: controller.signal });
             setAnswerSheet(answerResponse.data.answerSheets?.[0] || null);
           } catch {
-            setAnswerSheet(null);
+            if (!controller.signal.aborted) setAnswerSheet(null);
           }
         } else {
           setAnswerSheet(null);
         }
       } catch {
+        if (controller.signal.aborted) return;
         setError("Chapters could not be loaded right now. Please try again.");
         setChapters([]);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
     fetchChapters();
-  }, [boardParam, classParam, subjectParam, subjectId, groupParam, boardId, classId, groupId, hasRequiredContext]);
+    return () => controller.abort();
+  }, [boardParam, classParam, subjectParam, subjectId, groupParam, boardId, classId, groupId, hasRequiredContext, retry]);
 
   const toggleChapter = (chapterId) => setExpandedChapter(current => current === chapterId ? null : chapterId);
 
@@ -255,7 +262,8 @@ const Chapters = () => {
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-sm font-semibold text-rose-600">
-            {error}
+            <p role="alert">{error}</p>
+            <button type="button" onClick={() => setRetry(value => value + 1)} className="mt-3 rounded-md border border-current px-3 py-2">Try again</button>
           </div>
         ) : chapters.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">

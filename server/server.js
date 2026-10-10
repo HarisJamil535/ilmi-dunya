@@ -71,10 +71,7 @@ app.use(async (req, res, next) => {
     }
 });
 app.use('/api', requestSafety);
-app.use('/api', (req, res, next) => {
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.path !== '/home-content/visit') res.on('finish', () => { if (res.statusCode < 400) invalidatePublicPages(); });
-    next();
-});
+app.use('/api', require('./src/middleware/publicCacheInvalidation')(invalidatePublicPages));
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     maxAge: "7d",
     immutable: true,
