@@ -132,6 +132,24 @@ for (const [name, rows] of Object.entries(fixtures)) {
       }
     }
     assert.deepEqual(errors, []);
+    // Exercise the same shared surfaces in dark mode, including hover states.
+    await page.addInitScript(() => {
+      localStorage.setItem('ilmidunya-client-theme', 'dark');
+      localStorage.setItem('ilmidunya-admin-theme', 'dark');
+    });
+    for (const width of [375, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const route of ['/', '/subjects', '/chapters', '/tests', '/leaderboard', '/news', '/news/physics-guide-1', '/login', '/register', '/admin/dashboard', '/admin/academic-structure/manage-subject', '/admin/academic-structure/manage-chapters', '/admin/academic-structure/manage-topics', '/admin/academic-structure/manage-books', '/admin/academic-structure/manage-notes', '/admin/academic-structure/manage-past-papers', '/admin/academic-structure/manage-answer-sheets', '/admin/assessments/questions', '/admin/assessments/builder', '/admin/students']) {
+        console.log(`Checking dark ${route} at ${width}px`);
+        await page.goto(origin + route, { waitUntil: 'networkidle' });
+        assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark', route);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `Dark ${route} overflows at ${width}px`);
+        const action = page.locator('main button:visible, main a:visible').first();
+        if (await action.count()) await action.hover();
+        await page.screenshot({ path: path.join(artifacts, `dark-${route.replace(/\W+/g, '-') || 'home'}-${width}.png`), fullPage: true });
+      }
+    }
+    assert.deepEqual(errors, []);
     await fs.writeFile(path.join(artifacts, 'measurements.json'), JSON.stringify(results, null, 2));
     console.log(JSON.stringify({ passed: true, checks: 'SSR, canonical, 404, redirect, sitemap, noindex, responsive layouts, pagination, category return, client navigation', results }, null, 2));
   } finally {

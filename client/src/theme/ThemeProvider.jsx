@@ -1,24 +1,27 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 import { ThemeContext } from "./useTheme";
 const storageKey = (scope) => `ilmidunya-${scope}-theme`;
+const temporaryPreferences = new Map();
+const subscribe = (onChange) => {
+  window.addEventListener('storage', onChange);
+  window.addEventListener('ilmidunya-theme-change', onChange);
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener('ilmidunya-theme-change', onChange);
+  };
+};
 
 const readInitialPreference = (scope) => {
-  if (typeof window === "undefined") return "system";
-  const saved = window.localStorage.getItem(storageKey(scope));
-  return saved === "light" || saved === "dark" ? saved : "system";
+  if (typeof window === "undefined") return "light";
+  if (temporaryPreferences.has(scope)) return temporaryPreferences.get(scope);
+  try {
+    return window.localStorage.getItem(storageKey(scope)) === "dark" ? "dark" : "light";
+  } catch { return "light"; }
 };
 
 export function ThemeProvider({ scope, children }) {
-  const [preference, setPreference] = useState(() => readInitialPreference(scope));
-  const [systemDark, setSystemDark] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = (event) => setSystemDark(event.matches);
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
+  // The server snapshot keeps theme-dependent controls consistent during hydration.
+  const theme = useSyncExternalStore(subscribe, () => readInitialPreference(scope), () => "light");
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -32,8 +35,9 @@ export function ThemeProvider({ scope, children }) {
     theme,
     toggleTheme() {
       const next = theme === "dark" ? "light" : "dark";
-      window.localStorage.setItem(storageKey(scope), next);
-      setPreference(next);
+      try { window.localStorage.setItem(storageKey(scope), next); }
+      catch { temporaryPreferences.set(scope, next); }
+      window.dispatchEvent(new Event('ilmidunya-theme-change'));
     },
   }), [scope, theme]);
 

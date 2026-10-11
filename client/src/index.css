@@ -606,7 +606,7 @@ a[href],
 html.dark {
   color-scheme: dark;
   --brand-primary: #8b70ee;
-  --brand-primary-dark: #a58ff5;
+  --brand-primary-dark: #7354ce;
   --brand-primary-soft: #27223d;
   --brand-primary-muted: #4b416f;
   --brand-dark: #080a10;
@@ -774,3 +774,58 @@ html.dark .podium-rank-watermark { color: rgb(255 255 255 / 7%); }
 html.dark .podium-medal, html.dark .leaderboard-rank { background: var(--app-bg-muted); color: var(--app-text-primary); }
 html.dark .test-timer { background: #142b25; color: #8de7c3; border-color: #2b6552; }
 html.dark .test-timer.urgent { background: #321c27; color: #ffafc2; border-color: #704052; }
+
+/* Keep filled actions distinct from purple text and soft surfaces. */
+html.dark .bg-primary, html.dark .bg-primary-dark,
+html.dark .btn-primary, html.dark .test-introduction-start,
+html.dark .learning-button:not(.secondary) { background-color: #6944c6; color: #fff; }
+html.dark .bg-primary:hover, html.dark .btn-primary:hover,
+html.dark .test-introduction-start:hover { background-color: #5835b2; }
+html.dark .hover\:bg-slate-100:hover, html.dark .hover\:bg-slate-200:hover,
+html.dark .hover\:bg-gray-200:hover { background-color: #292e3e !important; }
+html.dark .hover\:bg-rose-50:hover, html.dark .hover\:bg-rose-100:hover { background-color: #422331 !important; }
+html.dark .hover\:bg-emerald-50:hover, html.dark .hover\:bg-emerald-100:hover { background-color: #1d3a30 !important; }
+html.dark .hover\:bg-violet-50:hover, html.dark .hover\:bg-purple-50:hover,
+html.dark .hover\:bg-indigo-50:hover { background-color: #322847 !important; }
+html.dark .hover\:text-slate-900:hover, html.dark .hover\:text-gray-900:hover,
+html.dark .hover\:text-slate-700:hover { color: var(--app-text-primary) !important; }
+html.dark .text-black { color: var(--app-text-primary); }
+html.dark .topic-discovery-callout h2, html.dark .chapter-topics-intro h3 { color: var(--app-text-primary); }
+html.dark .topic-discovery-callout p, html.dark .chapter-expand-label,
+html.dark .chapter-resource-kicker, html.dark .chapter-topics-intro > span,
+html.dark .topic-copy small, html.dark .learning-muted { color: var(--app-text-muted); }
+html.dark .topic-video-action { background: #321c27; border-color: #704052; color: #ffafc2; }
+html.dark .topic-video-action:hover { background: #422331; filter: none; }
+html.dark .chapter-resources a:first-child { background: #6944c6; color: #fff; }
+html.dark .chapter-resources a:first-child:hover { background: #5835b2; color: #fff; }
+html.dark .chapter-resources a:not(:first-child):hover { background: var(--brand-primary-soft); color: #d6cbff; }
+html.dark .news-categories button:hover { background: var(--brand-primary-soft); color: #d6cbff; }
+html.dark .news-categories button[aria-pressed="true"] { background: #6944c6; color: #fff; }
+html.dark :focus-visible { outline-color: #bca9ff; }
+html.dark .result-hero { background: #5433a6; }
+html.dark .result-hero .learning-button:not(.secondary) { background: #fff; color: #5433a6; }
+html.dark .result-hero .learning-button.secondary { background: rgb(255 255 255 / 12%); color: #fff; }
+html.dark .learning-alert { background: #321c27; border-color: #704052; color: #ffafc2; }
+html.dark .result-breakdown strong { color: var(--app-text-primary); }
+html.dark .result-breakdown p, html.dark .podium-details,
+html.dark .podium-metrics small, html.dark .podium-points small,
+html.dark .leaderboard-row h3 + p, html.dark .leaderboard-row-points small,
+html.dark .leaderboard-row-accuracy small { color: var(--app-text-muted); }
+html.dark .bg-red-50, html.dark .bg-red-100 { background-color: #321c27 !important; }
+html.dark .text-red-500, html.dark .text-red-600, html.dark .text-red-700 { color: #ffafc2 !important; }
+html.dark .border-red-200 { border-color: #704052 !important; }
+html.dark .hover\:bg-blue-50:hover { background-color: #17263a !important; }
+html.dark .hover\:bg-amber-100:hover { background-color: #302719 !important; }
+html.dark .hover\:bg-slate-50\/80:hover, html.dark .hover\:bg-white\/70:hover { background-color: #252936 !important; }
+html.dark .hover\:bg-primary:hover, html.dark .group:hover .group-hover\:bg-primary { background-color: #6944c6 !important; }
+html.dark .hover\:bg-red-500:hover, html.dark .hover\:bg-red-600:hover { background-color: #a62342 !important; }
+html.dark .hover\:bg-emerald-500:hover { background-color: #17654f !important; }
+html.dark .hover\:text-primary:hover, html.dark .hover\:text-primary-dark:hover { color: #c4b5fd !important; }
+html.dark .hover\:text-white:hover, html.dark .group:hover .group-hover\:text-white { color: #fff !important; }
+html.dark .home-button, html.dark .study-actions a,
+html.dark .study-page button, html.dark .not-found-primary,
+html.dark .learning-tabs button[aria-pressed="true"] { background: #6944c6; color: #fff; }
+html.dark .home-button:hover, html.dark .not-found-primary:hover { background: #5835b2; }
+html.dark .home-eyebrow, html.dark .home-hero-links a,
+html.dark .home-text-link, html.dark .chapter-context span,
+html.dark .chapter-resources a.answer-sheet-resource { color: #c4b5fd; }
