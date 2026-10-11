@@ -167,6 +167,7 @@ const NotesManagement = () => {
                     <label className="mt-4 block min-w-0">
                         <span className="mb-2 block text-xs font-bold uppercase text-slate-500">PDF link</span>
                         <input type="url" value={pdfUrl} onChange={(event) => updateDraft({ pdfUrl: event.target.value })} disabled={!selectedType || saving} placeholder="https://example.com/chapter-2-notes.pdf" className="min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:bg-slate-50" />
+<p className="mt-2 text-xs leading-5 text-slate-500">Google Drive: Share &gt; General access &gt; Anyone with the link &gt; Viewer. Allow downloads, copy the full file link and test it in a private browser window before saving. Do not use a folder link.</p>
                         <span className="mt-1.5 block text-xs text-slate-500">Use a public HTTPS link that opens the complete PDF.</span>
                     </label>
                     <label className="mt-4 block min-w-0">

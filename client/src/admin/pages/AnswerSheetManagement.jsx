@@ -128,6 +128,7 @@ export default function AnswerSheetManagement() {
             </Field>
             <Field label="PDF link" helper="Use a public HTTPS link that opens the answer-sheet PDF directly.">
               <input type="url" value={form.pdfUrl} onChange={(event) => setForm({ ...form, pdfUrl: event.target.value })} placeholder="https://example.com/answer-sheet.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
+<p className="mt-2 text-xs leading-5 text-slate-500">Google Drive: Share &gt; General access &gt; Anyone with the link &gt; Viewer. Allow downloads, copy the full file link and test it in a private browser window before saving. Do not use a folder link.</p>
             </Field>
           </div>
 

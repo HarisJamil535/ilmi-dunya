@@ -1,3 +1,5 @@
+import { pdfLinks } from "../../shared/pdfLinks";
+import PdfPreview from "../../shared/PdfPreview";
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
@@ -78,11 +80,11 @@ const PastPapers = () => {
                   <FileText className="h-6 w-6 text-slate-300" />
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <a href={paper.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
+                  <a href={pdfLinks(paper.pdfUrl).open} target="_blank" rel="noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
                     <ExternalLink className="h-4 w-4" /> View
                   </a>
                   {isStudentLoggedIn ? (
-                    <a href={paper.pdfUrl} download className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-white">
+                    <a href={pdfLinks(paper.pdfUrl).download} download className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-white">
                       <Download className="h-4 w-4" /> Download
                     </a>
                   ) : (
@@ -91,6 +93,7 @@ const PastPapers = () => {
                     </Link>
                   )}
                 </div>
+                <PdfPreview url={paper.pdfUrl} title={paper.title} />
               </article>
             ))}
           </div>

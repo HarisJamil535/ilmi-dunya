@@ -1,3 +1,5 @@
+import { pdfLinks } from "../../shared/pdfLinks";
+import PdfPreview from "../../shared/PdfPreview";
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
@@ -81,11 +83,11 @@ const ChapterNotes = () => {
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                   {note ? (
                     <>
-                      {note.pdfUrl && <a href={note.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
+                      {note.pdfUrl && <a href={pdfLinks(note.pdfUrl).open} target="_blank" rel="noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
                         <ExternalLink className="h-4 w-4" /> View
                       </a>}
                       {isStudentLoggedIn && note.pdfUrl ? (
-                        <a href={note.pdfUrl} download className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-white">
+                        <a href={pdfLinks(note.pdfUrl).download} download className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-white">
                           <Download className="h-4 w-4" /> Download
                         </a>
                       ) : (
@@ -98,6 +100,7 @@ const ChapterNotes = () => {
                     <button disabled className="w-full rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">Coming Soon</button>
                   )}
                 </div>
+                <PdfPreview url={note?.pdfUrl} title={note?.title || label} />
               </article>
             ))}
           </div>

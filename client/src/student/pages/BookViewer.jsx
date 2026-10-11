@@ -1,5 +1,6 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
+import { pdfLinks } from "../../shared/pdfLinks";
 import { useEffect, useState } from "react";
 import { BookOpen, Download, ExternalLink, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -56,11 +57,11 @@ const BookViewer = () => {
             </div>
             {book?.pdfUrl && (
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">
+                <a href={pdfLinks(book.pdfUrl).open} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">
                   <ExternalLink className="h-4 w-4" /> Open
                 </a>
                 {isStudentLoggedIn ? (
-                  <a href={book.pdfUrl} download className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">
+                  <a href={pdfLinks(book.pdfUrl).download} download className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">
                     <Download className="h-4 w-4" /> Download
                   </a>
                 ) : (
@@ -88,7 +89,7 @@ const BookViewer = () => {
           <div className="rounded-xl border border-slate-200 bg-white p-6"><p>Sign in to view and download this book.</p><Link to="/login" state={{ from: `/book?${searchParams}` }} className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-white">Sign in to continue</Link></div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <iframe title={book.title} src={book.pdfUrl} className="h-[70vh] min-h-[460px] w-full" />
+            <iframe title={book.title} src={pdfLinks(book.pdfUrl).preview} className="h-[70dvh] min-h-[320px] w-full" />
           </div>
         )}
       </section>

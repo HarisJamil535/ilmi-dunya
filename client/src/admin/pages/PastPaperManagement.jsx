@@ -150,6 +150,7 @@ const PastPaperManagement = () => {
                         </Field>
                         <Field label="PDF Link" helper="Paste the direct PDF URL students can open.">
                             <input value={form.pdfUrl} onChange={(e) => setForm({ ...form, pdfUrl: e.target.value })} placeholder="https://example.com/paper.pdf" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+<p className="mt-2 text-xs leading-5 text-slate-500">Google Drive: Share &gt; General access &gt; Anyone with the link &gt; Viewer. Allow downloads, copy the full file link and test it in a private browser window before saving. Do not use a folder link.</p>
                         </Field>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">

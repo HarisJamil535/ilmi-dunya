@@ -217,6 +217,7 @@ const BookManagement = () => {
             </Field>
             <Field label="PDF Link" helper="Paste a public PDF URL students can view and download.">
               <input type="url" value={form.pdfUrl} onChange={(event) => setForm({ ...form, pdfUrl: event.target.value })} placeholder="https://example.com/book.pdf" className="w-full min-w-0 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft" />
+<p className="mt-2 text-xs leading-5 text-slate-500">Google Drive: Share &gt; General access &gt; Anyone with the link &gt; Viewer. Allow downloads, copy the full file link and test it in a private browser window before saving. Do not use a folder link.</p>
             </Field>
           </div>
           <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
