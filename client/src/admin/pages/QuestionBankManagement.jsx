@@ -569,7 +569,7 @@ const QuestionBankManagement = () => {
   const togglePageSelection = () => setSelectedQuestionIds((current) => allPageSelected ? current.filter((id) => !pageQuestionIds.includes(id)) : [...new Set([...current, ...pageQuestionIds])]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div className="min-h-full bg-bg-main text-slate-800">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-6 text-white sm:p-7">
           <div>

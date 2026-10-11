@@ -80,6 +80,9 @@ const AdminSidebar = () => {
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={mobileOpen}
+          aria-controls="admin-navigation"
           className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-md text-slate-600 focus:outline-none"
         >
           {mobileOpen ? <HiX className="w-6 h-6" /> : <HiOutlineMenuAlt2 className="w-6 h-6" />}
@@ -96,12 +99,14 @@ const AdminSidebar = () => {
 
       {/* ================= 3. SIDEBAR CONTAINER ================= */}
       <aside
+        id="admin-navigation"
+        aria-label="Admin navigation"
         className={`
-          fixed inset-y-0 left-0 z-40 md:sticky md:top-0
+          fixed inset-y-0 left-0 z-40 md:relative
           w-72 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0 ${collapsed ? "md:w-20" : "md:w-72"}
-          h-screen bg-white border-r border-slate-200 flex flex-col select-none shrink-0
-          transition-all duration-300 ease-in-out
+          h-dvh min-h-0 max-w-[calc(100vw-1rem)] bg-white border-r border-slate-200 flex flex-col select-none shrink-0
+          transition-[transform,width] duration-300 ease-in-out motion-reduce:transition-none
         `}
       >
         {/* ================= Brand ================= */}
@@ -137,7 +142,7 @@ const AdminSidebar = () => {
         </div>
 
         {/* ================= Navigation ================= */}
-        <nav className="flex-1 overflow-y-auto px-4 pb-4 space-y-1.5 custom-scrollbar">
+        <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 space-y-1.5 custom-scrollbar">
           
           {/* OPTION 1: HOME / DASHBOARD */}
           <Link
@@ -290,7 +295,7 @@ const AdminSidebar = () => {
         </nav>
 
         {/* ================= Footer ================= */}
-        <div className={`p-5 border-t border-slate-100 shrink-0 ${collapsed ? "md:hidden" : "block"}`}>
+        <div className={`max-h-[40dvh] overflow-y-auto overscroll-contain p-5 border-t border-slate-100 shrink-0 ${collapsed ? "md:hidden" : "block"}`}>
           <div className="rounded-2xl border border-slate-200 p-4">
             <div className="flex items-center">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-bold">

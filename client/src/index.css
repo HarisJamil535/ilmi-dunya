@@ -40,12 +40,12 @@
   --brand-dark: #0f172a;
   --brand-panel: #1a1a2e;
 
-  --app-bg-main: #faf8f5;
+  --app-bg-main: #f8f6fe;
   --app-bg-card: #ffffff;
-  --app-bg-muted: #f3f0eb;
+  --app-bg-muted: #f2effc;
   --app-text-primary: #1a1a2e;
   --app-text-muted: #64748b;
-  --app-border: #e5e0d8;
+  --app-border: #e5dff3;
 
   --semantic-success: #10b981;
   --semantic-error: #ef4444;
@@ -73,6 +73,14 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+}
+
+/* Admin panels own their scrolling; wheel/touch gestures must not move the shell. */
+html[data-admin-workspace="true"],
+html[data-admin-workspace="true"] body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .urdu-content {
