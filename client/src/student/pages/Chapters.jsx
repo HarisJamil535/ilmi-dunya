@@ -357,7 +357,7 @@ const Chapters = () => {
                       </Link>
                     </div>
                   </div>
-                  {expandedChapter === chapter._id && <div id={`chapter-${chapter._id}`} className="mt-4 border-t border-slate-200">
+                  {expandedChapter === chapter._id && <div id={`chapter-${chapter._id}`} className="chapter-topics-content">
                     <ChapterTopics chapter={chapter} context={searchParams} />
                   </div>}
                 </article>

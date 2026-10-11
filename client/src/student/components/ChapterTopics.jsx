@@ -19,7 +19,7 @@ export default function ChapterTopics({ chapter, context }) {
   if (state.error) return <p role="alert" className="p-5 text-sm text-red-600">{state.error}</p>;
   if (!state.topics.length) return <p className="p-5 text-sm text-slate-500">No topics added yet.</p>;
   return <div className="chapter-topics-wrap">
-    <div className="chapter-topics-intro"><div><p>Chapter topics</p><h3>Choose what you want to study</h3></div><span>{state.topics.length} {state.topics.length === 1 ? "topic" : "topics"}</span></div>
+    <div className="chapter-topics-intro"><h3>Chapter topics</h3><span>{state.topics.length} {state.topics.length === 1 ? "topic" : "topics"}</span></div>
     <ol className="chapter-topics-list">{state.topics.map(topic => {
     const params = new URLSearchParams(context);
     params.set("chapterId", chapter._id);
