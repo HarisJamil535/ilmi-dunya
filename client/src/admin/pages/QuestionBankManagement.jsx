@@ -2,7 +2,7 @@ import Spinner from "../../shared/Spinner";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
 import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, ImagePlus, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -100,6 +100,7 @@ const normalizeQuestionForForm = (question) => {
 };
 
 const QuestionBankManagement = () => {
+  const [searchParams] = useSearchParams();
   const { boards, classes, groups, isLoadingContext } = useContext(AppContext);
   const [form, setForm] = useState(defaultForm);
   const [subjects, setSubjects] = useState([]);
@@ -115,7 +116,9 @@ const QuestionBankManagement = () => {
   const [importKind, setImportKind] = useState("standard_mcq");
   const [importContext, setImportContext] = useState(null);
   const [importBusy, setImportBusy] = useState(false);
-  const [listFilter, setListFilter] = useState({ status: "", contentType: "", board: "", class: "", group: "", subject: "", chapter: "", topic: "", search: "" });
+  const [listFilter, setListFilter] = useState(() => Object.fromEntries(
+    ["status", "contentType", "board", "class", "group", "subject", "chapter", "topic", "search", "publishedOnly"].map((key) => [key, searchParams.get(key) || ""])
+  ));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -146,6 +149,7 @@ const QuestionBankManagement = () => {
       if (listFilter.subject) params.set("subject", listFilter.subject);
       if (listFilter.chapter) params.set("chapter", listFilter.chapter);
       if (listFilter.topic) params.set("topic", listFilter.topic);
+      if (listFilter.publishedOnly) params.set("publishedOnly", listFilter.publishedOnly);
       if (listFilter.search.trim()) params.set("search", listFilter.search.trim());
       const response = await axiosInstance.get(`/questions?${params.toString()}`);
       setQuestions(response.data.questions || []);
@@ -787,18 +791,19 @@ const QuestionBankManagement = () => {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Question list">
+          <div className="mt-5 flex flex-wrap gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Question list">
             {[
               { value: "", label: "All questions" },
               { value: "draft", label: "Drafts to review" },
+              { value: "live", label: "In published tests" },
             ].map((stage) => (
               <button
                 key={stage.value || "all"}
                 type="button"
                 role="tab"
-                aria-selected={listFilter.status === stage.value}
-                onClick={() => updateListFilter({ status: stage.value, contentType: stage.value ? "mcq" : "" })}
-                className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${listFilter.status === stage.value ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                aria-selected={(listFilter.publishedOnly === "true" ? "live" : listFilter.status) === stage.value}
+                onClick={() => updateListFilter({ status: stage.value === "draft" ? "draft" : "", publishedOnly: stage.value === "live" ? "true" : "", contentType: stage.value ? "mcq" : "" })}
+                className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${(listFilter.publishedOnly === "true" ? "live" : listFilter.status) === stage.value ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
               >
                 {stage.label}
               </button>

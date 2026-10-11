@@ -7,6 +7,7 @@ import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton } from "../components/AdminUI";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import MathText from "../../shared/MathText";
+import { Link } from "react-router-dom";
 
 const Field = ({ label, helper, children }) => (
   <label className="block">
@@ -20,7 +21,6 @@ const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCom
 const sortByTitle = (items) => [...items].sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortTopics = (items) => [...items].sort((a, b) => String(a.topicNumber || "").localeCompare(String(b.topicNumber || ""), undefined, { numeric: true, sensitivity: "base" }) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
-const sortQuestions = (items) => [...items].sort((a, b) => (a.questionText || "").localeCompare(b.questionText || "", undefined, { numeric: true, sensitivity: "base" }));
 
 const AssessmentBuilder = () => {
   const { boards, classes, groups, isLoadingContext } = useContext(AppContext);
@@ -43,6 +43,10 @@ const AssessmentBuilder = () => {
   const [chapters, setChapters] = useState([]);
   const [topics, setTopics] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [questionCache, setQuestionCache] = useState({});
+  const [questionPage, setQuestionPage] = useState(1);
+  const [questionPages, setQuestionPages] = useState(1);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [selected, setSelected] = useState([]);
   const [questionFilters, setQuestionFilters] = useState({ search: "", difficulty: "", type: "" });
   const [assessmentToArchive, setAssessmentToArchive] = useState(null);
@@ -104,10 +108,16 @@ const AssessmentBuilder = () => {
   }, [form.chapter]);
 
   useEffect(() => {
+    setQuestionPage(1);
+  }, [board, classId, group, subject, chapter, topic, form.type, questionFilters]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     const loadQuestions = async () => {
       const needsChapter = ["chapter_test", "topic_test"].includes(form.type);
       if (!board || !classId || !group || !subject || (needsChapter && !chapter) || (form.type === "topic_test" && !topic)) {
         setQuestions([]);
+        setLoadingQuestions(false);
         return;
       }
       const params = new URLSearchParams();
@@ -121,15 +131,24 @@ const AssessmentBuilder = () => {
       if (questionFilters.difficulty) params.set("difficulty", questionFilters.difficulty);
       if (questionFilters.type) params.set("type", questionFilters.type);
       params.set("status", "published");
-      const response = await axiosInstance.get(`/questions?mcqOnly=true&limit=100&${params.toString()}`);
-      setQuestions(sortQuestions(response.data.questions || []));
+      setLoadingQuestions(true);
+      setQuestions([]);
+      const response = await axiosInstance.get(`/questions?mcqOnly=true&limit=25&page=${questionPage}&${params.toString()}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      const items = response.data.questions || [];
+      setQuestions(items);
+      setQuestionCache((current) => ({ ...current, ...Object.fromEntries(items.map((item) => [item._id, item])) }));
+      setQuestionPages(Math.max(1, response.data.pagination?.pages || 1));
     };
-    loadQuestions().catch(() => setError("Some test builder data could not be loaded. Please refresh and try again."));
-  }, [board, classId, group, subject, chapter, topic, form.type, questionFilters]);
+    loadQuestions().catch(() => {
+      if (!controller.signal.aborted) setError("Questions could not be loaded. Please try again.");
+    }).finally(() => { if (!controller.signal.aborted) setLoadingQuestions(false); });
+    return () => controller.abort();
+  }, [board, classId, group, subject, chapter, topic, form.type, questionFilters, questionPage]);
 
   const totalMarks = useMemo(
-    () => selected.reduce((sum, id) => sum + (questions.find((question) => question._id === id)?.marks || 1), 0),
-    [selected, questions]
+    () => selected.reduce((sum, id) => sum + (questionCache[id]?.marks || 1), 0),
+    [selected, questionCache]
   );
 
   const submit = async (event) => {
@@ -139,7 +158,7 @@ const AssessmentBuilder = () => {
     try {
       const payload = {
         ...form,
-        status: editingId ? "draft" : form.status,
+        status: form.status,
         questions: selected.map((id, index) => ({ question: id, order: index + 1 })),
         passingMarks: Math.ceil(totalMarks * 0.4),
       };
@@ -194,7 +213,7 @@ const AssessmentBuilder = () => {
     }
   };
 
-  const editDraft = async (assessment) => {
+  const editTest = async (assessment) => {
     setError("");
     try {
       const response = await axiosInstance.get(`/assessments/${assessment._id}`);
@@ -211,13 +230,17 @@ const AssessmentBuilder = () => {
         chapter: String(draft.chapter?._id || draft.chapter || ""),
         topic: String(draft.topic?._id || draft.topic || ""),
         durationMinutes: draft.durationMinutes || 30,
-        status: "draft",
+        status: draft.status,
+        allowResume: draft.allowResume,
+        showCorrectAnswers: draft.showCorrectAnswers,
       }));
+      setQuestionFilters({ search: "", difficulty: "", type: "" });
+      setQuestionCache((current) => ({ ...current, ...Object.fromEntries((draft.questions || []).filter((item) => item.question?._id).map((item) => [String(item.question._id), { ...item.question, marks: item.marks }])) }));
       setSelected((draft.questions || []).map((item) => String(item.question?._id || item.question)));
       setEditingId(draft._id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.getElementById("test-builder-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to load this draft for editing.");
+      setError(err.response?.data?.message || "Unable to load this test for editing.");
     }
   };
 
@@ -236,7 +259,7 @@ const AssessmentBuilder = () => {
           <p className="mt-1 text-sm text-primary-muted">Choose a syllabus topic, assemble reusable questions, then publish the test for students.</p>
         </header>
 
-        <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <form id="test-builder-form" onSubmit={submit} className="grid scroll-mt-24 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Test Title" helper="This title is visible to students. Example: Chapter 1 Quick MCQ Test.">
@@ -259,6 +282,7 @@ const AssessmentBuilder = () => {
               <CustomSelect label="Chapter" value={form.chapter} onChange={(value) => updateStudyContext("chapter", value)} options={chapters} placeholder="Chapter" />
               <CustomSelect label="Topic" value={form.topic} onChange={(value) => updateStudyContext("topic", value)} options={topics} placeholder="Topic" />
             </div>
+            {topic && <Link to={`/admin/assessments/questions?${new URLSearchParams({ board, class: classId, group, subject, chapter, topic, publishedOnly: "true", contentType: "mcq" })}`} className="mt-4 inline-block text-sm font-bold text-primary underline underline-offset-4">Manage this topic's published MCQs</Link>}
 
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <div className="mt-6">
@@ -283,6 +307,7 @@ const AssessmentBuilder = () => {
                 </div>
               </div>
               <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                {loadingQuestions && <p role="status" className="text-sm text-slate-500">Loading questions...</p>}
                 {!questions.length && <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Select board, class, group, subject and chapter to find matching MCQs.</p>}
                 {questions.map((question) => (
                   <button key={question._id} type="button" onClick={() => toggleQuestion(question._id)} className={`w-full rounded-2xl border p-4 text-left transition ${selected.includes(question._id) ? "border-primary-muted bg-primary-soft" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
@@ -292,6 +317,11 @@ const AssessmentBuilder = () => {
                   </button>
                 ))}
               </div>
+              {questionPages > 1 && <nav aria-label="Question pages" className="mt-3 flex items-center justify-between gap-2 text-sm">
+                <button type="button" disabled={loadingQuestions || questionPage <= 1} onClick={() => setQuestionPage((page) => page - 1)} className="rounded-lg border px-3 py-2 disabled:opacity-50">Previous</button>
+                <span>Page {questionPage} of {questionPages}</span>
+                <button type="button" disabled={loadingQuestions || questionPage >= questionPages} onClick={() => setQuestionPage((page) => page + 1)} className="rounded-lg border px-3 py-2 disabled:opacity-50">Next</button>
+              </nav>}
             </div>
           </section>
 
@@ -313,7 +343,7 @@ const AssessmentBuilder = () => {
             </div>
             <button disabled={saving || selected.length === 0 || !form.title.trim() || !board || !classId || !group || !subject || (["chapter_test", "topic_test"].includes(form.type) && !chapter) || (form.type === "topic_test" && !topic)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white disabled:opacity-50">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {editingId ? "Update Draft" : `Save Test ${form.status === "published" ? "& Publish" : "as Draft"}`}
+              {editingId ? (form.status === "published" ? "Save & republish" : "Save draft") : `Save Test ${form.status === "published" ? "& Publish" : "as Draft"}`}
             </button>
             {editingId && <button type="button" onClick={cancelEdit} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600">Cancel editing</button>}
           </aside>
@@ -321,7 +351,7 @@ const AssessmentBuilder = () => {
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-black text-slate-950">Your Tests</h2>
-          <p className="mt-1 text-sm text-slate-500">Draft tests are private. Published tests are available to students in their matching topic or chapter.</p>
+          <p className="mt-1 text-sm text-slate-500">Drafts are private. Publishing another test for the same topic adds its MCQs to the topic test; it does not replace earlier questions.</p>
           <div className="mt-4 divide-y divide-slate-100">
             {!assessments.length && <p className="py-6 text-sm text-slate-500">No tests created yet. Build one above from the question bank.</p>}
             {assessments.map((assessment) => (
@@ -331,7 +361,8 @@ const AssessmentBuilder = () => {
                   <p className="text-xs font-bold uppercase text-slate-400">{assessment.type.replaceAll("_", " ")} · {assessment.status} · {assessment.questionCount || assessment.questions?.length || 0} questions</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {assessment.status === "draft" && <><button type="button" onClick={() => editDraft(assessment)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700">Edit</button><button type="button" onClick={() => publishAssessment(assessment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"><Check size={15} />Publish test</button></>}
+                  <button type="button" onClick={() => editTest(assessment)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700">Edit</button>
+                  {assessment.status === "draft" && <button type="button" onClick={() => publishAssessment(assessment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"><Check size={15} />Publish test</button>}
                   <DeleteButton onClick={() => setAssessmentToArchive(assessment)} title="Archive test" aria-label={`Archive ${assessment.title}`} />
                 </div>
               </div>
