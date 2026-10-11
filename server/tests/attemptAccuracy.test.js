@@ -36,6 +36,7 @@ test("equal points, coverage, accuracy, and time share rank; subsequent ranks sk
     t.mock.method(AssessmentAttempt, "aggregate", async (pipeline) => {
         aggregations += 1;
         assert.equal(pipeline[0].$match["answers.0"].$exists, true);
+        assert.deepEqual(pipeline[0].$match.isPartialPractice, { $ne: true });
         assert.deepEqual(pipeline[3].$match["assessment.type"], { $ne: "custom_practice" });
         assert.equal(pipeline.find((stage) => stage.$group?._id?.chapter)?.$group._id.chapter, "$assessment.chapter");
         assert.equal(pipeline.find((stage) => stage.$group?._id?.topic)?.$group._id.topic, "$assessment.topic");

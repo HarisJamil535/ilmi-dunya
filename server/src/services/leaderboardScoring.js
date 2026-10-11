@@ -4,6 +4,7 @@ const pointsForAttempt = (score, totalMarks) => {
 };
 
 const rankEligibility = (assessment, attempt) => {
+    if (attempt?.isPartialPractice) return { eligible: false, reason: "Shorter practice sets do not award leaderboard points. Complete all questions to compete." };
     if (!assessment || assessment.type === "custom_practice") return { eligible: false, reason: "Custom practice tests do not award leaderboard points." };
     if (!attempt?.answers?.length) return { eligible: false, reason: "This test has no questions to score." };
     if (!attempt || !["submitted", "timed_out"].includes(attempt.status)) return { eligible: false, reason: "Finish the test to earn leaderboard points." };

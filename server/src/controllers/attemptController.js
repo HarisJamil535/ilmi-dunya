@@ -6,6 +6,7 @@ const { gradeAttempt } = require("../services/assessmentScoring");
 const { pointsForAttempt, rankEligibility } = require("../services/leaderboardScoring");
 const LeaderboardState = require("../models/LeaderboardState");
 const mongoose = require("mongoose");
+const { supportsSelection, resolveQuestionCount, selectQuestions } = require("../services/attemptSelection");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
 
@@ -26,15 +27,17 @@ const previewAttempt = async (req, res) => {
         student: req.student._id,
         status: "in_progress",
         expiresAt: { $gt: new Date() },
-    }).select("_id").lean();
+    }).select("_id answers totalMarks startedAt expiresAt isPartialPractice").lean();
     res.json({ success: true, test: {
         title: assessment.title,
         type: assessment.type,
-        questionCount: assessment.questions.length,
-        durationMinutes: assessment.durationMinutes,
-        totalMarks: assessment.totalMarks,
+        questionCount: existing ? existing.answers.length : assessment.questions.length,
+        availableQuestions: assessment.questions.length,
+        canChooseCount: supportsSelection(assessment) && !existing,
+        durationMinutes: existing ? Math.ceil((new Date(existing.expiresAt) - new Date(existing.startedAt)) / 60000) : supportsSelection(assessment) ? assessment.questions.length : assessment.durationMinutes,
+        totalMarks: existing ? existing.totalMarks : assessment.totalMarks,
         instructions: assessment.instructions,
-        ranked: assessment.type !== "custom_practice",
+        ranked: assessment.type !== "custom_practice" && !existing?.isPartialPractice,
         resume: Boolean(existing),
     } });
 };
@@ -66,12 +69,24 @@ const startAttempt = async (req, res) => {
         }
     }
 
+    let count = assessment.questions.length;
+    try {
+        if (supportsSelection(assessment)) count = resolveQuestionCount(req.body.questionCount, count);
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+    if (!count) return res.status(400).json({ success: false, message: "This test has no available questions." });
+    const isPartialPractice = count < assessment.questions.length;
+    const previous = isPartialPractice ? await AssessmentAttempt.findOne({ student: req.student._id, assessment: assessment._id }).sort({ createdAt: -1, _id: -1 }).select("answers.question").lean() : null;
+    const selected = selectQuestions(assessment.questions, count, previous?.answers.map(item => item.question) || []);
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + assessment.durationMinutes * 60 * 1000);
-    const questionDocs = await Question.find({ _id: { $in: assessment.questions.map(item => item.question) } }).select("_id type scenario correctOption marks").lean();
+    const durationMinutes = supportsSelection(assessment) ? count : assessment.durationMinutes;
+    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    const questionDocs = await Question.find({ _id: { $in: selected.map(item => item.question) }, status: { $ne: "archived" } }).select("_id type scenario correctOption marks").lean();
     const keys = new Map(questionDocs.map((question) => [String(question._id), question]));
-    if (assessment.questions.some((item) => !keys.has(String(item.question)))) return res.status(400).json({ message: "This test has unavailable questions. Please contact support." });
-    const orderedQuestions = require("../services/scenarioOrder").groupScenarioQuestions(assessment.questions, questionDocs);
+    if (selected.some((item) => !keys.has(String(item.question)))) return res.status(400).json({ message: "This test has unavailable questions. Please contact support." });
+    const orderedQuestions = require("../services/scenarioOrder").groupScenarioQuestions(selected, questionDocs);
+    const totalMarks = orderedQuestions.reduce((sum, item) => sum + Number(item.marks ?? keys.get(String(item.question)).marks ?? 1), 0);
     const answers = orderedQuestions.map((item) => ({
         question: item.question,
         marksAwarded: 0,
@@ -83,10 +98,11 @@ const startAttempt = async (req, res) => {
         student: req.student._id,
         assessment: assessment._id,
         answers,
-        totalMarks: assessment.totalMarks,
+        totalMarks,
+        isPartialPractice,
         startedAt: now,
         expiresAt,
-        passingMarksSnapshot: assessment.passingMarks,
+        passingMarksSnapshot: isPartialPractice ? Math.ceil(totalMarks * (assessment.totalMarks > 0 ? assessment.passingMarks / assessment.totalMarks : 0.4)) : assessment.passingMarks,
         gradingSnapshot: orderedQuestions.map((item) => ({ question: item.question, correctOption: keys.get(String(item.question)).correctOption, marks: item.marks ?? keys.get(String(item.question)).marks ?? 1 })),
     });
 

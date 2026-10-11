@@ -37,7 +37,7 @@ const getLeaderboard = async (req, res) => {
     const cacheKey = JSON.stringify([limit, ...["board", "class", "group", "subject"].map(key => req.query[key] || "")]);
     const result = await cachedLeaders(cacheKey, async () => {
     const state = await LeaderboardState.findOne({ key: "global" }).lean();
-    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, "answers.0": { $exists: true } };
+    const attemptMatch = { status: { $in: ["submitted", "timed_out"] }, isPartialPractice: { $ne: true }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, "answers.0": { $exists: true } };
     if (state?.resetAt) attemptMatch.submittedAt.$gte = state.resetAt;
 
     const leaders = await AssessmentAttempt.aggregate([

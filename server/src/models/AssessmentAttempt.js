@@ -29,6 +29,7 @@ const assessmentAttemptSchema = new mongoose.Schema(
         percentage: { type: Number, default: 0 },
         passStatus: { type: String, enum: ["pending", "pass", "fail"], default: "pending" },
         autoSubmitted: { type: Boolean, default: false },
+        isPartialPractice: { type: Boolean, default: false },
         passingMarksSnapshot: Number,
         gradingSnapshot: {
             type: [{ question: mongoose.Schema.Types.ObjectId, correctOption: String, marks: Number, _id: false }],

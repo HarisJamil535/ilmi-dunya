@@ -22,6 +22,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const [attempt, setAttempt] = useState(null);
   const [preview, setPreview] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [countMode, setCountMode] = useState("all");
+  const [customCount, setCustomCount] = useState("5");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -32,6 +34,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const submittingRef = useRef(false);
   const attemptRef = useRef(null);
   const exitSubmittedRef = useRef(false);
+  const exitRequestedRef = useRef(false);
   const startRequest = useRef(null);
   const pendingSave = useRef(null);
   const serverOffset = useRef(0);
@@ -46,6 +49,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const submitWhenLeaving = useCallback(() => {
     const activeAttempt = attemptRef.current;
     if (!activeAttempt || activeAttempt.status !== "in_progress" || submittingRef.current) return;
+    exitRequestedRef.current = true;
     submittingRef.current = true;
     const token = localStorage.getItem("studentToken");
     const apiBase = import.meta.env.VITE_API_URL || "/api";
@@ -57,6 +61,15 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       },
       body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page" }),
       keepalive: true,
+    }).then(async (response) => {
+      if (response.status === 409) {
+        await pendingSave.current;
+        return fetch(`${apiBase}/attempts/${activeAttempt._id}/submit`, {
+          method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page" }), keepalive: true,
+        });
+      }
+      return response;
     }).then((response) => {
       if (!response.ok) throw new Error("Automatic submission failed");
       exitSubmittedRef.current = true;
@@ -113,7 +126,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     const controller = new AbortController();
     const params = new URLSearchParams(chapter || topic ? { ...(chapter ? { chapter } : {}), ...(topic ? { topic } : {}) } : { assessmentId: id });
     axiosInstance.get(`/attempts/preview?${params}`, { signal: controller.signal })
-      .then(({ data }) => { setPreview(data.test); setLoading(false); })
+      .then(({ data }) => { setPreview(data.test); setCustomCount(String(Math.min(25, data.test.availableQuestions || data.test.questionCount))); setLoading(false); })
       .catch((err) => { if (!controller.signal.aborted) { setError(err.response?.data?.message || "Unable to load test details. Please try again."); setLoading(false); } });
     return () => controller.abort();
   }, [id, chapter, topic]);
@@ -122,11 +135,16 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     if (!confirmed) return;
     const start = async () => {
       setLoading(true);
-      if (!startRequest.current) startRequest.current = axiosInstance.post("/attempts/start", chapter || topic ? { chapter, topic } : { assessmentId: id });
+      if (!startRequest.current) startRequest.current = axiosInstance.post("/attempts/start", {
+        ...(chapter || topic ? { chapter, topic } : { assessmentId: id }),
+        questionCount: countMode === "all" ? "all" : Number(customCount),
+      });
       const response = await startRequest.current;
       const nextAttempt = response.data.attempt;
       serverOffset.current = response.data.serverNow ? new Date(response.data.serverNow).getTime() - Date.now() : 0;
       setAttempt(nextAttempt);
+      attemptRef.current = nextAttempt;
+      if (document.visibilityState === "hidden") submitWhenLeaving();
       setRemaining(Math.max(Math.ceil((new Date(nextAttempt.expiresAt).getTime() - Date.now() - serverOffset.current) / 1000), 0));
       setLoading(false);
     };
@@ -134,7 +152,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       setError(err.response?.data?.message || "Unable to start the test. Please try again.");
       setLoading(false);
     });
-  }, [id, chapter, topic, confirmed]);
+  }, [id, chapter, topic, confirmed, countMode, customCount, submitWhenLeaving]);
 
   useEffect(() => {
     const onPageHide = () => submitWhenLeaving();
@@ -142,6 +160,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       if (document.visibilityState === "hidden") submitWhenLeaving();
       if (document.visibilityState === "visible" && exitSubmittedRef.current) {
         navigate(`/tests/result/${attemptRef.current?._id}`, { replace: true });
+      } else if (document.visibilityState === "visible" && exitRequestedRef.current) {
+        submitWhenLeaving();
       }
     };
     const onPopState = () => submitWhenLeaving();
@@ -158,6 +178,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("click", onLinkClick, true);
+      // Router navigation can unmount this page before its popstate listener runs.
+      submitWhenLeaving();
     };
   }, [navigate, submitWhenLeaving]);
 
@@ -200,6 +222,10 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const scenarioIndices = scenario ? answers.flatMap((answer, index) => answer.question?.type === "scenario_mcq" && answer.question.scenario?._id === scenario._id ? [index] : []) : [];
   const scenarioPosition = scenarioIndices.indexOf(currentIndex) + 1;
   const unanswered = useMemo(() => answers.filter((answer) => !answer.selectedOption).length, [answers]);
+  const chosenCount = countMode === "all" ? preview?.questionCount : Number(customCount);
+  const countValid = countMode === "all" || (Number.isInteger(chosenCount) && chosenCount >= 5 && chosenCount <= preview?.availableQuestions);
+  const partial = preview?.canChooseCount && countMode !== "all" && chosenCount < preview.availableQuestions;
+  const ranked = preview?.ranked && !partial;
 
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
@@ -214,24 +240,36 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           <p className="test-introduction-eyebrow">Before you begin</p>
           <h1 id="test-introduction-title">{preview?.title}</h1>
           <dl className="test-introduction-stats" aria-label="Test overview">
-            <div><ListChecks size={20} aria-hidden="true" /><dt>Questions</dt><dd>{preview?.questionCount}</dd></div>
-            <div><Clock3 size={20} aria-hidden="true" /><dt>Minutes</dt><dd>{preview?.durationMinutes}</dd></div>
-            <div><Trophy size={20} aria-hidden="true" /><dt>Marks</dt><dd>{preview?.totalMarks}</dd></div>
+            <div><ListChecks size={20} aria-hidden="true" /><dt>Questions</dt><dd>{countValid ? chosenCount : "—"}</dd></div>
+            <div><Clock3 size={20} aria-hidden="true" /><dt>Minutes</dt><dd>{preview?.canChooseCount ? (countValid ? chosenCount : "—") : preview?.durationMinutes}</dd></div>
+            {!partial && <div><Trophy size={20} aria-hidden="true" /><dt>Marks</dt><dd>{preview?.totalMarks}</dd></div>}
           </dl>
         </header>
         <div className="test-introduction-body">
+          {preview?.canChooseCount && <fieldset className="test-question-count">
+            <legend>How many MCQs?</legend>
+            <label><input type="radio" name="question-count-mode" value="all" checked={countMode === "all"} onChange={() => setCountMode("all")} /> All {preview.availableQuestions} questions</label>
+            {preview.availableQuestions > 5 && <>
+              <label><input type="radio" name="question-count-mode" value="custom" checked={countMode === "custom"} onChange={() => setCountMode("custom")} /> Choose a number</label>
+              {countMode === "custom" && <label className="test-count-input">Number of MCQs
+                <input type="number" min="5" max={preview.availableQuestions} step="1" value={customCount} onChange={event => setCustomCount(event.target.value)} aria-describedby="test-count-help" aria-invalid={!countValid} />
+              </label>}
+            </>}
+            <p id="test-count-help">One minute per MCQ.{countMode === "custom" ? ` Choose 5–${preview.availableQuestions}. A fresh random set is selected for each attempt.` : preview.availableQuestions < 5 ? " This topic has fewer than five MCQs, so all are included." : " All questions are selected by default."}</p>
+            {!countValid && <p role="alert">Enter a whole number between 5 and {preview.availableQuestions}.</p>}
+          </fieldset>}
           <h2>Test rules</h2>
           <ol className="test-introduction-rules">
             <li><span aria-hidden="true">1</span><div><h3>{preview?.resume ? "Your timer is already running" : "Start when you are ready"}</h3><p>{preview?.resume ? "Your earlier attempt is still in progress." : "The timer starts when you select Start test."} Your answers save as you go.</p></div></li>
             <li><span aria-hidden="true">2</span><div><h3>Answer at your own pace</h3><p>You can skip questions and return to them before submitting.</p></div></li>
             <li className="test-introduction-exit-rule"><span aria-hidden="true">3</span><div><h3>Stay on the test page</h3><p>Leaving or switching away submits your saved answers automatically.</p></div></li>
-            <li><span aria-hidden="true">4</span><div><h3>{preview?.ranked ? "Only your best attempt counts" : "Practise without ranking"}</h3><p>{preview?.ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "This is a practice test and does not affect the leaderboard."}</p></div></li>
+            <li><span aria-hidden="true">4</span><div><h3>{ranked ? "Only your best attempt counts" : "Practise without ranking"}</h3><p>{ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "Shorter practice sets do not affect the leaderboard. Select all questions to compete in a topic or chapter test."}</p></div></li>
           </ol>
           {preview?.instructions?.length > 0 && <aside className="test-introduction-extra"><h2>Teacher instructions</h2><ul>{preview.instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ul></aside>}
         </div>
         <footer className="test-introduction-actions">
           <Link to="/tests" className="test-introduction-back"><ArrowLeft size={18} aria-hidden="true" /> Back to tests</Link>
-          <button type="button" onClick={() => { setConfirmed(true); setLoading(true); }} className="test-introduction-start">{preview?.resume ? "Continue test" : "Start test"}<ArrowRight size={18} aria-hidden="true" /></button>
+          <button type="button" disabled={!countValid} onClick={() => { setConfirmed(true); setLoading(true); }} className="test-introduction-start">{preview?.resume ? "Continue test" : "Start test"}<ArrowRight size={18} aria-hidden="true" /></button>
         </footer>
       </section>
     </main>
