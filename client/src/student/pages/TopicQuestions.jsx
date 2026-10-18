@@ -108,11 +108,11 @@ function QuestionList({ topic, type, onTopicName, onReady }) {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-sm">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <div className="min-w-0 flex-1">
+              <div className="question-with-importance min-w-0 flex-1">
                 <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`whitespace-pre-wrap text-base font-semibold leading-8 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>
                   {question.questionText}
                 </p>
-                {question.isImportant && <div className="mt-3"><ImportantBadge /></div>}
+                {question.isImportant && <ImportantBadge />}
               </div>
             </div>
           </li>
