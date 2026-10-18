@@ -11,6 +11,7 @@ const {
     createQuestion,
     updateQuestion,
     updateQuestionStatus,
+    updateQuestionImportance,
     deleteQuestion,
     bulkDeleteQuestions,
     getScenarios,
@@ -63,6 +64,7 @@ router.get("/import/template", authMiddleware, downloadImportTemplate);
 router.post("/bulk-delete", authMiddleware, bulkDeleteQuestions);
 router.put("/:id", authMiddleware, updateQuestion);
 router.patch("/:id/status", authMiddleware, updateQuestionStatus);
+router.patch("/:id/importance", authMiddleware, updateQuestionImportance);
 router.delete("/:id", authMiddleware, deleteQuestion);
 
 module.exports = router;

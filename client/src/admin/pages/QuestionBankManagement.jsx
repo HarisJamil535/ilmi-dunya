@@ -123,6 +123,7 @@ const QuestionBankManagement = () => {
   ));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [importancePending, setImportancePending] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const questionInput = useRef(null);
   const [message, setMessage] = useState("");
@@ -401,6 +402,21 @@ const QuestionBankManagement = () => {
       setError(err.response?.data?.message || "Unable to save question.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleImportance = async (question) => {
+    if (importancePending.includes(question._id)) return;
+    setImportancePending((ids) => [...ids, question._id]);
+    setError("");
+    try {
+      const { data } = await axiosInstance.patch(`/questions/${question._id}/importance`, { isImportant: !question.isImportant });
+      setQuestions((items) => items.map((item) => item._id === question._id ? { ...item, isImportant: data.question.isImportant } : item));
+      setForm((current) => current.id === question._id ? { ...current, isImportant: data.question.isImportant } : current);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not change importance. Please try again.");
+    } finally {
+      setImportancePending((ids) => ids.filter((id) => id !== question._id));
     }
   };
 
@@ -911,6 +927,12 @@ const QuestionBankManagement = () => {
                         <td className="max-w-xl px-3 py-4">
                           <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`font-bold leading-6 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-lg" : ""}`}><MathText text={question.questionText} /></p>
                           <div className="mt-2 flex flex-wrap gap-1.5">
+                            {["short_question", "long_question"].includes(question.contentType) && (
+                              <button type="button" role="switch" aria-checked={Boolean(question.isImportant)} aria-label={`Important: ${question.questionText}`} disabled={importancePending.includes(question._id)} onClick={() => toggleImportance(question)} className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-xs font-semibold text-slate-600 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                                <span className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors ${question.isImportant ? "bg-red-600" : "bg-slate-300"}`}><span className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${question.isImportant ? "translate-x-5" : "translate-x-1"}`} /></span>
+                                {importancePending.includes(question._id) ? "Saving..." : "Important"}
+                              </button>
+                            )}
                             {question.imageUrls?.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary"><ImagePlus size={12} /> Diagram</span>}
                             {question.contentLanguage === "ur" && <span className="urdu-content rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-primary">اردو</span>}
                             {question.status === "draft" && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">Draft</span>}

@@ -502,6 +502,17 @@ const bulkDeleteQuestions = async (req, res) => {
     res.json({ success: true, ...result });
 };
 
+const updateQuestionImportance = async (req, res) => {
+    if (typeof req.body.isImportant !== "boolean") return res.status(400).json({ message: "Important must be true or false." });
+    const question = await Question.findOneAndUpdate(
+        { _id: req.params.id, status: { $ne: "archived" }, contentType: { $in: ["short_question", "long_question"] } },
+        { $set: { isImportant: req.body.isImportant, updatedBy: req.admin?._id } },
+        { new: true, runValidators: true }
+    ).select("isImportant").lean();
+    if (!question) return res.status(404).json({ message: "Written question not found." });
+    res.json({ success: true, question });
+};
+
 const updateQuestionStatus = async (req, res) => {
     const status = String(req.body.status || "").trim();
     if (!["draft", "published"].includes(status)) {
@@ -692,6 +703,7 @@ module.exports = {
     createQuestion,
     updateQuestion,
     updateQuestionStatus,
+    updateQuestionImportance,
     deleteQuestion,
     bulkDeleteQuestions,
     getScenarios,

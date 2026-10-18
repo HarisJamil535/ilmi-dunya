@@ -1,5 +1,5 @@
-.important-question-badge { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid #fecaca; border-radius: 6px; background: #fff1f2; color: #b91c1c; font-size: 12px; font-weight: 700; line-height: 1.4; }
-.important-question-badge > span { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; animation: important-question-pulse 2s ease-in-out infinite; }
-@keyframes important-question-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-html.dark .important-question-badge { background: #321c27; border-color: #704052; color: #ffafc2; }
-@media (prefers-reduced-motion: reduce) { .important-question-badge > span { animation: none; } }
+.important-question-badge { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 6px; background: #b91c1c; color: #fff; font-size: 12px; font-weight: 700; line-height: 1.4; animation: important-question-pulse 2.4s ease-in-out infinite; }
+.important-question-badge > span { display: none; }
+@keyframes important-question-pulse { 0%, 100% { background-color: #b91c1c; } 50% { background-color: #e02020; } }
+html.dark .important-question-badge { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .important-question-badge { animation: none; } }
