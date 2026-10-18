@@ -9,6 +9,9 @@ function renderDocument(template, data, body = "", styles = [], modules = []) {
     const { meta } = data;
     const origin = siteOrigin();
     const canonical = new URL(meta.path, origin).href;
+    const cleanUrl = new URL(canonical);
+    cleanUrl.search = '';
+    cleanUrl.hash = '';
     const image = new URL(meta.image || "/logo.png", origin).href;
     let html = template.replace(/<title>[\s\S]*?<\/title>/gi, "")
         .replace(/<meta\s+[^>]*(?:name=["'](?:description|robots|keywords|twitter:[^"']+)["']|property=["']og:[^"']+["'])[^>]*>/gi, "")
@@ -17,7 +20,7 @@ function renderDocument(template, data, body = "", styles = [], modules = []) {
     const tags = `<title>${escapeHtml(meta.title)}</title>
 <meta name="description" content="${escapeHtml(meta.description)}">
 <meta name="robots" content="${meta.indexable ? 'index, follow' : 'noindex, follow'}">
-<link rel="canonical" href="${escapeHtml(canonical)}">
+<link rel="canonical" href="${escapeHtml(cleanUrl.href)}">
 <meta property="og:title" content="${escapeHtml(meta.title)}">
 <meta property="og:description" content="${escapeHtml(meta.description)}">
 <meta property="og:url" content="${escapeHtml(canonical)}">
@@ -28,11 +31,15 @@ function renderDocument(template, data, body = "", styles = [], modules = []) {
 <meta name="twitter:description" content="${escapeHtml(meta.description)}">
 <meta name="twitter:image" content="${escapeHtml(image)}">`;
     const schemas = [];
+    const learningSchemaTag = data.study?.structuredData?.length ? `<script id="study-resource-schema" type="application/ld+json">${safeJson(data.study.structuredData)}</script>` : '';
     if (meta.indexable && data.study?.breadcrumbs?.length) schemas.push({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [...data.study.breadcrumbs, { title: data.study.title, href: meta.path }].map((item, i) => ({ '@type': 'ListItem', position: i + 1, name: item.title, item: new URL(item.href, origin).href })) });
     if (data.article && meta.indexable) schemas.push({ '@context': 'https://schema.org', '@type': 'NewsArticle', headline: data.article.title, description: data.article.excerpt, datePublished: data.article.publishedAt, dateModified: data.article.updatedAt, author: { '@type': 'Organization', name: data.article.author || 'IlmiDunya Editorial' }, image: data.article.coverImage ? [image] : undefined, mainEntityOfPage: canonical });
     const schemaTag = schemas.length ? `<script id="${data.article ? 'news-article-schema' : 'public-page-schema'}" type="application/ld+json">${safeJson(schemas)}</script>` : '';
-    html = html.replace('</head>', `${tags}${schemaTag}${styles.map(href => `<link rel="stylesheet" href="${escapeHtml(href)}">`).join('')}${modules.map(href => `<link rel="modulepreload" crossorigin href="${escapeHtml(href)}">`).join('')}</head>`);
+    html = html.replace('</head>', `${tags}${schemaTag}${learningSchemaTag}${styles.map(href => `<link rel="stylesheet" href="${escapeHtml(href)}">`).join('')}${modules.map(href => `<link rel="modulepreload" crossorigin href="${escapeHtml(href)}">`).join('')}</head>`);
     return html.replace('<div id="root"></div>', `<div id="root">${body}</div><script id="public-page-data" type="application/json">${safeJson(data)}</script>`);
 }
-const sitemapXml = (entries, origin = siteOrigin()) => `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries.map(item => `<url><loc>${escapeHtml(new URL(item.path, origin).href)}</loc>${item.updatedAt ? `<lastmod>${new Date(item.updatedAt).toISOString()}</lastmod>` : ''}</url>`).join('')}</urlset>`;
+const sitemapXml = (entries, origin = siteOrigin()) => `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries.filter(item => {
+    const url = new URL(item.path, origin);
+    return url.origin === new URL(origin).origin && !url.search && !url.hash;
+}).map(item => `<url><loc>${escapeHtml(new URL(item.path, origin).href)}</loc>${item.updatedAt && Number.isFinite(new Date(item.updatedAt).getTime()) ? `<lastmod>${new Date(item.updatedAt).toISOString()}</lastmod>` : ''}</url>`).join('')}</urlset>`;
 module.exports = { escapeHtml, safeJson, siteOrigin, renderDocument, sitemapXml };

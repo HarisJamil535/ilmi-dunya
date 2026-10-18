@@ -20,10 +20,39 @@ test('rendered pages have one escaped title, canonical and meaningful HTML', () 
 
 test('bootstrap data and sitemap output cannot break out into markup', () => {
     assert.doesNotMatch(safeJson({ summary: '</script><script>alert(1)</script>' }), /</);
-    const xml = sitemapXml([{ path: '/news?x=1&y=2', updatedAt: '2025-01-02' }], 'https://example.com');
-    assert.match(xml, /x=1&amp;y=2/);
+    const xml = sitemapXml([{ path: '/news?filter=physics' }, { path: '/news', updatedAt: '2025-01-02' }], 'https://example.com');
+    assert.doesNotMatch(xml, /filter=/);
     assert.match(xml, /2025-01-02T00:00:00.000Z/);
     assert.equal(siteOrigin().startsWith('http'), true);
+});
+
+test('clean canonical, educational schemas, and JSON-LD appear in initial head', async () => {
+    const { cleanCanonical, educationalSchemas } = await import('../../client/src/seo/structuredData.mjs');
+    assert.equal(cleanCanonical('/learn/chapter/id/name?filter=physics#notes', 'https://example.com'), 'https://example.com/learn/chapter/id/name');
+    assert.throws(() => cleanCanonical('https://other.test/', 'https://example.com'));
+    const page = { kind: 'chapter', title: 'Motion', summary: 'Learn about motion.', meta: { path: '/learn/chapter/id/motion?filter=x', title: 'Motion', indexable: true },
+        faqs: [{ question: 'What is motion?', answer: 'A change in position.' }, { question: 'No answer available' }],
+        videos: [{ name: 'Motion video' }, { name: 'Motion explained', thumbnailUrl: 'https://example.com/motion.jpg', embedUrl: 'https://www.youtube.com/embed/123', uploadDate: '2025-01-02' }] };
+    const schemas = educationalSchemas(page, 'https://example.com');
+    assert.deepEqual(schemas.map(item => item['@type']), ['Course', 'FAQPage', 'VideoObject']);
+    assert.equal(schemas[1].mainEntity.length, 1);
+    assert.equal(educationalSchemas({ ...page, kind: 'notes' }, 'https://example.com')[0]['@type'], 'LearningResource');
+    const html = renderDocument(template, { meta: page.meta, study: { structuredData: schemas } }, '<h1>Motion</h1>');
+    assert.match(html.split('</head>')[0], /study-resource-schema/);
+    assert.match(html, /rel="canonical" href="[^"?]+"/);
+    const xml = sitemapXml([{path:'/notes?filter=x'}, {path:'https://other.test/'}, {path:'/notes',updatedAt:'invalid'}], 'https://example.com');
+    assert.doesNotMatch(xml, /filter|other.test|lastmod/);
+});
+
+test('every AI crawler group allows public pages while preserving private and filter exclusions', () => {
+    const { robotsText } = require('../src/services/robots');
+    const robots = robotsText('https://example.com');
+    for (const name of ['OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'GPTBot', 'Google-Extended']) {
+        const group = robots.split(`User-agent: ${name}\n`)[1].split('\n\n')[0];
+        assert.match(group, /Allow: \//);
+        assert.ok(group.includes('Disallow: /*?filter=*'));
+        assert.ok(group.includes('Disallow: /admin'));
+    }
 });
 
 test('private pages are noindex; sitemap queries exclude drafts and thin resources', () => {

@@ -6,6 +6,7 @@ import axios from "../../api/axios";
 import { applyMetadata, initialPage } from "../../seo/pageMetadata";
 import "./public-study.css";
 import ImportantBadge from "../../shared/ImportantBadge";
+import StructuredSEO from "../../seo/StructuredSEO";
 
 export default function PublicStudyPage({ initialData }) {
   const location = useLocation();
@@ -28,6 +29,7 @@ export default function PublicStudyPage({ initialData }) {
   }, [data, location.pathname, location.search, requestPath, retry]);
   if (!data) return <section className="study-page" aria-busy={!state.error}>{state.path === requestPath && state.error ? <div role="alert"><h1>Unable to load this page</h1><p>{state.error}</p><button onClick={() => setRetry(value => value + 1)}><RefreshCw size={16} /> Try again</button><Link to="/learn">Browse study resources</Link></div> : <div className="study-skeleton" role="status"><span className="sr-only">Loading study resources</span><i /><i /><i /></div>}</section>;
   return <div className="study-page">
+    <StructuredSEO page={data} manageMetadata={false} />
     <nav aria-label="Breadcrumb" className="study-breadcrumbs">{data.breadcrumbs.map(item => <Link key={item.href} to={item.href}>{item.title}</Link>)}</nav>
     <header className="study-heading"><BookOpen size={26} /><h1>{data.title}</h1>{data.scope && <p>{data.scope}</p>}</header>
     {data.summary && <div className="study-summary">{data.summary.split(/\n+/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}

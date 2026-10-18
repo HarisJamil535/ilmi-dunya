@@ -11,7 +11,10 @@ export function initialPage() {
 export function applyMetadata(meta) {
   if (!meta) return;
   const origin = import.meta.env.VITE_SITE_URL || window.location.origin;
-  const canonical = new URL(meta.path, origin).href;
+  const cleanUrl = new URL(meta.path, origin);
+  cleanUrl.search = '';
+  cleanUrl.hash = '';
+  const canonical = cleanUrl.href;
   const set = (selector, attributes) => {
     let node = document.head.querySelector(selector);
     if (!node) { node = document.createElement(selector.startsWith("link") ? "link" : "meta"); document.head.appendChild(node); }

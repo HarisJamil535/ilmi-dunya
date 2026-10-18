@@ -13,6 +13,7 @@ const HomeStat = require("../models/HomeStat");
 const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
+const { robotsText } = require('../services/robots');
 let templateFile;
 let renderingFiles;
 async function frontendTemplate() {
@@ -84,7 +85,7 @@ function publicRoutes() {
         const study = await cached(`study:${resourcePath}:${pageNumber(req.query.page)}`, () => publicPage(resourcePath, req.query));
         res.set('Cache-Control', 'public, max-age=0, must-revalidate').json({ study });
     });
-    router.get('/robots.txt', (req, res) => res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${siteOrigin()}/sitemap.xml\n`));
+    router.get('/robots.txt', (req, res) => res.type('text/plain').send(robotsText(siteOrigin())));
     router.get('/sitemap.xml', async (req, res) => {
         const xml = await cached('sitemap-index', async () => {
             const entries = [`${siteOrigin()}/sitemaps/core/1.xml`];
