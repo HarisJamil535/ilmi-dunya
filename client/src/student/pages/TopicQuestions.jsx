@@ -104,12 +104,12 @@ function QuestionList({ topic, type, onTopicName, onReady }) {
             key={question._id}
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md sm:p-6"
           >
-            <div className="flex gap-4">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-950 text-xs font-black text-white sm:h-10 sm:w-10 sm:text-sm">
                 {String(index + 1).padStart(2, "0")}
               </span>
               <div className="question-with-importance min-w-0 flex-1">
-                <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`whitespace-pre-wrap text-base font-semibold leading-8 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>
+                <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`whitespace-pre-wrap text-base font-semibold leading-7 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>
                   {question.questionText}
                 </p>
                 {question.isImportant && <ImportantBadge />}
