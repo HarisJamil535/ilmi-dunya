@@ -1,6 +1,7 @@
 const { slugify, fail } = require("./publishing");
 const Board = require("../models/Board");
 const ClassModel = require("../models/Class");
+const Group = require('../models/Group');
 const Subject = require("../models/Subject");
 const Chapter = require("../models/Chapter");
 const Topic = require("../models/Topic");
@@ -43,8 +44,8 @@ async function publicPage(path, query = {}) {
     const page = pageNumber(query.page);
     const size = 30;
     if (path === "/learn") {
-        const [boards, classes] = await Promise.all([Board.find().sort({ name: 1 }).lean(), ClassModel.find().sort({ name: 1 }).lean()]);
-        return { kind: "directory", title: "Study resources for Pakistani board students", summary: "Choose your education board or class to browse the subjects available on IlmiDunya. Each subject brings its chapters, topic questions, notes, textbooks and past papers together. Check the board and class shown on a resource before using it for your exam preparation.", sections: [{ title: "Education boards", links: boards.map(doc => link("board", doc)) }, { title: "Classes", links: classes.map(doc => link("class", doc)) }], breadcrumbs: [{ title: "Home", href: "/" }], meta: meta("Pakistani Boards and Class Study Resources", "Browse board and class study resources, chapters, topic questions, notes, textbooks and past papers for Pakistani students.", path) };
+        const [boards, classes, groups] = await Promise.all([Board.find().sort({ name: 1 }).select('name slug').lean(), ClassModel.find().sort({ name: 1 }).select('name slug classNumber').lean(), Group.find().sort({ name: 1 }).select('name').lean()]);
+        return { kind: "directory", title: "Study resources for Pakistani board students", summary: "Choose your board, class and group to find your subjects. Explore books, chapter notes, topic questions, MCQ tests and past papers for your syllabus.", studyOptions: { boards, classes, groups }, sections: [{ title: "Education boards", links: boards.map(doc => link("board", doc)) }, { title: "Classes", links: classes.map(doc => link("class", doc)) }], breadcrumbs: [{ title: "Home", href: "/" }], meta: meta("Pakistani Boards and Class Study Resources", "Browse board and class study resources, chapters, topic questions, notes, textbooks and past papers for Pakistani students.", path) };
     }
     const match = path.match(/^\/learn\/([a-z-]+)\/([a-f0-9]{24})(?:\/([^/]+))?\/?$/i);
     if (!match || !models[match[1]]) fail("Study page not found.", 404);

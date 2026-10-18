@@ -21,3 +21,17 @@
 .study-page a:focus-visible, .study-page button:focus-visible { outline: 3px solid var(--brand-primary); outline-offset: 4px; }
 .study-skeleton i { display: block; height: 28px; background: var(--brand-primary-soft); margin: 20px 0; }.study-skeleton i:last-child { height: 240px; }
 @media(max-width: 639px) { .study-link-grid { grid-template-columns: 1fr; }.study-heading h1 { font-size: 26px; }.study-page { padding-top: 24px; } }
+.study-path { margin-top: 32px; padding: 28px 0 32px; border-bottom: 1px solid var(--brand-primary-muted); }
+.study-path-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.study-path label { min-width: 0; }
+.study-path label > span { display: flex; gap: 9px; align-items: center; margin-bottom: 12px; font-size: 15px; font-weight: 650; }
+.study-path label svg { color: var(--brand-primary); }
+.study-path select { width: 100%; min-width: 0; min-height: 52px; border: 1px solid var(--brand-primary-muted); border-radius: 6px; padding: 10px 34px 10px 14px; background: var(--app-bg-card, white); color: var(--app-text-primary); font-size: 16px; text-overflow: ellipsis; }
+.study-path select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
+.study-path select:disabled { opacity: .55; cursor: not-allowed; }
+.study-page .study-path-submit { margin-top: 24px; min-height: 48px; justify-content: center; padding: 12px 22px; transition: background .18s ease; }
+.study-page .study-path-submit:hover { background: var(--brand-primary-dark, #5030ad); }
+.study-directory-links { margin-top: 28px; }
+.study-directory-links > summary { cursor: pointer; width: fit-content; color: var(--brand-primary); font-size: 14px; font-weight: 600; padding: 8px 0; }
+html.dark .study-resource-link { background: var(--app-bg-card); border-color: var(--app-border); }
+@media(max-width: 639px) { .study-path { margin-top: 20px; padding-top: 12px; }.study-path-fields { grid-template-columns: 1fr; gap: 22px; }.study-page .study-path-submit { width: 100%; }.study-path label > span { margin-bottom: 8px; } }

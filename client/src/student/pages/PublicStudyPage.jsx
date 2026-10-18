@@ -7,6 +7,7 @@ import { applyMetadata, initialPage } from "../../seo/pageMetadata";
 import "./public-study.css";
 import ImportantBadge from "../../shared/ImportantBadge";
 import StructuredSEO from "../../seo/StructuredSEO";
+import StudyPathSelector from '../components/StudyPathSelector';
 
 export default function PublicStudyPage({ initialData }) {
   const location = useLocation();
@@ -33,10 +34,11 @@ export default function PublicStudyPage({ initialData }) {
     <nav aria-label="Breadcrumb" className="study-breadcrumbs">{data.breadcrumbs.map(item => <Link key={item.href} to={item.href}>{item.title}</Link>)}</nav>
     <header className="study-heading"><BookOpen size={26} /><h1>{data.title}</h1>{data.scope && <p>{data.scope}</p>}</header>
     {data.summary && <div className="study-summary">{data.summary.split(/\n+/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}
+    {data.kind === 'directory' && <StudyPathSelector options={data.studyOptions} />}
     <dl className="study-facts">{[["Publisher / source", data.sourceName], ["Edition", data.edition], ["Paper year", data.year], ["Exam type", data.examType], ["Session", data.session], ["Pattern", data.isNewPattern ? "New Pattern" : undefined], ["Questions", data.questionCount], ["Test duration", data.durationMinutes && `${data.durationMinutes} minutes`], ["Updated", data.updatedAt && new Date(data.updatedAt).toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Karachi" })]].filter(([,value]) => value).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     {data.sourceUrl && <p className="study-source">Source: <a href={data.sourceUrl} target="_blank" rel="noreferrer">{data.sourceName || "Original source"}</a></p>}
     {data.instructions?.length > 0 && <section><h2>Before you start</h2><ul>{data.instructions.map((instruction,i) => <li key={i}>{instruction}</li>)}</ul></section>}
-    {data.sections.map(section => <section key={section.title}><h2>{section.title}</h2><div className="study-link-grid">{section.links.map(item => <Link key={item.href} to={item.href} className="study-resource-link"><div><h3>{item.title}</h3>{item.summary && <p>{item.summary}</p>}</div><ArrowRight size={18} /></Link>)}</div></section>)}
+    {data.kind === 'directory' ? <details className="study-directory-links"><summary>Browse all boards and classes</summary>{data.sections.map(section => <section key={section.title}><h2>{section.title}</h2><div className="study-link-grid">{section.links.map(item => <Link key={item.href} to={item.href} className="study-resource-link"><h3>{item.title}</h3><ArrowRight size={18} /></Link>)}</div></section>)}</details> : data.sections.map(section => <section key={section.title}><h2>{section.title}</h2><div className="study-link-grid">{section.links.map(item => <Link key={item.href} to={item.href} className="study-resource-link"><div><h3>{item.title}</h3>{item.summary && <p>{item.summary}</p>}</div><ArrowRight size={18} /></Link>)}</div></section>)}
     {["short_question", "long_question"].map(type => { const questions = (data.questions || []).filter(item => item.contentType === type); return questions.length ? <section key={type}><h2>{type === "short_question" ? "Short questions" : "Long questions"}</h2><ol className="study-questions">{questions.map(question => <li key={question._id}><div className="question-with-importance"><p>{question.questionText}</p>{question.isImportant && <ImportantBadge />}</div></li>)}</ol></section> : null; })}
     {(data.previous || data.next) && <nav className="study-actions" aria-label="Pages">{data.previous && <Link to={data.previous}>Previous page</Link>}{data.next && <Link to={data.next}>Next page <ArrowRight size={16} /></Link>}</nav>}
     {data.actions?.length > 0 && <nav className="study-actions" aria-label="Study tools">{data.actions.map(action => <Link key={action.href} to={action.href}>{action.title}<ArrowRight size={16} /></Link>)}</nav>}

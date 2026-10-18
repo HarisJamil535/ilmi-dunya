@@ -44,7 +44,7 @@ async function dataFor(req) {
     const requestPath = req.path + (new URL(req.originalUrl, "http://local").search);
     if (req.path.startsWith("/learn")) {
         const study = await publicPage(req.path, req.query);
-        return { type: "study", requestPath, study, meta: study.meta };
+        return { type: "study", requestPath, study, meta: study.meta, ...(study.studyOptions ? { context: study.studyOptions } : {}) };
     }
     if (req.path === "/news") {
         const category = typeof req.query.category === 'string' ? req.query.category : "All";
