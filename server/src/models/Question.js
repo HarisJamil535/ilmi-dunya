@@ -22,6 +22,7 @@ const questionSchema = new mongoose.Schema(
         explanation: { type: String, trim: true, default: "" },
         examYear: { type: Number, min: 1900, max: 2100 },
         examSession: { type: String, enum: ["morning", "evening"] },
+        isImportant: { type: Boolean, default: false },
         difficulty: { type: String, enum: ["easy", "medium", "hard"], default: "medium" },
         marks: { type: Number, default: 1, min: 0 },
         negativeMarks: { type: Number, default: 0, min: 0 },

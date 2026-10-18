@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../../urdu-font.css";
-import { ArrowLeft, BookOpenCheck, CalendarDays, FileQuestion, Moon, SearchX } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, FileQuestion, SearchX } from "lucide-react";
+import ImportantBadge from "../../shared/ImportantBadge";
 import Spinner from "../../shared/Spinner";
 import { usePageLoading } from "../../shared/pageLoading";
 import { Link, useSearchParams } from "react-router-dom";
@@ -111,22 +112,7 @@ function QuestionList({ topic, type, onTopicName, onReady }) {
                 <p dir={question.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question.contentLanguage === "ur" ? "ur" : "en"} className={`whitespace-pre-wrap text-base font-semibold leading-8 text-slate-900 ${question.contentLanguage === "ur" ? "urdu-content text-xl" : ""}`}>
                   {question.questionText}
                 </p>
-                {(question.examYear || question.examSession) && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {question.examYear && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
-                        <CalendarDays size={14} />
-                        {question.examYear}
-                      </span>
-                    )}
-                    {question.examSession && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft px-3 py-1.5 text-xs font-bold capitalize text-primary-dark">
-                        <Moon size={14} />
-                        {question.examSession}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {question.isImportant && <div className="mt-3"><ImportantBadge /></div>}
               </div>
             </div>
           </li>

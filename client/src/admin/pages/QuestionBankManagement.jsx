@@ -29,6 +29,7 @@ const defaultForm = {
   marks: 1,
   examYear: "",
   examSession: "",
+  isImportant: false,
   board: "",
   class: "",
   group: "",
@@ -87,6 +88,7 @@ const normalizeQuestionForForm = (question) => {
     marks: question.marks || 1,
     examYear: question.examYear || "",
     examSession: question.examSession || "",
+    isImportant: question.isImportant === true,
     board: question.board?._id || question.board || "",
     class: question.class?._id || question.class || "",
     group: question.group?._id || question.group || "",
@@ -629,9 +631,10 @@ const QuestionBankManagement = () => {
               <div className="self-end rounded-xl bg-primary-soft px-4 py-3 text-xs font-semibold leading-5 text-primary-dark">Saved written questions appear on the selected topic page.</div>
             )}
             {!isMcq && (
-              <Field label="Exam Session" helper="Optional label shown with the question.">
-                <SmartSelect value={form.examSession} onChange={(value) => setForm({ ...form, examSession: value })} options={[{ value: "morning", label: "Morning" }, { value: "evening", label: "Evening" }]} placeholder="Optional session" />
-              </Field>
+              <label className="flex cursor-pointer items-center gap-3 self-end rounded-lg border border-rose-200 px-4 py-3">
+                <input type="checkbox" checked={form.isImportant} onChange={(event) => setForm({ ...form, isImportant: event.target.checked })} className="h-5 w-5 accent-rose-600" />
+                <span className="text-sm font-semibold">Important<span className="mt-1 block text-xs font-normal text-slate-500">Show an Important badge. Edit this question anytime to change it. Excel: isImportant = true or false.</span></span>
+              </label>
             )}
           </div>
 
@@ -645,14 +648,6 @@ const QuestionBankManagement = () => {
               <button type="button" aria-pressed={isUrdu} onClick={() => setForm({ ...form, language: "ur" })} className={`urdu-content rounded-lg px-5 py-2 text-base font-bold ${isUrdu ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>اردو</button>
             </div>
           </div>
-
-          {!isMcq && (
-            <div className="mb-5">
-              <Field label="Exam Year" helper="Optional. Example: 2025">
-                <input type="number" min="1900" max="2100" className="input" value={form.examYear} onChange={(event) => setForm({ ...form, examYear: event.target.value })} placeholder="e.g. 2025" />
-              </Field>
-            </div>
-          )}
 
           <div className="rounded-2xl border border-primary-soft bg-primary-soft/70 p-4">
             <p className="text-sm font-black text-primary-dark">Study Context</p>

@@ -75,6 +75,8 @@ const publishedQuestionFilter = async (query) => {
 };
 
 const cleanQuestionPayload = (body, adminId) => {
+    const importance = body.isImportant;
+    if (importance !== undefined && importance !== "" && ![true, false, "true", "false", "yes", "no", 1, 0, "1", "0"].includes(importance)) throw new Error("Important must be true or false.");
     const imageUrls = body.imageUrls === undefined ? [] : body.imageUrls;
     if (!Array.isArray(imageUrls) || imageUrls.length > 1 || imageUrls.some(url => typeof url !== "string" || !/^\/api\/questions\/images\/[a-f\d]{24}$/.test(url))) {
         throw new Error("Choose one uploaded JPG, PNG or WebP diagram for this question.");
@@ -84,6 +86,7 @@ const cleanQuestionPayload = (body, adminId) => {
     if (imageAlt.length > 240 || (imageUrls.length && !imageAlt)) throw new Error("Describe the uploaded diagram in 240 characters or fewer.");
     const payload = {
         ...body,
+        ...(importance === undefined ? {} : { isImportant: [true, "true", "yes", 1, "1"].includes(importance) }),
         imageUrls,
         imageAlt,
         tags: parseTags(body.tags),
@@ -335,6 +338,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
         contentType: row.contentType || "mcq",
         examYear: row.examYear,
         examSession: row.examSession,
+        isImportant: row.isImportant,
         type: row.type || "standard_mcq",
         questionText: row.questionText,
         contentLanguage: row.language === "ur" ? "ur" : "en",
@@ -388,7 +392,7 @@ const getPublicTopicQuestions = async (req, res) => {
         if (!["long_question", "short_question"].includes(contentType)) return res.status(400).json({ message: "Choose long or short questions." });
         const questions = await Question.find({ ...filter, status: "published", contentType })
             .sort({ examYear: -1, _id: 1 })
-            .select("questionText contentLanguage contentType examYear examSession")
+            .select("questionText contentLanguage contentType isImportant")
             .lean();
         res.json({ success: true, questions, topic: { name: topic.name, chapter: chapter._id } });
     } catch (error) {
@@ -558,6 +562,7 @@ const normalizeImportRow = (source, kind) => {
     row.correctOption = String(row.correctOption || "").toUpperCase();
     row.examSession = String(row.examSession || "").toLowerCase();
     row.language = String(row.language || "en").toLowerCase();
+    if (typeof row.isImportant === "string") row.isImportant = row.isImportant.toLowerCase();
     delete row.scenario;
     return row;
 };
@@ -574,6 +579,7 @@ const validateImportRow = (row, context) => {
         if (row.type === "scenario_mcq" && (!row.scenarioTitle || !row.scenarioText)) errors.push("Fill scenarioTitle and scenarioText on every related question row.");
     } else {
         if (!context?.topic) errors.push("Select a topic for short and long questions.");
+        if (row.isImportant !== undefined && row.isImportant !== "" && ![true, false, "true", "false", "yes", "no", 1, 0, "1", "0"].includes(row.isImportant)) errors.push("isImportant must be true or false (or blank).");
         if (row.examYear !== undefined && row.examYear !== "" && (!Number.isInteger(Number(row.examYear)) || Number(row.examYear) < 1900 || Number(row.examYear) > 2100)) errors.push("Exam year must be between 1900 and 2100, or blank.");
         if (row.examSession && !["morning", "evening"].includes(row.examSession)) errors.push("Exam session must be morning, evening, or blank.");
     }
@@ -654,12 +660,12 @@ const downloadImportTemplate = async (req, res) => {
     const kind = req.query?.kind || "standard_mcq";
     if (!importKinds.includes(kind)) return res.status(400).json({ message: "Choose a valid question type." });
     const written = ["short_question", "long_question"].includes(kind);
-    const simpleHeaders = written ? ["questionText", "examYear", "examSession", "language"] : ["questionText", "optionA", "optionB", "optionC", "optionD", "correctOption", "explanation", "language"];
+    const simpleHeaders = written ? ["questionText", "isImportant", "language"] : ["questionText", "optionA", "optionB", "optionC", "optionD", "correctOption", "explanation", "language"];
     let sampleRows = [
         ["What type of motion repeats after equal intervals of time?", "Periodic motion", "Random motion", "Linear motion", "Projectile motion", "A", "Periodic motion repeats after equal intervals of time.", "en"],
         ["What is the time taken for one complete oscillation called?", "Frequency", "Time period", "Amplitude", "Speed", "B", "The time period is the time taken to complete one oscillation.", "en"],
     ];
-    if (written) sampleRows = [[kind === "short_question" ? "Define periodic motion." : "Explain periodic motion with examples and describe the time period of a pendulum.", 2025, "morning", "en"], [kind === "short_question" ? "What is one oscillation?" : "Describe an experiment to measure the time period of a pendulum.", "", "", "en"]];
+    if (written) sampleRows = [[kind === "short_question" ? "Define periodic motion." : "Explain periodic motion with examples and describe the time period of a pendulum.", "true", "en"], [kind === "short_question" ? "What is one oscillation?" : "Describe an experiment to measure the time period of a pendulum.", "false", "en"]];
     if (kind === "scenario_mcq") {
         simpleHeaders.push("scenarioTitle", "scenarioText");
         sampleRows = sampleRows.map((row) => [...row, "Pendulum experiment", "A student observes a pendulum moving back and forth at regular intervals. Read this passage and answer the related questions."]);
