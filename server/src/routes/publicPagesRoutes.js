@@ -140,17 +140,19 @@ function frontendRoutes() {
                 const { manifest, render } = await frontendRendering();
                 const html = await cached(`html:${req.originalUrl}`, () => {
                     const styles = new Set();
+                    const modules = new Set();
                     const visited = new Set();
                     const addStyles = key => {
                         if (visited.has(key) || !manifest[key]) return;
                         visited.add(key);
                         const entry = manifest[key];
+                        if (entry.file?.endsWith('.js')) modules.add(`/${entry.file}`);
                         (entry.css || []).forEach(file => styles.add(`/${file}`));
                         (entry.imports || []).forEach(addStyles);
                     };
                     const pageName = { home: 'Home', news: 'News', article: 'NewsArticle', study: 'PublicStudyPage' }[data.type];
                     Object.keys(manifest).filter(key => manifest[key].name === pageName).forEach(addStyles);
-                    return renderDocument(template, data, render(data), [...styles]);
+                    return renderDocument(template, data, render(data), [...styles], [...modules]);
                 });
                 res.set('Cache-Control','public, max-age=0, must-revalidate');
                 if (!data.meta.indexable) res.set('X-Robots-Tag','noindex, follow');

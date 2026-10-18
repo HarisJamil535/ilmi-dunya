@@ -24,9 +24,7 @@ const AppProvider = ({ children, initialData }) => {
             setClasses(sortByName(data.classes || []));
             setGroups(sortByName(data.groups || []));
         } catch {
-            setBoards([]);
-            setClasses([]);
-            setGroups([]);
+            // Keep the last usable choices during a temporary connection failure.
         } finally {
             setIsLoadingContext(false);
         }
@@ -35,6 +33,11 @@ const AppProvider = ({ children, initialData }) => {
     useEffect(() => {
         if (!initialData) fetchGlobalData();
     }, [fetchGlobalData, initialData]);
+
+    useEffect(() => {
+        window.addEventListener('app-network-restored', fetchGlobalData);
+        return () => window.removeEventListener('app-network-restored', fetchGlobalData);
+    }, [fetchGlobalData]);
 
     useEffect(() => {
         const controller = new AbortController();

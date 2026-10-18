@@ -17,6 +17,7 @@ axiosInstance.interceptors.request.use((config) => {
     const isStudentRequest = !isAdminRequest && studentPaths.some((path) => url.startsWith(path));
     const token = isStudentRequest ? localStorage.getItem("studentToken") : isAdminRequest ? localStorage.getItem("adminToken") : null;
     config.authAudience = isStudentRequest ? 'student' : isAdminRequest ? 'admin' : null;
+    if (config.method === 'get' && config.timeout === 20000) config.timeout = 45000;
 
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -27,7 +28,20 @@ axiosInstance.interceptors.request.use((config) => {
 
 axiosInstance.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        const config = error.config;
+        const canceled = axios.isCancel(error) || config?.signal?.aborted;
+        const temporary = !error.response || [502, 503, 504].includes(error.response.status);
+        const safeRead = config?.method === 'get' && !/^\/?(attempts|students|admin|student-dashboard)(\/|\?|$)/.test(config.url || '');
+        if (!canceled && temporary && safeRead && !config.networkRetried && navigator.onLine) {
+            config.networkRetried = true;
+            await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+            if (config.signal?.aborted) return Promise.reject(error);
+            return axiosInstance.request(config);
+        }
+        if (!canceled && temporary && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('app-network-error', { detail: { service: Boolean(error.response) } }));
+        }
         const status = error.response?.status;
         const isAdminRequest = error.config?.authAudience === 'admin';
         const isStudentRequest = error.config?.authAudience === 'student';

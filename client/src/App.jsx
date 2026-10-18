@@ -1,9 +1,11 @@
 import { BrowserRouter, useLocation } from "react-router-dom";
 import StudentRoutes from "./routes/StudentRoutes";
-import AdminRoutes from "./routes/AdminRoutes";
-import { useLayoutEffect } from "react";
+import { lazy, Suspense, useLayoutEffect } from "react";
 import { applyMetadata, initialPage } from "./seo/pageMetadata";
 import PageLoadingProvider from "./shared/PageLoadingProvider";
+import PageLoader from "./shared/PageLoader";
+import NetworkNotice from "./shared/NetworkNotice";
+const AdminRoutes = lazy(() => import("./routes/AdminRoutes"));
 
 function AppRoutes({ initialData, initialView }) {
   const location = useLocation();
@@ -16,14 +18,14 @@ function AppRoutes({ initialData, initialView }) {
     window.scrollTo({ top: 0, behavior: "instant" });
     document.documentElement.dataset.appReady = 'true';
   }, [location.pathname, location.search]);
-  return location.pathname.startsWith("/admin") ? <AdminRoutes /> : <StudentRoutes initialData={initialData} initialView={initialView} />;
+  return location.pathname.startsWith("/admin") ? <Suspense fallback={<PageLoader />}><AdminRoutes /></Suspense> : <StudentRoutes initialData={initialData} initialView={initialView} />;
 }
 
 function App({ initialData, initialView, routerComponent, routerProps = {} }) {
   const Router = routerComponent || BrowserRouter;
   return (
     <Router {...routerProps}>
-      <PageLoadingProvider><AppRoutes initialData={initialData} initialView={initialView} /></PageLoadingProvider>
+      <PageLoadingProvider><AppRoutes initialData={initialData} initialView={initialView} /><NetworkNotice /></PageLoadingProvider>
     </Router>
   );
 }

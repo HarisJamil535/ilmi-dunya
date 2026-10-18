@@ -5,7 +5,7 @@ function siteOrigin() {
     if (!['http:', 'https:'].includes(url.protocol) || url.pathname !== '/' || url.search || url.hash) throw new Error("SITE_URL must be an HTTP(S) origin without a path.");
     return url.origin;
 }
-function renderDocument(template, data, body = "", styles = []) {
+function renderDocument(template, data, body = "", styles = [], modules = []) {
     const { meta } = data;
     const origin = siteOrigin();
     const canonical = new URL(meta.path, origin).href;
@@ -31,7 +31,7 @@ function renderDocument(template, data, body = "", styles = []) {
     if (meta.indexable && data.study?.breadcrumbs?.length) schemas.push({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [...data.study.breadcrumbs, { title: data.study.title, href: meta.path }].map((item, i) => ({ '@type': 'ListItem', position: i + 1, name: item.title, item: new URL(item.href, origin).href })) });
     if (data.article && meta.indexable) schemas.push({ '@context': 'https://schema.org', '@type': 'NewsArticle', headline: data.article.title, description: data.article.excerpt, datePublished: data.article.publishedAt, dateModified: data.article.updatedAt, author: { '@type': 'Organization', name: data.article.author || 'IlmiDunya Editorial' }, image: data.article.coverImage ? [image] : undefined, mainEntityOfPage: canonical });
     const schemaTag = schemas.length ? `<script id="${data.article ? 'news-article-schema' : 'public-page-schema'}" type="application/ld+json">${safeJson(schemas)}</script>` : '';
-    html = html.replace('</head>', `${tags}${schemaTag}${styles.map(href => `<link rel="stylesheet" href="${escapeHtml(href)}">`).join('')}</head>`);
+    html = html.replace('</head>', `${tags}${schemaTag}${styles.map(href => `<link rel="stylesheet" href="${escapeHtml(href)}">`).join('')}${modules.map(href => `<link rel="modulepreload" crossorigin href="${escapeHtml(href)}">`).join('')}</head>`);
     return html.replace('<div id="root"></div>', `<div id="root">${body}</div><script id="public-page-data" type="application/json">${safeJson(data)}</script>`);
 }
 const sitemapXml = (entries, origin = siteOrigin()) => `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries.map(item => `<url><loc>${escapeHtml(new URL(item.path, origin).href)}</loc>${item.updatedAt ? `<lastmod>${new Date(item.updatedAt).toISOString()}</lastmod>` : ''}</url>`).join('')}</urlset>`;
