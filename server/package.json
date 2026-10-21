@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test tests/*.test.js",
-    "indexes": "node src/scripts/ensureIndexes.js"
+    "indexes": "node src/scripts/ensureIndexes.js",
+    "create-super-admin": "node src/scripts/createSuperAdmin.js"
   },
   "keywords": [],
   "author": "",

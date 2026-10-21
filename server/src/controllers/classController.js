@@ -1,3 +1,4 @@
+const { clearStudentReferences } = require("../middleware/academicIntegrity");
 const Class = require("../models/Class");
 
 const createExactNameRegex = (name) => {
@@ -52,6 +53,7 @@ const deleteClass = async (req, res) => {
     try {
         const deletedClass = await Class.findByIdAndDelete(req.params.id);
         if (!deletedClass) return res.status(404).json({ success: false, message: "Class not found" });
+        await clearStudentReferences("Class", deletedClass._id);
         return res.status(200).json({ success: true, message: "Class deleted successfully" });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

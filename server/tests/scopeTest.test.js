@@ -12,9 +12,10 @@ const id = () => new mongoose.Types.ObjectId();
 const chapter = { _id: id(), name: "Motion", board: id(), class: id(), group: id(), subject: id() };
 const topic = { _id: id(), chapterId: chapter._id, name: "Periodic motion" };
 const query = result => ({ sort() { return this; }, select() { return this; }, lean: async () => result });
-function parents() {
+function parents(generated = null) {
     mock.method(Chapter, "findById", () => query(chapter));
     mock.method(Topic, "findById", () => query(topic));
+    mock.method(Assessment, "findOne", () => query(generated));
 }
 afterEach(() => mock.restoreAll());
 
@@ -80,6 +81,40 @@ test("topic test appends published batches without duplicates and keeps a stable
     const afterEdit = await createScopeTest(undefined, String(topic._id));
     assert.equal(afterEdit.questions[0].marks, 3);
     assert.equal(afterEdit.totalMarks, 7);
+});
+
+test("unchanged generated tests are reused without a database write", async () => {
+    const creator = id();
+    const question = id();
+    const batches = [{ topic: topic._id, createdBy: creator, durationMinutes: 3, questions: [{ question, order: 1, marks: 2 }] }];
+    const generated = { _id: id(), title: "Periodic motion Topic Test", description: "All published MCQs for this topic.", durationMinutes: 3, totalMarks: 2, passingMarks: 1, status: "published", createdBy: creator, questions: [{ question, marks: 2, order: 1, required: true }] };
+    parents(generated);
+    mock.method(Assessment, "find", () => query(batches));
+    mock.method(Assessment, "findOneAndUpdate", () => { throw new Error("Unchanged content must not be rewritten"); });
+    assert.equal(await createScopeTest(undefined, String(topic._id)), generated);
+    batches[0].questions[0].marks = 3;
+    let writes = 0;
+    mock.restoreAll();
+    parents(generated);
+    mock.method(Assessment, "find", () => query(batches));
+    mock.method(Assessment, "findOneAndUpdate", (key, update) => { writes += 1; return query({ ...generated, ...update }); });
+    assert.equal((await createScopeTest(undefined, String(topic._id))).totalMarks, 3);
+    assert.equal(writes, 1);
+});
+
+test("a concurrent first request updates the single generated test instead of failing", async () => {
+    parents();
+    const creator = id();
+    mock.method(Assessment, "find", () => query([{ topic: topic._id, createdBy: creator, durationMinutes: 1, questions: [{ question: id(), order: 1 }] }]));
+    const calls = [];
+    mock.method(Assessment, "findOneAndUpdate", (key, update, options) => {
+        calls.push(options.upsert);
+        if (options.upsert) return { lean: async () => { throw Object.assign(new Error("duplicate"), { code: 11000 }); } };
+        return query({ _id: id(), ...update });
+    });
+    const result = await createScopeTest(undefined, String(topic._id));
+    assert.deepEqual(calls, [true, false]);
+    assert.equal(result.questions.length, 1);
 });
 
 test("unpublished topics do not create empty generated tests", async () => {

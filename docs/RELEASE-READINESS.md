@@ -29,3 +29,21 @@
 6. Rotate credentials previously shared in screenshots or messages. Do not commit `.env` files.
 
 No existing records were migrated or rewritten. These checks reduce known risks; they do not guarantee a bug-free application or production response times on every network.
+
+# Audit fixes - 2026-10-21
+
+## Changed
+
+- **Super admin creation** no longer has a built-in password. Run `npm --prefix server run create-super-admin` with `SUPER_ADMIN_NAME`, `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` (12+ characters, letters and numbers) set only for that command. If `admin@ilmidunya.com` was ever created with the old default password, change that password now.
+- **Test settings are enforced**: opening/closing times (attempts end at the closing time), allowed attempts, question shuffling, option shuffling (options are relabelled A-D per attempt; grading still uses the stored keys), and "show result after submission". Withheld results hide score and answer keys from students and stay off the leaderboard until an admin turns the setting back on. All settings are in the MCQ Test Builder under "Test settings".
+- **Generated chapter/topic tests** are only rewritten when their published content changes, and a unique partial index prevents duplicates. Run `npm --prefix server run indexes` once after deploying; it now reports every model with conflicting records instead of stopping at the first.
+- **Subject and news images** upload to MongoDB GridFS (`/api/media/images/:id`) so they survive redeploys and are included in database backups. Existing `/uploads/...` images keep working; keep that folder until those images are re-uploaded.
+- **Admin password reset codes** are now keyed with `JWT_SECRET`. Codes requested before this deploy stop working; request a new one.
+- **Site visit counter** ignores crawlers and stops counting after 60 visits per address in 15 minutes. `TRUST_PROXY_HOPS` must match the hosting proxy, or every visitor shares one address.
+- Deleting a board, class, group or subject clears it from student profiles. Admin menus only show sections the admin has permission for. A failed connection no longer signs admins out. The student dashboard shows a real day streak and weakest topics, and offers a retry if loading fails.
+- Removed unused code: the random test builder endpoint, rate limits for non-existent routes, `mockDatabase.js` and commented-out controller code.
+
+## Not changed (needs a hosting decision)
+
+- Rate limits and the public page cache are per process. Multiple server instances need a shared store such as Redis.
+- Student and admin tokens are still in browser storage. Moving to HttpOnly cookies needs a coordinated CSRF/session migration.

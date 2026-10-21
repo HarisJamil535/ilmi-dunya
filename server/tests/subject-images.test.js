@@ -27,6 +27,9 @@ test('subject writes validate image paths and preserve images when omitted', asy
         const image = '/uploads/subjects/12345678-abcd-1234-abcd-123456789abc.webp';
         await updateSubject({ params: { id: '444444444444444444444444' }, body: { ...body, cardImage: image } }, res, e => { throw e; });
         assert.equal(payload.cardImage, image);
+        const stored = '/api/media/images/507f1f77bcf86cd799439011';
+        await updateSubject({ params: { id: '444444444444444444444444' }, body: { ...body, cardImage: stored } }, res, e => { throw e; });
+        assert.equal(payload.cardImage, stored);
         await updateSubject({ params: { id: '444444444444444444444444' }, body: { ...body, cardImage: '' } }, res, e => { throw e; });
         assert.equal(payload.cardImage, '');
     } finally { Subject.findOne = findOne; Subject.findByIdAndUpdate = update; }
@@ -46,14 +49,14 @@ test('subject image uploads require admin authentication', async () => {
 test('permitted admins upload signature-checked images with a size limit', async t => {
     const Admin = require('../src/models/Admin');
     const jwt = require('jsonwebtoken');
-    const fs = require('node:fs/promises');
     const previousSecret = process.env.JWT_SECRET;
     process.env.JWT_SECRET = 'test-only-subject-image-upload-secret';
     t.after(() => { if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret; });
     t.mock.method(Admin, 'findById', () => ({ select: async () => ({ role: 'admin', status: 'active', currentSessionId: 'current', permissions: ['academic'] }) }));
     let stored;
-    t.mock.method(fs, 'mkdir', async () => {});
-    t.mock.method(fs, 'writeFile', async (file, bytes) => { stored = bytes; });
+    const mediaStore = require('../src/services/mediaStore');
+    const { imageExtension } = require('../src/services/imageUpload');
+    t.mock.method(mediaStore, 'storeImage', async (bytes, purpose) => { imageExtension(bytes); stored = bytes; assert.equal(purpose, 'subject'); return '/api/media/images/507f1f77bcf86cd799439011'; });
     const app = express();
     app.use('/api/subjects', require('../src/routes/subjectRoutes'));
     app.use(require('../src/middleware/requestSafety').errorHandler);
@@ -70,7 +73,7 @@ test('permitted admins upload signature-checked images with a size limit', async
     const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.alloc(12)]);
     const response = await upload(png);
     assert.equal(response.status, 201);
-    assert.match((await response.json()).imageUrl, /^\/uploads\/subjects\/[a-f0-9-]+\.png$/);
+    assert.match((await response.json()).imageUrl, /^\/api\/media\/images\/[a-f\d]{24}$/);
     assert.deepEqual(stored, png);
     assert.equal((await upload(Buffer.alloc(1024 * 1024 + 1))).status, 413);
 });

@@ -160,39 +160,10 @@ const deleteAssessment = async (req, res) => {
     res.json({ success: true, assessment });
 };
 
-const generateRandomAssessment = async (req, res) => {
-    const { filters = {}, totalQuestions = 10, difficulty = {} } = req.body;
-    const levels = ["easy", "medium", "hard"];
-    let selected = [];
-
-    for (const level of levels) {
-        const count = Number(difficulty[level] || 0);
-        if (!count) continue;
-        const questions = await Question.aggregate([
-            { $match: { ...filters, ...require("../services/scopeTest").mcqFilter, difficulty: level } },
-            { $sample: { size: count } },
-            { $project: { _id: 1, marks: 1 } },
-        ]);
-        selected = [...selected, ...questions.map((question) => ({ question: question._id, marks: question.marks }))];
-    }
-
-    if (selected.length < totalQuestions) {
-        const remaining = await Question.aggregate([
-            { $match: { ...filters, ...require("../services/scopeTest").mcqFilter, _id: { $nin: selected.map((item) => item.question) } } },
-            { $sample: { size: totalQuestions - selected.length } },
-            { $project: { _id: 1, marks: 1 } },
-        ]);
-        selected = [...selected, ...remaining.map((question) => ({ question: question._id, marks: question.marks }))];
-    }
-
-    res.json({ success: true, questions: selected.slice(0, totalQuestions) });
-};
-
 module.exports = {
     getAssessments,
     getAssessment,
     createAssessment,
     updateAssessment,
     deleteAssessment,
-    generateRandomAssessment,
 };

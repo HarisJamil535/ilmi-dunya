@@ -1,3 +1,4 @@
+const { clearStudentReferences } = require("../middleware/academicIntegrity");
 const Board = require("../models/Board");
 
 const createExactNameRegex = (name) => {
@@ -52,6 +53,7 @@ const deleteBoard = async (req, res) => {
     try {
         const board = await Board.findByIdAndDelete(req.params.id);
         if (!board) return res.status(404).json({ success: false, message: "Board not found" });
+        await clearStudentReferences("Board", board._id);
         return res.status(200).json({ success: true, message: "Board deleted successfully" });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

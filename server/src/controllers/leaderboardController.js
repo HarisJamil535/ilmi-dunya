@@ -44,7 +44,8 @@ const getLeaderboard = async (req, res) => {
         { $match: attemptMatch },
         { $lookup: { from: "assessments", localField: "assessment", foreignField: "_id", as: "assessment" } },
         { $unwind: "$assessment" },
-        { $match: { "assessment.type": { $ne: "custom_practice" } } },
+        // Withheld results stay off the leaderboard until an admin releases them.
+        { $match: { "assessment.type": { $ne: "custom_practice" }, "assessment.showResultImmediately": { $ne: false } } },
         ...(Object.keys(assessmentMatch).length ? [{ $match: assessmentMatch }] : []),
         { $set: {
             safeScore: { $min: ["$totalMarks", { $max: [0, "$score"] }] },

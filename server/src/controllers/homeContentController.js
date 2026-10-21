@@ -15,7 +15,14 @@ const getPublicHomeContent = async (req, res) => {
     res.json({ success: true, testimonials, stats: [visitStat, ...stats].slice(0, 4) });
 };
 
+const automatedClient = /bot|crawl|spider|slurp|preview|headless|lighthouse|pagespeed|facebookexternalhit|curl|wget|python|axios|node-fetch|go-http/i;
+
 const recordVisit = async (req, res) => {
+    // Crawlers and repeated hits from one address are acknowledged without inflating the public count.
+    if (req.visitNotCounted || automatedClient.test(req.get("user-agent") || "")) {
+        const metric = await SiteMetric.findOne({ key: "site-visits" }).select("total").lean();
+        return res.json({ success: true, counted: false, total: metric?.total || 0 });
+    }
     const metric = await SiteMetric.findOneAndUpdate(
         { key: "site-visits" },
         { $inc: { total: 1 }, $set: { lastRecordedAt: new Date() }, $setOnInsert: { key: "site-visits" } },

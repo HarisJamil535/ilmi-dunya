@@ -17,6 +17,32 @@ const Field = ({ label, helper, children }) => (
   </label>
 );
 
+const defaultSettings = {
+  allowResume: true,
+  showCorrectAnswers: true,
+  showResultImmediately: true,
+  shuffleQuestions: false,
+  shuffleOptions: false,
+  maxAttempts: 0,
+  startsAt: "",
+  endsAt: "",
+};
+
+// datetime-local inputs use the browser's local time without a zone.
+const toLocalInput = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
+};
+const toIso = (value) => value ? new Date(value).toISOString() : "";
+
+const Toggle = ({ label, helper, checked, onChange }) => (
+  <label className="flex items-start gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+    <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <span><span className="block text-sm font-bold text-slate-800">{label}</span>{helper && <span className="block text-xs font-semibold leading-5 text-slate-400">{helper}</span>}</span>
+  </label>
+);
+
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortByTitle = (items) => [...items].sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
@@ -36,8 +62,7 @@ const AssessmentBuilder = () => {
     topic: "",
     durationMinutes: 30,
     status: "draft",
-    allowResume: true,
-    showCorrectAnswers: true,
+    ...defaultSettings,
   });
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
@@ -161,6 +186,9 @@ const AssessmentBuilder = () => {
         status: form.status,
         questions: selected.map((id, index) => ({ question: id, order: index + 1 })),
         passingMarks: Math.ceil(totalMarks * 0.4),
+        maxAttempts: Number(form.maxAttempts) || 0,
+        startsAt: toIso(form.startsAt),
+        endsAt: toIso(form.endsAt),
       };
       const response = editingId
         ? await axiosInstance.put(`/assessments/${editingId}`, payload)
@@ -168,7 +196,7 @@ const AssessmentBuilder = () => {
       setAssessments((current) => sortByTitle([response.data.assessment, ...current.filter((item) => item._id !== response.data.assessment._id)]));
       setSelected([]);
       setEditingId("");
-      setForm((current) => ({ ...current, title: "", description: "", status: "draft" }));
+      setForm((current) => ({ ...current, title: "", description: "", status: "draft", ...defaultSettings }));
     } catch (err) {
       setError(err.response?.data?.message || "Unable to save test. Please try again.");
     } finally {
@@ -231,8 +259,14 @@ const AssessmentBuilder = () => {
         topic: String(draft.topic?._id || draft.topic || ""),
         durationMinutes: draft.durationMinutes || 30,
         status: draft.status,
-        allowResume: draft.allowResume,
-        showCorrectAnswers: draft.showCorrectAnswers,
+        allowResume: draft.allowResume ?? true,
+        showCorrectAnswers: draft.showCorrectAnswers ?? true,
+        showResultImmediately: draft.showResultImmediately ?? true,
+        shuffleQuestions: Boolean(draft.shuffleQuestions),
+        shuffleOptions: Boolean(draft.shuffleOptions),
+        maxAttempts: draft.maxAttempts || 0,
+        startsAt: toLocalInput(draft.startsAt),
+        endsAt: toLocalInput(draft.endsAt),
       }));
       setQuestionFilters({ search: "", difficulty: "", type: "" });
       setQuestionCache((current) => ({ ...current, ...Object.fromEntries((draft.questions || []).filter((item) => item.question?._id).map((item) => [String(item.question._id), { ...item.question, marks: item.marks }])) }));
@@ -247,7 +281,7 @@ const AssessmentBuilder = () => {
   const cancelEdit = () => {
     setEditingId("");
     setSelected([]);
-    setForm((current) => ({ ...current, title: "", description: "", status: "draft" }));
+    setForm((current) => ({ ...current, title: "", description: "", status: "draft", ...defaultSettings }));
   };
 
   return (
@@ -336,6 +370,25 @@ const AssessmentBuilder = () => {
                 <input type="number" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })} />
               </Field>
             </div>
+            <details className="mt-3 rounded-2xl border border-slate-200 p-3">
+              <summary className="cursor-pointer text-xs font-black uppercase tracking-wider text-slate-500">Test settings</summary>
+              <div className="mt-3 space-y-2">
+                <Toggle label="Shuffle question order" helper="Each attempt gets a different order. Scenario questions stay together." checked={form.shuffleQuestions} onChange={(value) => setForm({ ...form, shuffleQuestions: value })} />
+                <Toggle label="Shuffle answer options" helper="Options are relabelled A, B, C, D per attempt." checked={form.shuffleOptions} onChange={(value) => setForm({ ...form, shuffleOptions: value })} />
+                <Toggle label="Allow resuming" helper="Students can continue an unfinished attempt while time remains." checked={form.allowResume} onChange={(value) => setForm({ ...form, allowResume: value })} />
+                <Toggle label="Show result after submission" helper="Turn off to hold results; turn on later to release them and add them to the leaderboard." checked={form.showResultImmediately} onChange={(value) => setForm({ ...form, showResultImmediately: value })} />
+                <Toggle label="Show correct answers" helper="Reveal answer keys and explanations on the result page." checked={form.showCorrectAnswers} onChange={(value) => setForm({ ...form, showCorrectAnswers: value })} />
+                <Field label="Allowed attempts" helper="0 means unlimited.">
+                  <input type="number" min="0" max="100" step="1" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.maxAttempts} onChange={(e) => setForm({ ...form, maxAttempts: e.target.value })} />
+                </Field>
+                <Field label="Opens at" helper="Optional. Leave empty to open immediately.">
+                  <input type="datetime-local" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
+                </Field>
+                <Field label="Closes at" helper="Optional. Attempts in progress end at this time.">
+                  <input type="datetime-local" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} />
+                </Field>
+              </div>
+            </details>
             <div className="mt-3">
               <Field label="Save as" helper="Publish now to make this test appear to students, or keep it as a draft.">
                 <SmartSelect value={form.status} onChange={(value) => setForm({ ...form, status: value })} options={[{ value: "draft", label: "Draft" }, { value: "published", label: "Published" }]} placeholder="Choose status" />

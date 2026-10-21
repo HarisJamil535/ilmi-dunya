@@ -39,6 +39,30 @@ const AssessmentResult = () => {
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Spinner /></div>;
   if (error || !attempt) return <main className="learning-page"><div className="learning-wrap"><p className="learning-alert" role="alert">{error || "Result unavailable."}</p><button className="learning-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></div></main>;
 
+  if (attempt.resultsWithheld) return (
+    <main className="learning-page result-page">
+      <div className="learning-wrap learning-enter">
+        <Breadcrumbs className="result-breadcrumbs" items={[{ label: "Tests", to: "/tests" }, { label: "Result" }]} />
+        <header className="result-hero">
+          <div className="result-copy">
+            <div className="learning-eyebrow"><Award size={17} /> Test submitted</div>
+            <h1>Your answers are saved.</h1>
+            <p className="result-test-title">{attempt.assessment?.title || "MCQ test"}</p>
+            <p className="result-encouragement">Your result will appear here once your teacher releases it. Released results count on the leaderboard.</p>
+            <div className="learning-actions">
+              <Link className="learning-button" to="/tests">Take another test <ArrowRight size={16} /></Link>
+              <Link className="learning-button secondary" to="/dashboard">Back to dashboard</Link>
+            </div>
+          </div>
+        </header>
+        <section className="result-overview" aria-label="Submission summary">
+          <div className="result-stat"><span className="result-stat-icon correct"><CheckCircle2 /></span><div><span>Answered</span><strong>{(attempt.answers || []).filter((answer) => answer.selectedOption).length}<small> / {(attempt.answers || []).length}</small></strong></div></div>
+          <div className="result-stat"><span className="result-stat-icon time"><Clock3 /></span><div><span>Time taken</span><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div></div>
+        </section>
+      </div>
+    </main>
+  );
+
   const answers = attempt.answers || [];
   const correct = answers.filter((answer) => answer.isCorrect).length;
   const unanswered = answers.filter((answer) => !answer.selectedOption).length;
@@ -110,7 +134,7 @@ const AssessmentResult = () => {
                 const isCorrect = option.key === answer.question.correctOption;
                 const selected = option.key === answer.selectedOption;
                 return <div key={option.key} className={"learning-option " + (isCorrect ? "correct" : selected && !answer.isCorrect ? "wrong" : "")}>
-                  <strong>{option.key}.</strong> <MathText text={option.text} />
+                  <strong>{option.label || option.key}.</strong> <MathText text={option.text} />
                   {(isCorrect || selected) && <small>{isCorrect ? "Correct answer" : "Your answer"}{isCorrect && selected ? " · Your answer" : ""}</small>}
                 </div>;
               })}

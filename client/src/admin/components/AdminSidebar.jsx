@@ -23,21 +23,24 @@ import ThemeToggle from "../../shared/ThemeToggle";
 
 // Rest of the flat sidebar items (Dashboard and Academic Structure handled separately)
 const standardSidebarItems = [
-  { id: 3, label: "Subjects", icon: HiOutlineBookOpen, path:'academic-structure/manage-subject' },
-  { id: 4, label: "Chapters", icon: HiOutlineCollection,path:'academic-structure/manage-chapters' },
-  { id: 5, label: "Topics", icon: HiOutlineLightBulb, path:'academic-structure/manage-topics' },
-  { id: 6, label: "Books", icon: HiOutlineBookOpen, path:'academic-structure/manage-books' },
-  { id: 7, label: "Notes", icon: HiOutlineDocumentText, path:'academic-structure/manage-notes' },
-  { id: 8, label: "Past Papers", icon: HiOutlineDocumentText, path:'academic-structure/manage-past-papers' },
-  { id: 20, label: "Answer Sheets", icon: HiOutlineDocumentText, path:'academic-structure/manage-answer-sheets' },
-  { id: 9, label: "Home Stats", icon: HiOutlineChartBar, path:'home-content/stats' },
-  { id: 10, label: "Testimonials", icon: HiOutlineChatAlt2, path:'home-content/testimonials' },
-  { id: 15, label: "Question Bank", icon: HiOutlineClipboardCheck, path:'assessments/questions' },
-  { id: 16, label: "MCQ Tests", icon: HiOutlineClipboardCheck, path:'assessments/builder' },
-  { id: 17, label: "Analytics", icon: HiOutlineChartPie, path:'assessments/analytics' },
-  { id: 18, label: "Education News", icon: HiOutlineNewspaper, path:'home-content/news' },
+  { id: 3, label: "Subjects", icon: HiOutlineBookOpen, path:'academic-structure/manage-subject', permission: "academic" },
+  { id: 4, label: "Chapters", icon: HiOutlineCollection,path:'academic-structure/manage-chapters', permission: "academic" },
+  { id: 5, label: "Topics", icon: HiOutlineLightBulb, path:'academic-structure/manage-topics', permission: "academic" },
+  { id: 6, label: "Books", icon: HiOutlineBookOpen, path:'academic-structure/manage-books', permission: "resources" },
+  { id: 7, label: "Notes", icon: HiOutlineDocumentText, path:'academic-structure/manage-notes', permission: "resources" },
+  { id: 8, label: "Past Papers", icon: HiOutlineDocumentText, path:'academic-structure/manage-past-papers', permission: "resources" },
+  { id: 20, label: "Answer Sheets", icon: HiOutlineDocumentText, path:'academic-structure/manage-answer-sheets', permission: "resources" },
+  { id: 9, label: "Home Stats", icon: HiOutlineChartBar, path:'home-content/stats', permission: "homeContent" },
+  { id: 10, label: "Testimonials", icon: HiOutlineChatAlt2, path:'home-content/testimonials', permission: "homeContent" },
+  { id: 15, label: "Question Bank", icon: HiOutlineClipboardCheck, path:'assessments/questions', permission: "assessments" },
+  { id: 16, label: "MCQ Tests", icon: HiOutlineClipboardCheck, path:'assessments/builder', permission: "assessments" },
+  { id: 17, label: "Analytics", icon: HiOutlineChartPie, path:'assessments/analytics', permission: "analytics" },
+  { id: 18, label: "Education News", icon: HiOutlineNewspaper, path:'home-content/news', permission: "news" },
   { id: 19, label: "Students", icon: HiOutlineUserGroup, path:'students', superAdminOnly: true },
 ];
+
+// The server enforces permissions; the menu only hides pages an admin cannot use.
+const canOpen = (admin, item) => admin?.role === "super_admin" || (!item.superAdminOnly && (!item.permission || admin?.permissions?.includes(item.permission)));
 
 const AdminSidebar = () => {
   const location = useLocation();
@@ -171,7 +174,7 @@ const AdminSidebar = () => {
           </Link>
 
           {/* OPTION 2: COLLAPSIBLE ACADEMIC STRUCTURE */}
-          <div className="w-full">
+          {canOpen(adminUser, { permission: "academic" }) && <div className="w-full">
             <button
               onClick={handleAcademicToggle}
               className={`group relative w-full flex items-center ${
@@ -221,10 +224,10 @@ const AdminSidebar = () => {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* REMAINING STANDARD SIDEBAR ITEMS */}
-          {standardSidebarItems.filter((item) => !item.superAdminOnly || adminUser?.role === "super_admin").map((item) => {
+          {standardSidebarItems.filter((item) => canOpen(adminUser, item)).map((item) => {
             const Icon = item.icon;
             const active = activeItem === item.id || isPathActive(item.path);
 

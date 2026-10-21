@@ -6,7 +6,8 @@ const { gradeAttempt } = require("../services/assessmentScoring");
 const { pointsForAttempt, rankEligibility } = require("../services/leaderboardScoring");
 const LeaderboardState = require("../models/LeaderboardState");
 const mongoose = require("mongoose");
-const { supportsSelection, resolveQuestionCount, selectQuestions } = require("../services/attemptSelection");
+const { supportsSelection, resolveQuestionCount, selectQuestions, shuffled } = require("../services/attemptSelection");
+const { startBlocker, attemptExpiry, orderOptions, resultsWithheld, withholdScores } = require("../services/attemptRules");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
 
@@ -28,6 +29,10 @@ const previewAttempt = async (req, res) => {
         status: "in_progress",
         expiresAt: { $gt: new Date() },
     }).select("_id answers totalMarks startedAt expiresAt isPartialPractice").lean();
+    if (!existing) {
+        const blocker = await startBlocker(assessment, req.student._id);
+        if (blocker) return res.status(403).json({ success: false, message: blocker });
+    }
     res.json({ success: true, test: {
         title: assessment.title,
         type: assessment.type,
@@ -37,8 +42,11 @@ const previewAttempt = async (req, res) => {
         durationMinutes: existing ? Math.ceil((new Date(existing.expiresAt) - new Date(existing.startedAt)) / 60000) : supportsSelection(assessment) ? assessment.questions.length : assessment.durationMinutes,
         totalMarks: existing ? existing.totalMarks : assessment.totalMarks,
         instructions: assessment.instructions,
-        ranked: assessment.type !== "custom_practice" && !existing?.isPartialPractice,
+        ranked: assessment.type !== "custom_practice" && !existing?.isPartialPractice && !resultsWithheld(assessment),
         resume: Boolean(existing),
+        closesAt: assessment.endsAt || null,
+        maxAttempts: Number(assessment.maxAttempts) || 0,
+        resultsWithheld: resultsWithheld(assessment),
     } });
 };
 
@@ -69,6 +77,9 @@ const startAttempt = async (req, res) => {
         }
     }
 
+    const blocker = await startBlocker(assessment, req.student._id);
+    if (blocker) return res.status(403).json({ success: false, message: blocker });
+
     let count = assessment.questions.length;
     try {
         if (supportsSelection(assessment)) count = resolveQuestionCount(req.body.questionCount, count);
@@ -78,21 +89,26 @@ const startAttempt = async (req, res) => {
     if (!count) return res.status(400).json({ success: false, message: "This test has no available questions." });
     const isPartialPractice = count < assessment.questions.length;
     const previous = isPartialPractice ? await AssessmentAttempt.findOne({ student: req.student._id, assessment: assessment._id }).sort({ createdAt: -1, _id: -1 }).select("answers.question").lean() : null;
-    const selected = selectQuestions(assessment.questions, count, previous?.answers.map(item => item.question) || []);
+    let selected = selectQuestions(assessment.questions, count, previous?.answers.map(item => item.question) || []);
+    if (assessment.shuffleQuestions) selected = shuffled(selected).map((item, index) => ({ ...item, order: index + 1 }));
     const now = new Date();
     const durationMinutes = supportsSelection(assessment) ? count : assessment.durationMinutes;
-    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
-    const questionDocs = await Question.find({ _id: { $in: selected.map(item => item.question) }, status: { $ne: "archived" } }).select("_id type scenario correctOption marks").lean();
+    const expiresAt = attemptExpiry(assessment, now, durationMinutes);
+    const questionDocs = await Question.find({ _id: { $in: selected.map(item => item.question) }, status: { $ne: "archived" } }).select(`_id type scenario correctOption marks${assessment.shuffleOptions ? " options.key" : ""}`).lean();
     const keys = new Map(questionDocs.map((question) => [String(question._id), question]));
     if (selected.some((item) => !keys.has(String(item.question)))) return res.status(400).json({ message: "This test has unavailable questions. Please contact support." });
     const orderedQuestions = require("../services/scenarioOrder").groupScenarioQuestions(selected, questionDocs);
     const totalMarks = orderedQuestions.reduce((sum, item) => sum + Number(item.marks ?? keys.get(String(item.question)).marks ?? 1), 0);
-    const answers = orderedQuestions.map((item) => ({
-        question: item.question,
-        marksAwarded: 0,
-        skipped: false,
-        flaggedForReview: false,
-    }));
+    const answers = orderedQuestions.map((item) => {
+        const optionKeys = assessment.shuffleOptions ? (keys.get(String(item.question)).options || []).map(option => option.key) : [];
+        return {
+            question: item.question,
+            marksAwarded: 0,
+            skipped: false,
+            flaggedForReview: false,
+            ...(optionKeys.length > 1 ? { optionOrder: shuffled(optionKeys) } : {}),
+        };
+    });
 
     const attempt = await AssessmentAttempt.create({
         student: req.student._id,
@@ -122,7 +138,7 @@ const getAttemptById = async (req, res, id = req.params.id) => {
     const attempt = await AssessmentAttempt.findOne({ _id: id, student: req.student._id })
         .populate({
             path: "assessment",
-            select: "title type durationMinutes totalMarks passingMarks instructions showCorrectAnswers",
+            select: "title type durationMinutes totalMarks passingMarks instructions showCorrectAnswers showResultImmediately",
         })
         .populate({
             path: "answers.question",
@@ -132,6 +148,8 @@ const getAttemptById = async (req, res, id = req.params.id) => {
         .lean();
 
     if (!attempt) return res.status(404).json({ success: false, message: "Attempt not found." });
+    attempt.answers.forEach(orderOptions);
+    if (attempt.status !== "in_progress" && resultsWithheld(attempt.assessment)) withholdScores(attempt);
     res.json({ success: true, attempt, serverNow: new Date() });
 };
 
@@ -214,13 +232,13 @@ const submitAttempt = async (req, res) => {
         subject: assessment.subject, chapter: assessment.chapter, topic: assessment.topic,
         metadata: { assessment: assessment._id, attempt: attempt._id, score: result.score, percentage: result.percentage },
     });
-    res.json({ success: true, attempt: saved });
+    res.json({ success: true, attempt: { _id: saved._id, status: saved.status } });
 };
 
 const getResult = async (req, res) => {
     const attempt = await AssessmentAttempt.findOne({ _id: req.params.id, student: req.student._id })
         .select("+gradingSnapshot")
-        .populate("assessment", "title type board class group subject chapter totalMarks passingMarks showCorrectAnswers")
+        .populate("assessment", "title type board class group subject chapter totalMarks passingMarks showCorrectAnswers showResultImmediately")
         .populate({
             path: "answers.question",
             populate: { path: "scenario", select: "title scenarioText contentLanguage" },
@@ -243,6 +261,8 @@ const getResult = async (req, res) => {
         }
     }
     delete attempt.gradingSnapshot;
+    attempt.answers.forEach(orderOptions);
+    if (resultsWithheld(attempt.assessment)) return res.json({ success: true, attempt: withholdScores(attempt) });
     attempt.percentage = attempt.totalMarks > 0 ? Number((attempt.score / attempt.totalMarks * 100).toFixed(2)) : 0;
     const eligibility = rankEligibility(attempt.assessment, attempt);
     const state = await LeaderboardState.findOne({ key: "global" }).select("resetAt").lean();
@@ -254,10 +274,12 @@ const getResult = async (req, res) => {
 
 const getStudentAttempts = async (req, res) => {
     const attempts = await AssessmentAttempt.find({ student: req.student._id })
-        .populate("assessment", "title type subject chapter topic")
+        .select("-answers")
+        .populate("assessment", "title type subject chapter topic showResultImmediately")
         .sort({ createdAt: -1 })
         .limit(50)
         .lean();
+    for (const attempt of attempts) if (attempt.status !== "in_progress" && resultsWithheld(attempt.assessment)) withholdScores(attempt);
     res.json({ success: true, attempts });
 };
 

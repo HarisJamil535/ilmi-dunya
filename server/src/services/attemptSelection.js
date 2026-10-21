@@ -10,13 +10,19 @@ function resolveQuestionCount(requested, total) {
     return requested;
 }
 
-function selectQuestions(questions, count, previousIds = [], random = randomInt) {
-    if (count === questions.length) return [...questions];
-    const pool = [...questions];
+// Unbiased Fisher-Yates shuffle that returns a new array.
+function shuffled(items, random = randomInt) {
+    const pool = [...items];
     for (let i = pool.length - 1; i > 0; i--) {
         const j = random(i + 1);
         [pool[i], pool[j]] = [pool[j], pool[i]];
     }
+    return pool;
+}
+
+function selectQuestions(questions, count, previousIds = [], random = randomInt) {
+    if (count === questions.length) return [...questions];
+    const pool = shuffled(questions, random);
     const chosen = pool.slice(0, count);
     const previous = new Set(previousIds.map(String));
     // Avoid an identical consecutive subset, while allowing questions to recur.
@@ -27,4 +33,4 @@ function selectQuestions(questions, count, previousIds = [], random = randomInt)
     return chosen.map((item, index) => ({ ...item, order: index + 1 }));
 }
 
-module.exports = { supportsSelection, resolveQuestionCount, selectQuestions };
+module.exports = { supportsSelection, resolveQuestionCount, selectQuestions, shuffled };

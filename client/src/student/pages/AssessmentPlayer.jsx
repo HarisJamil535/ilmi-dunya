@@ -263,7 +263,13 @@ const AssessmentPlayer = ({ chapter, topic }) => {
             <li><span aria-hidden="true">1</span><div><h3>{preview?.resume ? "Your timer is already running" : "Start when you are ready"}</h3><p>{preview?.resume ? "Your earlier attempt is still in progress." : "The timer starts when you select Start test."} Your answers save as you go.</p></div></li>
             <li><span aria-hidden="true">2</span><div><h3>Answer at your own pace</h3><p>You can skip questions and return to them before submitting.</p></div></li>
             <li className="test-introduction-exit-rule"><span aria-hidden="true">3</span><div><h3>Stay on the test page</h3><p>Leaving or switching away submits your saved answers automatically.</p></div></li>
-            <li><span aria-hidden="true">4</span><div><h3>{ranked ? "Only your best attempt counts" : "Practise without ranking"}</h3><p>{ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "Shorter practice sets do not affect the leaderboard. Select all questions to compete in a topic or chapter test."}</p></div></li>
+            {preview?.resultsWithheld
+              ? <li><span aria-hidden="true">4</span><div><h3>Results are released later</h3><p>Your score and answers will appear once your teacher releases the results. Released results count on the leaderboard.</p></div></li>
+              : <li><span aria-hidden="true">4</span><div><h3>{ranked ? "Only your best attempt counts" : "Practise without ranking"}</h3><p>{ranked ? "You can retry. Only your best completed attempt for this test counts on the leaderboard." : "Shorter practice sets do not affect the leaderboard. Select all questions to compete in a topic or chapter test."}</p></div></li>}
+            {(preview?.closesAt || preview?.maxAttempts > 0) && !preview?.resume && <li><span aria-hidden="true">5</span><div><h3>Test limits</h3><p>{[
+              preview.closesAt && `This test closes on ${new Date(preview.closesAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}; an attempt in progress ends then.`,
+              preview.maxAttempts > 0 && `You can attempt it ${preview.maxAttempts === 1 ? "once" : `${preview.maxAttempts} times`}.`,
+            ].filter(Boolean).join(" ")}</p></div></li>}
           </ol>
           {preview?.instructions?.length > 0 && <aside className="test-introduction-extra"><h2>Teacher instructions</h2><ul>{preview.instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ul></aside>}
         </div>
@@ -338,7 +344,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
                     active ? "border-primary-muted bg-primary-soft text-primary-dark" : "border-slate-200 bg-white hover:border-primary-muted hover:bg-slate-50"
                   }`}
                 >
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black ${active ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{option.key}</span>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black ${active ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{option.label || option.key}</span>
                   <span className="min-w-0 whitespace-pre-wrap text-sm font-bold leading-6"><MathText text={option.text} /></span>
                 </button>
               );

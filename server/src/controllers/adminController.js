@@ -16,8 +16,17 @@ const Student = require("../models/Student");
 const Testimonial = require("../models/Testimonial");
 const HomeStat = require("../models/HomeStat");
 const { sendIlmiDunyaEmail } = require("../utils/mailer");
+const { escapeHtml } = require("../services/seoDocument");
 
 const SESSION_EXPIRES_IN = process.env.ADMIN_JWT_EXPIRES_IN || "8h";
+
+// Keyed per admin, so a leaked hash cannot be checked against the million possible codes offline.
+const resetCodeDigest = (adminId, otp) => crypto.createHmac("sha256", process.env.JWT_SECRET).update(`admin-reset:${adminId}:${otp}`).digest("hex");
+const sameDigest = (left, right) => {
+    const a = Buffer.from(String(left || ""));
+    const b = Buffer.from(String(right || ""));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
 
 const safeAdmin = (admin) => ({
     id: admin._id,
@@ -201,7 +210,7 @@ const createAdmin = async (req, res) => {
     sendIlmiDunyaEmail({
         to: admin.email,
         subject: "Your IlmiDunya admin account is ready",
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#443dd7">Welcome to IlmiDunya Admin</h2><p>Hello ${admin.name}, your admin account has been created.</p><p><strong>Email:</strong> ${admin.email}</p><p>Please log in and keep your password private.</p><p>Team IlmiDunya</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#17202a"><h2 style="color:#443dd7">Welcome to IlmiDunya Admin</h2><p>Hello ${escapeHtml(admin.name)}, your admin account has been created.</p><p><strong>Email:</strong> ${escapeHtml(admin.email)}</p><p>Please log in and keep your password private.</p><p>Team IlmiDunya</p></div>`,
     }).catch(() => {});
 
     res.status(201).json({ success: true, admin: safeAdmin(admin) });
@@ -254,7 +263,7 @@ const requestAdminPasswordReset = async (req, res) => {
     if (!admin) return res.json(generic);
 
     const otp = String(crypto.randomInt(100000, 1000000));
-    admin.passwordResetOtpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    admin.passwordResetOtpHash = resetCodeDigest(admin._id, otp);
     admin.passwordResetExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     admin.passwordResetAttempts = 0;
     await admin.save();
@@ -282,8 +291,8 @@ const resetAdminPassword = async (req, res) => {
     if (password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
 
     const admin = await Admin.findOne({ email }).select("+passwordResetOtpHash +passwordResetExpiresAt +passwordResetAttempts +currentSessionId");
-    const hash = crypto.createHash("sha256").update(otp).digest("hex");
-    if (!admin || !admin.passwordResetOtpHash || admin.passwordResetExpiresAt < new Date() || admin.passwordResetAttempts >= 5 || admin.passwordResetOtpHash !== hash) {
+    const hash = admin ? resetCodeDigest(admin._id, otp) : "";
+    if (!admin || !admin.passwordResetOtpHash || admin.passwordResetExpiresAt < new Date() || admin.passwordResetAttempts >= 5 || !sameDigest(admin.passwordResetOtpHash, hash)) {
         if (admin) await Admin.updateOne({ _id: admin._id, passwordResetOtpHash: admin.passwordResetOtpHash }, { $inc: { passwordResetAttempts: 1 } });
         return res.status(400).json({ success: false, message: "The code is invalid or has expired." });
     }

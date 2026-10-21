@@ -1,3 +1,4 @@
+const { clearStudentReferences } = require("../middleware/academicIntegrity");
 const Group = require("../models/Group");
 
 const createExactNameRegex = (name) => {
@@ -52,6 +53,7 @@ const deleteGroup = async (req, res) => {
     try {
         const deletedGroup = await Group.findByIdAndDelete(req.params.id);
         if (!deletedGroup) return res.status(404).json({ success: false, message: "Group not found" });
+        await clearStudentReferences("Group", deletedGroup._id);
         return res.status(200).json({ success: true, message: "Group deleted successfully" });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

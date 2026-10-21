@@ -427,9 +427,12 @@ const createQuestion = async (req, res) => {
 
 const updateQuestion = async (req, res) => {
     let payload;
-    try { payload = cleanQuestionPayload(req.body, req.admin?._id); }
-    catch (error) { return res.status(400).json({ success: false, message: error.message }); }
-    await applyQuestionScope(payload);
+    try {
+        payload = cleanQuestionPayload(req.body, req.admin?._id);
+        await applyQuestionScope(payload);
+    } catch (error) {
+        return res.status(error.status === 404 ? 404 : 400).json({ success: false, message: getQuestionValidationMessage(error) });
+    }
     delete payload.createdBy;
 
     const question = await Question.findById(req.params.id);

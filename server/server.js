@@ -101,14 +101,24 @@ const studentOtpLimiter = rateLimit({
     message: { success: false, message: "Too many verification attempts. Please wait 15 minutes and try again." },
 });
 
+const visitLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 60,
+    standardHeaders: false,
+    legacyHeaders: false,
+    // Over the limit, the visit is answered but not counted.
+    handler: (req, res, next) => { req.visitNotCounted = true; next(); },
+});
+
+// Uploaded images are cached by browsers for a year, so they are served before the API rate limit.
+app.get("/api/media/images/:id", require("./src/services/mediaStore").serveImage);
 app.use("/api", apiLimiter);
+app.use("/api/home-content/visit", visitLimiter);
 app.use("/api/admin/login", authLimiter);
 app.use("/api/admin/forgot-password", authLimiter);
 app.use("/api/admin/reset-password", authLimiter);
 app.use("/api/students/login", authLimiter);
 app.use("/api/students/register", studentOtpLimiter);
-app.use("/api/students/login/request-code", studentOtpLimiter);
-app.use("/api/students/login/verify-code", studentOtpLimiter);
 app.use("/api/students/forgot-password", authLimiter);
 app.use("/api/students/forgot-password", studentOtpLimiter);
 app.use("/api/students/reset-password", authLimiter);

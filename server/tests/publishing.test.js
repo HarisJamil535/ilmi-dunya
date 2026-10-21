@@ -21,6 +21,8 @@ test('publishing normalizes tags and rejects thin or unsafe resources', () => {
     assert.equal(safeUrl('https://user:password@example.com'), false);
     assert.equal(safeUrl('/uploads/news/safe.webp', { localImage: true }), true);
     assert.equal(safeUrl('/uploads/news/../../x.svg', { localImage: true }), false);
+    assert.equal(safeUrl('/api/media/images/507f1f77bcf86cd799439011', { localImage: true }), true);
+    assert.equal(safeUrl('/api/media/images/../../admin', { localImage: true }), false);
     assert.equal(slugify('FBISE Class 10 Physics'), 'fbise-class-10-physics');
 });
 

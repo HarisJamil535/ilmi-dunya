@@ -1,176 +1,6 @@
 const { publication, safeUrl, fail } = require("../services/publishing");
-// const Subject = require("../models/Subject");
-// const Board = require("../models/Board");
-// const Class = require("../models/Class");
-// const Group = require("../models/Group");
-
-// // 1. Create Subject
-// const createSubject = async (req, res, next) => {
-//     try {
-//         const { name, code, board, class: className, group } = req.body;
-
-//         if (!name || !board || !className || !group) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Board, Class, Group, and Subject Name are required fields.",
-//             });
-//         }
-
-//         const existingSubject = await Subject.findOne({
-//             name: name.trim(),
-//             board: board.trim(),
-//             class: className.trim(),
-//             group: group.trim(),
-//         });
-
-//         if (existingSubject) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "This subject already exists for this Board, Class, and Group combination.",
-//             });
-//         }
-
-//         const newSubject = new Subject({
-//             name: name.trim(),
-//             code: code ? code.trim() : "",
-//             board: board.trim(),
-//             class: className.trim(),
-//             group: group.trim(),
-//         });
-
-//         await newSubject.save();
-
-//         res.status(201).json({
-//             success: true,
-//             message: "Subject saved successfully",
-//             subject: newSubject,
-//         });
-//     } catch (error) {
-//         res.status(500).json({
-//             success: false,
-//             message: "Server Error",
-//             error: error.message,
-//         });
-//     }
-// };
-
-// // 2. Get Subjects (Supports filtering by text names or lookup IDs)
-// const getSubjects = async (req, res, next) => {
-//     try {
-//         const { board, class: className, group, boardId, classId, groupId } = req.query;
-//         let filter = {};
-
-//         if (board) filter.board = board;
-//         if (className) filter.class = className;
-//         if (group) filter.group = group;
-
-//         if (boardId && !board) {
-//             const b = await Board.findById(boardId);
-//             if (b) filter.board = b.name;
-//         }
-//         if (classId && !className) {
-//             const c = await Class.findById(classId);
-//             if (c) filter.class = c.name;
-//         }
-//         if (groupId && !group) {
-//             const g = await Group.findById(groupId);
-//             if (g) filter.group = g.name;
-//         }
-
-//         const subjects = await Subject.find(filter).sort({ createdAt: -1 });
-
-//         res.status(200).json({
-//             success: true,
-//             subjects,
-//         });
-//     } catch (error) {
-//         res.status(500).json({
-//             success: false,
-//             message: "Server Error",
-//             error: error.message,
-//         });
-//     }
-// };
-
-// // 3. Update Subject
-// const updateSubject = async (req, res, next) => {
-//     try {
-//         const { id } = req.params;
-//         const { name, code, board, class: className, group } = req.body;
-
-//         if (!name || !board || !className || !group) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Board, Class, Group, and Subject Name are required fields.",
-//             });
-//         }
-
-//         const updatedSubject = await Subject.findByIdAndUpdate(
-//             id,
-//             {
-//                 name: name.trim(),
-//                 code: code ? code.trim() : "",
-//                 board: board.trim(),
-//                 class: className.trim(),
-//                 group: group.trim(),
-//             },
-//             { new: true, runValidators: true }
-//         );
-
-//         if (!updatedSubject) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Subject not found",
-//             });
-//         }
-
-//         res.status(200).json({
-//             success: true,
-//             message: "Subject updated successfully",
-//             subject: updatedSubject,
-//         });
-//     } catch (error) {
-//         res.status(500).json({
-//             success: false,
-//             message: "Server Error",
-//             error: error.message,
-//         });
-//     }
-// };
-
-// // 4. Delete Subject
-// const deleteSubject = async (req, res, next) => {
-//     try {
-//         const { id } = req.params;
-//         const deletedSubject = await Subject.findByIdAndDelete(id);
-
-//         if (!deletedSubject) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Subject not found",
-//             });
-//         }
-
-//         res.status(200).json({
-//             success: true,
-//             message: "Subject deleted successfully",
-//         });
-//     } catch (error) {
-//         res.status(500).json({
-//             success: false,
-//             message: "Server Error",
-//             error: error.message,
-//         });
-//     }
-// };
-
-// module.exports = {
-//     createSubject,
-//     getSubjects,
-//     updateSubject,
-//     deleteSubject,
-// };
-
+const { clearStudentReferences } = require("../middleware/academicIntegrity");
+const { mediaPath } = require("../services/mediaStore");
 const Subject = require("../models/Subject");
 const Board = require("../models/Board");
 const Class = require("../models/Class");
@@ -179,7 +9,8 @@ const mongoose = require("mongoose");
 
 const subjectImage = (body) => {
     if (body.cardImage === undefined) return {};
-    if (typeof body.cardImage !== "string" || (body.cardImage && !/^\/uploads\/subjects\/[a-f0-9-]+\.(png|jpg|webp)$/.test(body.cardImage))) fail("Please upload a valid subject image.");
+    // Earlier uploads were stored on disk; new uploads are stored in the database.
+    if (typeof body.cardImage !== "string" || (body.cardImage && !/^\/uploads\/subjects\/[a-f0-9-]+\.(png|jpg|webp)$/.test(body.cardImage) && !mediaPath.test(body.cardImage))) fail("Please upload a valid subject image.");
     return { cardImage: body.cardImage };
 };
 
@@ -443,6 +274,7 @@ const deleteSubject = async (req, res, next) => {
                 message: "Subject not found",
             });
         }
+        await clearStudentReferences("Subject", deletedSubject._id);
 
         res.status(200).json({
             success: true,

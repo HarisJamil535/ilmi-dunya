@@ -5,7 +5,7 @@ const fail = (message, status = 400) => { throw Object.assign(new Error(message)
 const safeUrl = (value, { localImage = false } = {}) => {
     if (!value) return true;
     if (typeof value !== "string") return false;
-    if (localImage && /^\/uploads\/news\/[a-zA-Z0-9._-]+$/.test(value)) return true;
+    if (localImage && (/^\/uploads\/news\/[a-zA-Z0-9._-]+$/.test(value) || /^\/api\/media\/images\/[a-f\d]{24}$/.test(value))) return true;
     try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password; }
     catch { return false; }
 };

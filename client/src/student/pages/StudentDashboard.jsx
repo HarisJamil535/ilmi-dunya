@@ -1,7 +1,7 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
-import { Activity, BarChart3, Clock3, LogOut, Play, Trophy, UserCircle } from "lucide-react";
+import { Activity, BarChart3, Clock3, Flame, LogOut, Play, Trophy, UserCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
@@ -9,20 +9,26 @@ import { notifyStudentAuthChanged } from "../../auth/authEvents";
 const StudentDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   usePageLoading(loading);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const load = async () => {
-      const response = await axiosInstance.get("/student-dashboard/summary");
-      setData(response.data);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    const controller = new AbortController();
+    axiosInstance.get("/student-dashboard/summary", { signal: controller.signal })
+      .then((response) => setData(response.data))
+      .catch((err) => { if (!controller.signal.aborted) setError(err.response?.data?.message || "Your dashboard could not be loaded. Please try again."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [retry]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
+  }
+
+  if (error || !data) {
+    return <main className="flex min-h-[60vh] items-center justify-center px-4"><div className="text-center"><p role="alert" className="text-sm font-bold text-rose-700">{error || "Dashboard unavailable."}</p><button type="button" onClick={() => { setError(""); setLoading(true); setRetry((value) => value + 1); }} className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white">Try again</button></div></main>;
   }
 
   const cards = [
@@ -30,6 +36,7 @@ const StudentDashboard = () => {
     { label: "Average Score", value: `${data.summary.averageScore}%`, icon: BarChart3 },
     { label: "Best Score", value: `${data.summary.bestScore}%`, icon: Trophy },
     { label: "Time Spent", value: `${Math.round(data.summary.totalTimeSpentSeconds / 60)}m`, icon: Clock3 },
+    { label: "Day Streak", value: data.summary.learningStreak || 0, icon: Flame },
   ];
 
   const logout = () => {
@@ -57,7 +64,7 @@ const StudentDashboard = () => {
           </div>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {cards.map((card) => (
             <article key={card.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <card.icon className="h-6 w-6 text-primary" />
@@ -91,7 +98,7 @@ const StudentDashboard = () => {
                     <p className="font-black text-slate-900">{attempt.assessment?.title}</p>
                     <p className="text-xs font-bold uppercase text-slate-400">{attempt.status}</p>
                   </div>
-                  <span className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700">{attempt.percentage || 0}%</span>
+                  <span className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700">{attempt.resultsWithheld ? "Pending" : `${attempt.percentage || 0}%`}</span>
                 </div>
               ))}
               {data.recentAttempts.length === 0 && <p className="py-8 text-center text-sm font-bold text-slate-400">No test history yet.</p>}
@@ -135,7 +142,12 @@ const StudentDashboard = () => {
             </section>
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-black text-slate-950">Recommended next step</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Practice your weakest subject, then retake a chapter test to measure improvement.</p>
+              {data.weakTopics?.length > 0 ? <>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Review these areas, then retake their tests to measure improvement.</p>
+                <ul className="mt-3 space-y-2">
+                  {data.weakTopics.map((item) => <li key={`${item.level}-${item.name}`} className="flex justify-between gap-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700"><span>{item.name}{item.subject && item.level !== "subject" ? <small className="block text-xs font-semibold text-rose-500">{item.subject}</small> : null}</span><span>{item.average}%</span></li>)}
+                </ul>
+              </> : <p className="mt-2 text-sm leading-6 text-slate-500">Practice your weakest subject, then retake a chapter test to measure improvement.</p>}
               <Link to="/tests" className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-black text-white">Open MCQ tests</Link>
             </section>
           </aside>

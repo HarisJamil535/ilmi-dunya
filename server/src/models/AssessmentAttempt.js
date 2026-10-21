@@ -10,6 +10,8 @@ const attemptAnswerSchema = new mongoose.Schema(
         skipped: { type: Boolean, default: false },
         flaggedForReview: { type: Boolean, default: false },
         answeredAt: Date,
+        // Display order of option keys when the test shuffles options; grading always uses the keys.
+        optionOrder: { type: [String], default: undefined },
     },
     { _id: false }
 );

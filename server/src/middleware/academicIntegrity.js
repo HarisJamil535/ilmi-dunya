@@ -45,4 +45,12 @@ const validateWrite = kind => async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
-module.exports = { assertUnused, protectDelete, validateWrite };
+// Student profiles may point at a deleted board, class, group or subject; clear those choices.
+async function clearStudentReferences(kind, id) {
+    const Student = require('../models/Student');
+    const field = { Board: 'board', Class: 'class', Group: 'group' }[kind];
+    if (field) await Student.updateMany({ [field]: id }, { $unset: { [field]: '' } });
+    if (kind === 'Subject') await Student.updateMany({ enrolledSubjects: id }, { $pull: { enrolledSubjects: id } });
+}
+
+module.exports = { assertUnused, protectDelete, validateWrite, clearStudentReferences };
