@@ -7,6 +7,8 @@ const Student = require("../models/Student");
 const StudentAuthChallenge = require("../models/StudentAuthChallenge");
 const { sendIlmiDunyaEmail } = require("../utils/mailer");
 const { escapeHtml } = require("../services/seoDocument");
+const School = require("../models/School");
+const { resolveSchoolChoice, schoolFields } = require("../services/schoolSelection");
 const {
     emailDeliveryConfigured,
     whatsappDeliveryConfigured,
@@ -33,6 +35,9 @@ const safeStudent = (student) => ({
     gender: student.gender,
     city: student.city,
     school: student.school,
+    schoolId: student.schoolRef || null,
+    schoolClass: student.schoolClass || "",
+    schoolSection: student.schoolSection || "",
     board: student.board,
     class: student.class,
     group: student.group,
@@ -64,16 +69,14 @@ const getProfile = (body, { requirePassword = true } = {}) => {
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const phone = normalizePakistaniPhone(body.phone);
     const city = typeof body.city === "string" ? body.city.trim() : "";
-    const school = typeof body.school === "string" ? body.school.trim() : "";
     const gender = body.gender || "prefer_not_to_say";
     if (name.length < 2 || name.length > 80) throw Object.assign(new Error("Enter your full name (2 to 80 characters)."), { status: 400 });
     if (!emailPattern.test(email) || email.length > 254) throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
     if (!phone) throw Object.assign(new Error("Enter a valid WhatsApp number, including country code if it is not Pakistani."), { status: 400 });
     if (city.length < 2 || city.length > 80) throw Object.assign(new Error("Enter your city."), { status: 400 });
-    if (school.length < 2 || school.length > 160) throw Object.assign(new Error('Enter your school name or write "Private Candidate".'), { status: 400 });
     if (!["female", "male", "other", "prefer_not_to_say"].includes(gender)) throw Object.assign(new Error("Choose a valid gender option."), { status: 400 });
     if (requirePassword && !passwordIsValid(body.password)) throw Object.assign(new Error("Use a password with at least 8 characters, including a letter and a number."), { status: 400 });
-    return { name, email, phone, city, school, gender, password: body.password };
+    return { name, email, phone, city, gender, password: body.password };
 };
 
 const authOptions = (req, res) => res.set("Cache-Control", "no-store").json({
@@ -170,6 +173,7 @@ const issueStudentSession = async (student) => {
 const requestRegistrationCode = async (req, res) => {
     try {
         const profile = getProfile(req.body);
+        const school = await resolveSchoolChoice(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in or reset your password." });
         if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
         const passwordHash = await bcrypt.hash(profile.password, 12);
@@ -178,8 +182,8 @@ const requestRegistrationCode = async (req, res) => {
             email: profile.email,
             phone: profile.phone,
             city: profile.city,
-            school: profile.school,
             gender: profile.gender,
+            ...school,
         };
         const challenge = await createOtpChallenge({
             purpose: "signup",
@@ -201,6 +205,9 @@ const verifyRegistrationCode = async (req, res) => {
         if (await Student.findOne({ $or: [{ email: data.email }, { phone: data.phone }] }).select("_id")) {
             return res.status(409).json({ success: false, message: "An account with this email or phone number already exists. Please log in." });
         }
+        if (data.schoolRef && !await School.exists({ _id: data.schoolRef, isActive: true })) {
+            return res.status(409).json({ success: false, message: "Your school was changed while you were signing up. Please start again and choose your school." });
+        }
         const student = await Student.create({
             name: data.name,
             email: data.email,
@@ -209,6 +216,9 @@ const verifyRegistrationCode = async (req, res) => {
             gender: data.gender,
             city: data.city,
             school: data.school,
+            schoolRef: data.schoolRef || undefined,
+            schoolClass: data.schoolClass || undefined,
+            schoolSection: data.schoolSection || undefined,
             isEmailVerified: challenge.channel === "email",
             isPhoneVerified: challenge.channel === "whatsapp",
         });
@@ -230,6 +240,7 @@ const registerGoogleProfile = async (req, res) => {
         if (typeof token !== "string") return res.status(400).json({ success: false, message: "Restart Google sign-up to continue." });
         const identity = jwt.verify(token, process.env.JWT_SECRET, { audience: "student-google-signup" });
         const profile = getProfile({ ...req.body, email: identity.email }, { requirePassword: false });
+        const school = await resolveSchoolChoice(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in with Google." });
         if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
         const student = await Student.create({
@@ -238,7 +249,7 @@ const registerGoogleProfile = async (req, res) => {
             phone: profile.phone,
             gender: profile.gender,
             city: profile.city,
-            school: profile.school,
+            ...school,
             googleSub: identity.sub,
             isEmailVerified: true,
         });
@@ -354,6 +365,19 @@ const loginWithGoogle = async (req, res) => {
 
 const getStudentMe = async (req, res) => res.json({ success: true, student: safeStudent(req.student) });
 
+const updateStudentSchool = async (req, res) => {
+    try {
+        const resolved = await resolveSchoolChoice(req.body);
+        const { set, unset } = schoolFields(resolved);
+        const update = { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) };
+        const student = await Student.findOneAndUpdate({ _id: req.student._id, status: "active" }, update, { new: true });
+        if (!student) return res.status(404).json({ success: false, message: "Student account not found." });
+        res.json({ success: true, student: safeStudent(student) });
+    } catch (error) {
+        res.status(error.status || 400).json({ success: false, message: error.message || "Unable to update your school details." });
+    }
+};
+
 module.exports = {
     authOptions,
     requestRegistrationCode,
@@ -365,5 +389,6 @@ module.exports = {
     createGoogleNonce,
     loginWithGoogle,
     getStudentMe,
+    updateStudentSchool,
     normalizePakistaniPhone,
 };

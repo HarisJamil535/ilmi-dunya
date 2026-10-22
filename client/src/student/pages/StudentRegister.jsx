@@ -5,11 +5,13 @@ import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
 import { showStudentToast } from "../../shared/studentNotifications";
 import CustomSelect from "../../shared/CustomSelect";
+import SchoolFields from "../../shared/SchoolFields";
+import { emptySchoolChoice, useSchools, validateSchoolChoice } from "../../shared/schoolChoice";
 import StudentAuthShell from "../components/StudentAuthShell";
 import { AuthField, AuthSubmit, OtpField, PasswordField } from "../components/StudentAuthControls";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const initialForm = { name: "", email: "", phone: "", gender: "", city: "", school: "", password: "" };
+const initialForm = { name: "", email: "", phone: "", gender: "", city: "", ...emptySchoolChoice, password: "" };
 
 const StudentRegister = () => {
   const navigate = useNavigate();
@@ -21,12 +23,19 @@ const StudentRegister = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const { schools, loading: schoolsLoading, failed: schoolsFailed } = useSchools();
   const requestedPath = location.state?.from || sessionStorage.getItem("studentReturnTo") || "/dashboard";
   const returnTo = requestedPath.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/dashboard";
 
   const updateField = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => ({ ...current, [key]: "" }));
+    setError("");
+  };
+
+  const updateSchool = (patch) => {
+    setForm((current) => ({ ...current, ...patch }));
+    setFieldErrors((current) => ({ ...current, ...Object.fromEntries(Object.keys(patch).map((key) => [key, ""])) }));
     setError("");
   };
 
@@ -47,7 +56,7 @@ const StudentRegister = () => {
     if (!/^\+?[0-9][0-9\s()-]{7,18}$/.test(form.phone.trim())) errors.phone = "Enter a valid WhatsApp number, e.g. 0300 1234567.";
     if (!["female", "male", "other"].includes(form.gender)) errors.gender = "Select a gender option.";
     if (form.city.trim().length < 2) errors.city = "Enter your city.";
-    if (form.school.trim().length < 2) errors.school = 'Enter your school or write "Private Candidate".';
+    Object.assign(errors, validateSchoolChoice(form, schools));
     if (includePassword && (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password))) errors.password = "Use at least 8 characters with a letter and number.";
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -108,7 +117,7 @@ const StudentRegister = () => {
         <AuthField label="WhatsApp number" type="tel" autoComplete="tel" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} placeholder="0300 1234567" error={fieldErrors.phone} />
         <div><CustomSelect label="Gender" value={form.gender} onChange={(gender) => updateField("gender", gender)} placeholder="Select gender" options={[{ value: "female", label: "Female" }, { value: "male", label: "Male" }, { value: "other", label: "Other" }]} />{fieldErrors.gender && <p className="mt-1 text-xs font-semibold text-rose-600">{fieldErrors.gender}</p>}</div>
         <AuthField label="City" autoComplete="address-level2" value={form.city} onChange={(event) => updateField("city", event.target.value)} placeholder="e.g. Lahore" error={fieldErrors.city} />
-        <AuthField label="School" autoComplete="organization" value={form.school} onChange={(event) => updateField("school", event.target.value)} placeholder="School or Private Candidate" error={fieldErrors.school} />
+        <SchoolFields value={form} onChange={updateSchool} errors={fieldErrors} schools={schools} loading={schoolsLoading} failed={schoolsFailed} />
       </div>
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
       <AuthSubmit loading={loading}>Continue</AuthSubmit>

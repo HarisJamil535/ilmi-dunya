@@ -157,11 +157,11 @@ const listStudents = async (req, res) => {
     if (search) {
         const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const pattern = new RegExp(escaped, "i");
-        filter.$or = ["name", "email", "phone", "city", "school", "gender"].map((field) => ({ [field]: pattern }));
+        filter.$or = ["name", "email", "phone", "city", "school", "schoolClass", "schoolSection", "gender"].map((field) => ({ [field]: pattern }));
     }
     const [studentRecords, total] = await Promise.all([
         Student.find(filter)
-            .select("name email phone gender city school board class group enrolledSubjects status isEmailVerified lastLoginAt createdAt +googleSub")
+            .select("name email phone gender city school schoolClass schoolSection board class group enrolledSubjects status isEmailVerified lastLoginAt createdAt +googleSub")
             .populate("board class group enrolledSubjects", "name classNumber")
             .sort({ createdAt: -1, _id: -1 })
             .skip((page - 1) * limit)

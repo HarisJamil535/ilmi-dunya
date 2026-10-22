@@ -22,6 +22,7 @@ const studentDashboardRoutes = require("./src/routes/studentDashboardRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const leaderboardRoutes = require("./src/routes/leaderboardRoutes");
 const newsRoutes = require("./src/routes/newsRoutes");
+const schoolRoutes = require("./src/routes/schoolRoutes");
 const StudentAuthChallenge = require("./src/models/StudentAuthChallenge");
 const Student = require("./src/models/Student");
 const express = require('express');
@@ -142,6 +143,7 @@ app.use("/api/student-dashboard", studentDashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/news", newsRoutes);
+app.use("/api/schools", schoolRoutes);
 
 app.use(publicRoutes());
 app.use(frontendRoutes());

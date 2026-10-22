@@ -2,14 +2,19 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
-const CustomSelect = ({ label, value = "", onChange, options = [], placeholder = "Select an option", disabled = false, id, className = "" }) => {
+const CustomSelect = ({ label, value = "", onChange, options = [], placeholder = "Select an option", disabled = false, id, className = "", searchable = false }) => {
   const generatedId = useId();
   const selectId = id || generatedId;
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState(null);
+  const [filter, setFilter] = useState("");
   const ref = useRef(null);
   const menuRef = useRef(null);
   const selected = options.find((option) => String(option.value) === String(value));
+  // Long lists (such as schools) get a search box; short lists stay as they were.
+  const showSearch = searchable && options.length > 8;
+  const needle = filter.trim().toLowerCase();
+  const visibleOptions = showSearch && needle ? options.filter((option) => String(option.label).toLowerCase().includes(needle)) : options;
 
   const getMenuStyle = useCallback(() => {
     const trigger = ref.current?.querySelector("button");
@@ -61,6 +66,7 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
       setOpen(false);
       return;
     }
+    setFilter("");
     setMenuStyle(getMenuStyle());
     setOpen(true);
   };
@@ -72,8 +78,9 @@ const CustomSelect = ({ label, value = "", onChange, options = [], placeholder =
       <ChevronDown className={`ml-3 h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180 text-primary" : ""}`} />
     </button>
     {open && menuStyle && createPortal(<div ref={menuRef} role="listbox" aria-label={typeof label === "string" ? label : placeholder} style={menuStyle} className="fixed z-[200] overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl shadow-slate-900/15 animate-in fade-in slide-in-from-top-2">
+      {showSearch && <input type="search" autoFocus={window.matchMedia?.("(pointer: fine)").matches} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Type to search" aria-label={`Search ${typeof label === "string" ? label : placeholder}`} className="sticky top-0 z-10 mb-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-primary" />}
       <button type="button" role="option" aria-selected={!selected} onClick={() => { onChange(""); setOpen(false); }} className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 transition hover:bg-primary-soft">{placeholder}</button>
-      {options.length ? options.map((option) => <button type="button" role="option" aria-selected={String(option.value) === String(value)} key={option.value} onClick={() => { onChange(option.value); setOpen(false); }} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition ${String(option.value) === String(value) ? "bg-primary-soft font-bold text-primary-dark" : "text-slate-700 hover:bg-slate-50"}`}><span className="truncate">{option.label}</span>{String(option.value) === String(value) && <Check className="h-4 w-4 shrink-0 text-primary" />}</button>) : <p className="px-3 py-2.5 text-sm text-slate-400">No options available</p>}
+      {visibleOptions.length ? visibleOptions.map((option) => <button type="button" role="option" aria-selected={String(option.value) === String(value)} key={option.value} onClick={() => { onChange(option.value); setOpen(false); }} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition ${String(option.value) === String(value) ? "bg-primary-soft font-bold text-primary-dark" : "text-slate-700 hover:bg-slate-50"}`}><span className="truncate">{option.label}</span>{String(option.value) === String(value) && <Check className="h-4 w-4 shrink-0 text-primary" />}</button>) : <p className="px-3 py-2.5 text-sm text-slate-400">{needle ? "No matches" : "No options available"}</p>}
     </div>, document.body)}
   </div>;
 };

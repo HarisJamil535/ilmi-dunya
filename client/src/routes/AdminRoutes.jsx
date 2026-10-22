@@ -27,6 +27,8 @@ const NewsManagement = lazy(() => import("@/admin/pages/NewsManagement"));
 const AdminManagement = lazy(() => import("@/admin/pages/AdminManagement"));
 const StudentManagement = lazy(() => import("@/admin/pages/StudentManagement"));
 const AnswerSheetManagement = lazy(() => import("@/admin/pages/AnswerSheetManagement"));
+const SchoolManagement = lazy(() => import("@/admin/pages/SchoolManagement"));
+const SchoolResults = lazy(() => import("@/admin/pages/SchoolResults"));
 
 const AdminRoutes = () => {
     return (
@@ -57,6 +59,8 @@ const AdminRoutes = () => {
                         <Route path="chapters/:chapterId/topics" element={<TopicManagement />} />
                         <Route path="admin-management" element={<AdminManagement />} />
                         <Route path="students" element={<StudentManagement />} />
+                        <Route path="schools" element={<SchoolManagement />} />
+                        <Route path="school-results" element={<SchoolResults />} />
                     </Route>
                 </Route>
 

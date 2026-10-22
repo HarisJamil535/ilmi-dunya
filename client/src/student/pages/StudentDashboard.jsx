@@ -1,16 +1,53 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
-import { Activity, BarChart3, Clock3, Flame, LogOut, Play, Trophy, UserCircle } from "lucide-react";
+import { Activity, BarChart3, Clock3, Download, Flame, LogOut, Pencil, Play, Trophy, UserCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { notifyStudentAuthChanged } from "../../auth/authEvents";
+import { showStudentToast } from "../../shared/studentNotifications";
+import SchoolFields from "../../shared/SchoolFields";
+import { choiceFromStudent, useSchools, validateSchoolChoice } from "../../shared/schoolChoice";
+
+// Lets a student choose or correct their school, class and section.
+const SchoolEditor = ({ student, onSaved, onCancel }) => {
+  const { schools, loading, failed } = useSchools();
+  const [choice, setChoice] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const value = choice ?? choiceFromStudent(student, schools);
+
+  const save = async () => {
+    const problems = validateSchoolChoice(value, schools);
+    setErrors(problems);
+    if (Object.keys(problems).length) return;
+    setSaving(true);
+    try {
+      const response = await axiosInstance.put("/students/me/school", value);
+      onSaved(response.data.student);
+    } catch (err) {
+      showStudentToast({ type: "error", title: "Could not save", message: err.response?.data?.message || "Your school details could not be saved. Please try again." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <SchoolFields value={value} onChange={(patch) => { setChoice({ ...value, ...patch }); setErrors({}); }} errors={errors} schools={schools} loading={loading} failed={failed} />
+    <div className="flex gap-2">
+      <button type="button" onClick={save} disabled={saving || loading} className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
+      <button type="button" onClick={onCancel} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-600">Cancel</button>
+    </div>
+  </div>;
+};
 
 const StudentDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const [editingSchool, setEditingSchool] = useState(false);
   usePageLoading(loading);
   const navigate = useNavigate();
 
@@ -39,6 +76,29 @@ const StudentDashboard = () => {
     { label: "Day Streak", value: data.summary.learningStreak || 0, icon: Flame },
   ];
 
+  const downloadResultCard = async () => {
+    setDownloading(true);
+    try {
+      const response = await axiosInstance.get("/student-dashboard/result-card", { responseType: "blob", timeout: 60000 });
+      const fileName = /filename="([^"]+)"/.exec(response.headers["content-disposition"] || "")?.[1] || "IlmiDunya-Result-Card.pdf";
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      // Errors for file downloads arrive as a Blob; read the message out of it.
+      let message = "Your result card could not be created. Please try again.";
+      try { message = JSON.parse(await err.response.data.text()).message || message; } catch { /* keep the default message */ }
+      showStudentToast({ type: "error", title: "Download failed", message });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("studentToken");
     localStorage.removeItem("studentName");
@@ -57,10 +117,16 @@ const StudentDashboard = () => {
               <h1 className="mt-2 text-3xl font-black">{data.student?.name || "Student"} Dashboard</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-primary-muted">Track your learning, resume tests, review performance and focus on weak areas.</p>
             </div>
-            <button onClick={logout} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={downloadResultCard} disabled={downloading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-black text-primary-dark transition hover:bg-primary-soft disabled:opacity-60">
+                <Download className="h-4 w-4" />
+                {downloading ? "Preparing PDF..." : "Download result card"}
+              </button>
+              <button onClick={logout} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </div>
           </div>
         </header>
 
@@ -121,7 +187,17 @@ const StudentDashboard = () => {
                 <p><span className="font-black text-slate-500">Phone:</span> {data.student?.phone}</p>
                 <p><span className="font-black text-slate-500">City:</span> {data.student?.city}</p>
                 <p><span className="font-black text-slate-500">School:</span> {data.student?.school}</p>
+                {data.student?.schoolClass && <p><span className="font-black text-slate-500">Class:</span> {data.student.schoolClass}</p>}
+                {data.student?.schoolSection && <p><span className="font-black text-slate-500">Section:</span> {data.student.schoolSection}</p>}
               </div>
+              {editingSchool
+                ? <SchoolEditor student={data.student} onCancel={() => setEditingSchool(false)} onSaved={(student) => {
+                  setData((current) => ({ ...current, student: { ...current.student, school: student.school, schoolId: student.schoolId, schoolClass: student.schoolClass, schoolSection: student.schoolSection } }));
+                  localStorage.setItem("studentSchool", student.school || "");
+                  setEditingSchool(false);
+                  showStudentToast({ type: "success", title: "School updated", message: "Your result card will use these details." });
+                }} />
+                : <button type="button" onClick={() => setEditingSchool(true)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-primary/40 hover:text-primary"><Pencil className="h-3.5 w-3.5" />Edit school, class and section</button>}
               <button onClick={logout} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-600">
                 <LogOut className="h-4 w-4" />
                 Logout

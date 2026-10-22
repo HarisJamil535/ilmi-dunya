@@ -18,6 +18,8 @@ import {
   HiOutlineChartPie,
   HiOutlineNewspaper,
   HiOutlineUserGroup,
+  HiOutlineOfficeBuilding,
+  HiOutlineDocumentReport,
 } from "react-icons/hi";
 import ThemeToggle from "../../shared/ThemeToggle";
 
@@ -36,6 +38,8 @@ const standardSidebarItems = [
   { id: 16, label: "MCQ Tests", icon: HiOutlineClipboardCheck, path:'assessments/builder', permission: "assessments" },
   { id: 17, label: "Analytics", icon: HiOutlineChartPie, path:'assessments/analytics', permission: "analytics" },
   { id: 18, label: "Education News", icon: HiOutlineNewspaper, path:'home-content/news', permission: "news" },
+  { id: 21, label: "Schools", icon: HiOutlineOfficeBuilding, path:'schools', permission: "schools" },
+  { id: 22, label: "School Results", icon: HiOutlineDocumentReport, path:'school-results', permission: "schools" },
   { id: 19, label: "Students", icon: HiOutlineUserGroup, path:'students', superAdminOnly: true },
 ];
 

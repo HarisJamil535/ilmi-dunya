@@ -47,3 +47,26 @@ No existing records were migrated or rewritten. These checks reduce known risks;
 
 - Rate limits and the public page cache are per process. Multiple server instances need a shared store such as Redis.
 - Student and admin tokens are still in browser storage. Moving to HttpOnly cookies needs a coordinated CSRF/session migration.
+
+# Schools, result cards and school reports - 2026-10-22
+
+## What was added
+
+- **School choice at signup.** Students pick their school from a list that admins manage. A listed school asks for a class, then a section (each only when the admin has added any). "My school is not listed" shows a text box; "Private Student" asks for nothing more. Students can correct their choice later from the dashboard ("Edit school, class and section"); this is also how existing students join a school list.
+- **Admin: Schools** (`/admin/schools`). Add schools, classes and sections (comma separated names are accepted, e.g. `Section A, Section B`). Renaming updates the students who belong to it. Items that students belong to cannot be deleted; schools can be hidden from signup instead.
+- **Admin: School Results** (`/admin/school-results`). Choose a school (all schools, whole school, one class or one section) and optional start and end dates (Pakistan time, both days included). The page shows totals and every attempt; "Download Excel" gives a Summary sheet, a Students sheet (attempts, passed, average, best, total time, first and last attempt, including students with no attempts) and an Attempts sheet (date, start and submit time, time taken, marks, percentage, result, how it ended, whether it was a shorter practice set).
+- **Student result card PDF.** "Download result card" on the dashboard: student and school details, totals, every completed test with date, time, marks, percentage and result, and an IlmiDunya verification stamp. Results that an admin is still withholding show as "Pending" and are left out of the averages.
+- New admin permission **"Schools & School Results"** (super admins have it automatically). Give it to other admins under Admin Management.
+
+## Deploying
+
+1. `npm ci --prefix server` (new dependency: `pdfkit`; the root and server lockfiles are updated).
+2. Run `npm --prefix server run indexes` once. It adds three indexes (unique school names, student school/class/section, and student/date on attempts); no existing data is changed.
+3. Add the schools, classes and sections before announcing the change. Students who registered earlier have no school link until they choose one from their dashboard, so they do not appear in school reports yet.
+
+## Limits
+
+- Excel downloads are capped at 30,000 attempts; the admin is asked to choose a class, section or shorter dates. Workbooks are built on a worker thread so large downloads do not slow the site for others.
+- Result cards list the latest 300 tests (totals cover up to the latest 2,000).
+- The PDF uses built-in Latin fonts. Names or titles in other scripts (for example Urdu) print as "?" instead of corrupt glyphs; supporting them needs an embedded Urdu font.
+- The school list is cached for 30 seconds per server process.

@@ -1,6 +1,9 @@
 const AssessmentAttempt = require("../models/AssessmentAttempt");
+const Student = require("../models/Student");
 const LearningActivity = require("../models/LearningActivity");
 const { resultsWithheld, withholdScores } = require("../services/attemptRules");
+const { createResultCard } = require("../services/resultCardPdf");
+const { formatDate } = require("../services/pakistanTime");
 
 const pakistanDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" });
 const dayKey = value => pakistanDay.format(new Date(value));
@@ -116,8 +119,54 @@ const getDashboardSummary = async (req, res) => {
             phone: req.student.phone,
             city: req.student.city,
             school: req.student.school,
+            schoolId: req.student.schoolRef || null,
+            schoolClass: req.student.schoolClass || "",
+            schoolSection: req.student.schoolSection || "",
         },
     });
 };
 
-module.exports = { getDashboardSummary, learningStreak, areaPerformance };
+// A student's own result card: profile, totals and every completed test, as a PDF.
+const downloadResultCard = async (req, res, next) => {
+    try {
+        const [student, attempts] = await Promise.all([
+            Student.findById(req.student._id).select("name email phone city school schoolClass schoolSection createdAt").lean(),
+            AssessmentAttempt.find({ student: req.student._id, status: { $in: ["submitted", "timed_out"] } })
+                .select("assessment startedAt timeTakenSeconds score totalMarks percentage passStatus isPartialPractice")
+                .populate({ path: "assessment", select: "title type subject showResultImmediately", populate: { path: "subject", select: "name" } })
+                .sort({ startedAt: -1, _id: -1 })
+                .limit(2000)
+                .lean(),
+        ]);
+        if (!student) return res.status(404).json({ success: false, message: "Student account not found." });
+
+        const generatedAt = new Date();
+        const rows = attempts.map((attempt) => ({
+            startedAt: attempt.startedAt,
+            title: attempt.assessment?.title || "Removed test",
+            subject: attempt.assessment?.subject?.name || "",
+            type: String(attempt.assessment?.type || "").replaceAll("_", " ").replace(/^\w/, (letter) => letter.toUpperCase()),
+            score: attempt.score,
+            totalMarks: attempt.totalMarks,
+            percentage: attempt.percentage,
+            passStatus: attempt.passStatus,
+            timeTakenSeconds: attempt.timeTakenSeconds,
+            isPartialPractice: attempt.isPartialPractice,
+            withheld: resultsWithheld(attempt.assessment),
+        }));
+        const day = formatDate(generatedAt).replaceAll(" ", "");
+        const reference = `ID-${new Date(generatedAt.getTime() + 5 * 3600 * 1000).toISOString().slice(2, 10).replaceAll("-", "")}-${String(student._id).slice(-6).toUpperCase()}`;
+        const fileName = `IlmiDunya-Result-Card-${String(student.name).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "Student"}-${day}.pdf`;
+
+        const doc = createResultCard({ student, attempts: rows, generatedAt, reference });
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${fileName}"`,
+            "Cache-Control": "private, no-store",
+        });
+        doc.on("error", next);
+        doc.pipe(res);
+    } catch (error) { next(error); }
+};
+
+module.exports = { getDashboardSummary, downloadResultCard, learningStreak, areaPerformance };

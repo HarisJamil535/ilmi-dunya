@@ -43,6 +43,8 @@ const assessmentAttemptSchema = new mongoose.Schema(
 );
 
 assessmentAttemptSchema.index({ student: 1, assessment: 1, status: 1 });
+// Result cards and school reports read one student's attempts in date order.
+assessmentAttemptSchema.index({ student: 1, startedAt: -1 });
 assessmentAttemptSchema.index({ assessment: 1, submittedAt: -1 });
 assessmentAttemptSchema.index({ status: 1, score: -1, timeTakenSeconds: 1, submittedAt: -1 });
 

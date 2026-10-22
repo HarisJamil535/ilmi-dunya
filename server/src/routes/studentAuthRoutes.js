@@ -7,6 +7,7 @@ const {
     registerGoogleProfile,
     loginStudent,
     getStudentMe,
+    updateStudentSchool,
     requestPasswordReset,
     resetPassword,
     createGoogleNonce,
@@ -24,5 +25,6 @@ router.post("/reset-password", resetPassword);
 router.post("/google/nonce", createGoogleNonce);
 router.post("/google", loginWithGoogle);
 router.get("/me", studentAuthMiddleware, getStudentMe);
+router.put("/me/school", studentAuthMiddleware, updateStudentSchool);
 
 module.exports = router;
