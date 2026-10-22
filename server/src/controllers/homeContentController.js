@@ -26,7 +26,7 @@ const recordVisit = async (req, res) => {
     const metric = await SiteMetric.findOneAndUpdate(
         { key: "site-visits" },
         { $inc: { total: 1 }, $set: { lastRecordedAt: new Date() }, $setOnInsert: { key: "site-visits" } },
-        { upsert: true, new: true, runValidators: true }
+        { upsert: true, returnDocument: "after", runValidators: true }
     ).lean();
     res.status(201).json({ success: true, total: metric.total });
 };
@@ -64,7 +64,7 @@ const createTestimonial = async (req, res) => {
 
 const updateTestimonial = async (req, res) => {
     const testimonial = await Testimonial.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
     });
 
@@ -103,7 +103,7 @@ const createStat = async (req, res) => {
 
 const updateStat = async (req, res) => {
     const stat = await HomeStat.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
     });
 

@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const { hashPassword, verifyPassword } = require("../services/passwords");
 const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
@@ -176,7 +176,7 @@ const requestRegistrationCode = async (req, res) => {
         const school = await resolveSchoolChoice(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in or reset your password." });
         if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
-        const passwordHash = await bcrypt.hash(profile.password, 12);
+        const passwordHash = await hashPassword(profile.password);
         const safeProfile = {
             name: profile.name,
             email: profile.email,
@@ -275,7 +275,10 @@ const loginStudent = async (req, res) => {
         const matches = await Student.find(emailPattern.test(email) ? { email } : { phone: { $in: [identifier, normalizedPhone].filter(Boolean) } }).limit(2).select("+password +tokenVersion +googleSub");
         if (matches.length > 1) return res.status(409).json({ success: false, message: "More than one account uses this phone number. Please log in with your email address." });
         const student = matches[0];
-        if (!student || !student.password || !(await bcrypt.compare(password, student.password))) return res.status(401).json({ success: false, message: "Invalid email/phone number or password." });
+        // Unknown accounts take as long to reject as wrong passwords, so timing does not reveal who is registered.
+        const { valid, upgrade } = await verifyPassword(password, student?.password);
+        if (!student || !valid) return res.status(401).json({ success: false, message: "Invalid email/phone number or password." });
+        if (upgrade) student.password = await hashPassword(password);
         if (student.status !== "active") return res.status(403).json({ success: false, message: "Your account is not active." });
         res.json(await issueStudentSession(student));
     } catch {
@@ -308,7 +311,7 @@ const resetPassword = async (req, res) => {
         const challenge = await verifyOtpChallenge({ ...req.body, purpose: "password_reset" });
         if (!challenge.student) return res.status(400).json({ success: false, message: "The code is invalid or has expired. Request a new one." });
         const updated = await Student.updateOne({ _id: challenge.student, status: "active" }, {
-            $set: { password: await bcrypt.hash(req.body.password, 12) },
+            $set: { password: await hashPassword(req.body.password) },
             $inc: { tokenVersion: 1 },
             $unset: { passwordResetOtpHash: "", passwordResetExpiresAt: "", passwordResetAttempts: "" },
         });
@@ -370,7 +373,7 @@ const updateStudentSchool = async (req, res) => {
         const resolved = await resolveSchoolChoice(req.body);
         const { set, unset } = schoolFields(resolved);
         const update = { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) };
-        const student = await Student.findOneAndUpdate({ _id: req.student._id, status: "active" }, update, { new: true });
+        const student = await Student.findOneAndUpdate({ _id: req.student._id, status: "active" }, update, { returnDocument: "after" });
         if (!student) return res.status(404).json({ success: false, message: "Student account not found." });
         res.json({ success: true, student: safeStudent(student) });
     } catch (error) {

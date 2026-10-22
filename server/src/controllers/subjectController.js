@@ -242,7 +242,7 @@ const updateSubject = async (req, res, next) => {
                 class: trimmedClass,
                 group: trimmedGroup,
             },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         );
 
         if (!updatedSubject) {

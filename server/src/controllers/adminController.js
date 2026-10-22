@@ -1,5 +1,5 @@
 const crypto = require("node:crypto");
-const bcrypt = require("bcryptjs");
+const { hashPassword, verifyPassword } = require("../services/passwords");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const Board = require("../models/Board");
@@ -51,9 +51,11 @@ const loginAdmin = async (req, res) => {
         const password = req.body.password || "";
         const admin = await Admin.findOne({ email }).select("+password +currentSessionId");
 
-        if (!admin || !(await bcrypt.compare(password, admin.password))) {
+        const { valid, upgrade } = await verifyPassword(password, admin?.password);
+        if (!admin || !valid) {
             return res.status(401).json({ success: false, message: "Invalid email or password." });
         }
+        if (upgrade) admin.password = await hashPassword(password);
 
         if (admin.status !== "active") {
             return res.status(403).json({ success: false, message: "This admin account is disabled." });
@@ -201,7 +203,7 @@ const createAdmin = async (req, res) => {
     const admin = await Admin.create({
         name: name.trim(),
         email: normalizedEmail,
-        password: await bcrypt.hash(password, 12),
+        password: await hashPassword(password),
         role: "admin",
         permissions,
         status,
@@ -235,7 +237,7 @@ const updateAdmin = async (req, res) => {
     if (["active", "disabled"].includes(status)) admin.status = status;
     if (password) {
         if (password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
-        admin.password = await bcrypt.hash(password, 12);
+        admin.password = await hashPassword(password);
         admin.currentSessionId = undefined;
     }
     if (status === "disabled") admin.currentSessionId = undefined;
@@ -298,7 +300,7 @@ const resetAdminPassword = async (req, res) => {
     }
 
     const updated = await Admin.updateOne({ _id: admin._id, passwordResetOtpHash: hash, passwordResetExpiresAt: { $gt: new Date() }, passwordResetAttempts: { $lt: 5 } }, {
-        $set: { password: await bcrypt.hash(password, 12), passwordResetAttempts: 0 },
+        $set: { password: await hashPassword(password), passwordResetAttempts: 0 },
         $unset: { passwordResetOtpHash: '', passwordResetExpiresAt: '', currentSessionId: '' },
     });
     if (!updated.modifiedCount) return res.status(400).json({ success: false, message: 'The code is invalid, expired or already used.' });

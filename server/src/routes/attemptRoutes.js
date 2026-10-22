@@ -15,7 +15,8 @@ router.use(studentAuthMiddleware);
 router.get("/", getStudentAttempts);
 router.get("/preview", previewAttempt);
 router.post("/start", startAttempt);
-router.get("/:id", getAttemptById);
+// Express passes `next` as the third argument, so the id is handed over explicitly.
+router.get("/:id", (req, res) => getAttemptById(req, res, req.params.id));
 router.patch("/:id/questions/:questionId", saveAnswer);
 router.post("/:id/submit", submitAttempt);
 router.get("/:id/result", getResult);

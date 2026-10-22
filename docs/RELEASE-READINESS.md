@@ -70,3 +70,42 @@ No existing records were migrated or rewritten. These checks reduce known risks;
 - Result cards list the latest 300 tests (totals cover up to the latest 2,000).
 - The PDF uses built-in Latin fonts. Names or titles in other scripts (for example Urdu) print as "?" instead of corrupt glyphs; supporting them needs an embedded Urdu font.
 - The school list is cached for 30 seconds per server process.
+
+# QA and load-test round - 2026-10-23
+
+Tested against a real MongoDB 7, the real server build, a real browser (Chromium at phone and desktop widths) and a local mail server, with about 480 automated checks across signup, sign-in, forgot password, tests, result cards, school management, school reports, permissions and security, plus load tests with 300 students acting at the same instant.
+
+## Problems found and fixed
+
+- **Sign-in froze the whole website.** Passwords were checked with a pure-JavaScript bcrypt that blocks the server for about 0.4 s each, so 20 sign-ins at once froze every page for 7 s and 300 would have frozen it for minutes. Passwords now use scrypt on worker threads (about 50 ms, the site stays responsive). Existing accounts keep working and are upgraded automatically the next time they sign in. Unknown accounts take as long to reject as wrong passwords.
+- **A school could not sign up or sign in together.** Limits were per IP address (10 signups and 40 sign-ins per 15 minutes), but a whole school shares one IP. Failed sign-ins are now limited per account (10 per account per address, 30 per account overall) and signups 150 per address; correct sign-ins are never counted. Admin sign-in and reset codes have their own per-account limits.
+- **Double-clicking "Start test" created two attempts** (and could bypass an "attempts allowed" limit). Starts are now serialised per student and test.
+- **`GET /api/attempts/:id` always failed** with "Please choose a valid item".
+- **CORS rejected the site's own address** when it differed from `CLIENT_ORIGIN` (for example `www.` versus no `www.`), which breaks signup and sign-in with "Not allowed by CORS". The site's own host is now always accepted; other origins still must be listed.
+- **Heavy public lists were slow under load** (subjects, chapters, boards, classes, groups, topics, home content: about 500 requests per second). They are now cached for 20 seconds and cleared the moment an admin changes content (about 2,000 per second).
+- **Database outage**: the site answers 503 instantly for a few seconds instead of making every visitor wait 10 s, and recovers by itself when the database returns. `/health` also triggers the reconnect.
+- **Deploys**: the server now finishes running requests on SIGTERM and keeps connections open longer than proxy idle timeouts, which prevents sporadic 502 errors.
+- Large PDF and Excel jobs run a few at a time so a burst cannot use all memory.
+- Dependencies with known advisories were updated (nodemailer, ip-address, vite, follow-redirects). `npm audit --omit=dev` reports 0 for root, server and client.
+- Mongoose `new: true` deprecation warnings removed.
+
+## Results with 300 students starting together (4-core test machine, database on the same machine)
+
+- Sign in, dashboard, start test, answer, submit, result, result card, leaderboard: 300 of 300 succeeded, with distinct IPs or one shared IP.
+- Sign-in median 3.3 s and slowest 6 s when all 300 sign in at the very same second (the password work is queued on worker threads); the site stayed responsive throughout (health check 95th percentile about 110 ms). Later steps took 0.1 to 4.5 s each.
+- Cached public pages sustained roughly 2,000 to 3,000 requests per second with 300 open connections.
+- Memory peaked near 480 MB without a limit and 283 MB with `NODE_OPTIONS=--max-old-space-size=200`, then settled near 290 MB (no leak across repeated runs).
+
+## Set these on the host
+
+- `TRUST_PROXY_HOPS=1` behind one proxy (Render, Hostinger, nginx). Without it every visitor looks like the proxy's IP and per-address limits no longer separate users.
+- On a 512 MB plan add `NODE_OPTIONS=--max-old-space-size=300`.
+- Email: every signup and reset sends a code. Free email plans cap daily sends (for example Resend's free plan allows 100 a day), so 300 students signing up in a day need a paid plan or a larger SMTP allowance.
+
+## Known limits (not changed)
+
+- Rate limits and caches live in each server process. Several server instances need a shared store (Redis); the keyed start lock has the same limit.
+- Two signups with the same phone number at the same instant can both succeed (email is protected by a unique index). The sign-in then asks for the email address.
+- An attempt that was started and never finished stays "in progress" after its time ends until the student opens it again; it is then graded on the saved answers.
+- Names, cities and schools of the top leaderboard entries are public by design.
+- Browser sign-in tokens are kept in browser storage (a cookie-based session would need a separate change).

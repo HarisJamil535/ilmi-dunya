@@ -7,6 +7,7 @@ const { pointsForAttempt, rankEligibility } = require("../services/leaderboardSc
 const LeaderboardState = require("../models/LeaderboardState");
 const mongoose = require("mongoose");
 const { supportsSelection, resolveQuestionCount, selectQuestions, shuffled } = require("../services/attemptSelection");
+const { withLock } = require("../services/keyedLock");
 const { startBlocker, attemptExpiry, orderOptions, resultsWithheld, withholdScores } = require("../services/attemptRules");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
@@ -50,7 +51,13 @@ const previewAttempt = async (req, res) => {
     } });
 };
 
-const startAttempt = async (req, res) => {
+// A student starting the same test twice at once (double click, retry on a slow network) must get one attempt.
+const startAttempt = (req, res) => {
+    const { assessmentId, chapter, topic } = req.body || {};
+    return withLock(`start:${req.student._id}:${assessmentId || topic || chapter}`, () => beginAttempt(req, res));
+};
+
+const beginAttempt = async (req, res) => {
     const { assessmentId, chapter, topic } = req.body;
     let assessment;
     try {
@@ -225,7 +232,7 @@ const submitAttempt = async (req, res) => {
     // Only finalize the exact answer revision that was graded.
     const saved = await AssessmentAttempt.findOneAndUpdate({
         _id: attempt._id, student: req.student._id, status: "in_progress", updatedAt: attempt.updatedAt,
-    }, { $set: result }, { new: true });
+    }, { $set: result }, { returnDocument: "after" });
     if (!saved) return res.status(409).json({ message: "Your answers changed while submitting. Please submit again." });
     await LearningActivity.create({
         student: req.student._id, type: "assessment_submitted",

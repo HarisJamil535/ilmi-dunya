@@ -1,5 +1,9 @@
 const { loadScope, previewReport, fullReport } = require("../services/schoolResults");
 const { buildWorkbookOffThread, workbookName } = require("../services/schoolResultsWorkbook");
+const { createConcurrencyLimit } = require("../services/concurrencyLimit");
+
+// Each workbook needs a worker thread and a lot of memory, so only a couple are built at a time.
+const exportTurn = createConcurrencyLimit(2);
 
 const filtersFor = scope => ({
     school: { _id: scope.school._id, name: scope.school.name },
@@ -20,7 +24,9 @@ const getSchoolResults = async (req, res, next) => {
 };
 
 // Excel download with a summary, a student sheet and one row per attempt.
-const exportSchoolResults = async (req, res, next) => {
+const exportSchoolResults = (req, res, next) => exportTurn(() => buildExport(req, res, next));
+
+const buildExport = async (req, res, next) => {
     try {
         const scope = await loadScope(req.params.id, req.query);
         const report = await fullReport(scope);

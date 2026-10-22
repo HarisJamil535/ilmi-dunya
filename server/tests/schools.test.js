@@ -352,7 +352,7 @@ test("students download their own result card as a PDF attachment", async () => 
     mock.method(Student, "findById", () => query(student));
     mock.method(AssessmentAttempt, "find", filter => { attemptFilter = filter; return query([{ assessment: { title: "Mock", type: "mock_test", subject: { name: "Physics" }, showResultImmediately: false }, startedAt: new Date(), score: 5, totalMarks: 10, percentage: 50, passStatus: "pass", timeTakenSeconds: 30 }]); });
     const chunks = [];
-    const res = Object.assign(response(), { on() { return this; }, once() { return this; }, emit() {}, write(chunk) { chunks.push(Buffer.from(chunk)); return true; }, end(chunk) { if (chunk) chunks.push(Buffer.from(chunk)); this.ended = true; } });
+    const res = Object.assign(response(), { on() { return this; }, once(event, listener) { if (event === "finish") this.onFinish = listener; return this; }, emit() {}, write(chunk) { chunks.push(Buffer.from(chunk)); return true; }, end(chunk) { if (chunk) chunks.push(Buffer.from(chunk)); this.ended = true; this.onFinish?.(); } });
     await downloadResultCard({ student: { _id: student._id } }, res, error => { throw error; });
     await new Promise(resolve => { const wait = () => res.ended ? resolve() : setTimeout(wait, 5); wait(); });
     assert.equal(attemptFilter.student, student._id);

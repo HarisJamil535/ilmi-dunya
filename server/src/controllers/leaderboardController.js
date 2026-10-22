@@ -140,7 +140,7 @@ const resetLeaderboard = async (req, res) => {
     await LeaderboardState.findOneAndUpdate(
         { key: "global" },
         { $set: { resetAt, resetBy: req.admin._id } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
     leaderboardCache.clear();
     res.json({

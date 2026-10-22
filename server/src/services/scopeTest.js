@@ -75,7 +75,7 @@ async function createScopeTest(chapterId, topicId) {
     };
     // Previews and starts read this often; only write when the published content changed.
     if (current && sameGeneratedContent(current, content)) return current;
-    const save = upsert => Assessment.findOneAndUpdate(generatedKey, content, { new: true, upsert, setDefaultsOnInsert: true }).lean();
+    const save = upsert => Assessment.findOneAndUpdate(generatedKey, content, { returnDocument: "after", upsert, setDefaultsOnInsert: true }).lean();
     try {
         return await save(true);
     } catch (error) {

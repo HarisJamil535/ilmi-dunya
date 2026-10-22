@@ -41,7 +41,7 @@ const updateGroup = async (req, res) => {
         if (message) return res.status(400).json({ success: false, message });
         const existingGroup = await Group.findOne({ _id: { $ne: req.params.id }, name: createExactNameRegex(trimmedName) });
         if (existingGroup) return res.status(400).json({ success: false, message: "Group already exists" });
-        const group = await Group.findByIdAndUpdate(req.params.id, { name: trimmedName }, { new: true, runValidators: true });
+        const group = await Group.findByIdAndUpdate(req.params.id, { name: trimmedName }, { returnDocument: "after", runValidators: true });
         if (!group) return res.status(404).json({ success: false, message: "Group not found" });
         return res.status(200).json({ success: true, message: "Group updated successfully", group });
     } catch (error) {

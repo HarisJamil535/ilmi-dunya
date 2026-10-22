@@ -330,7 +330,7 @@ const buildQuestionFromImportRow = async (row, adminId, contextValues) => {
             difficulty: row.difficulty || "medium",
             tags: parseTags(row.tags),
             createdBy: adminId,
-        }, { new: true, upsert: true, setDefaultsOnInsert: true });
+        }, { returnDocument: "after", upsert: true, setDefaultsOnInsert: true });
         scenario = scenarioDoc._id;
     }
 
@@ -510,7 +510,7 @@ const updateQuestionImportance = async (req, res) => {
     const question = await Question.findOneAndUpdate(
         { _id: req.params.id, status: { $ne: "archived" }, contentType: { $in: ["short_question", "long_question"] } },
         { $set: { isImportant: req.body.isImportant, updatedBy: req.admin?._id } },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
     ).select("isImportant").lean();
     if (!question) return res.status(404).json({ message: "Written question not found." });
     res.json({ success: true, question });
@@ -525,7 +525,7 @@ const updateQuestionStatus = async (req, res) => {
     const question = await Question.findOneAndUpdate(
         { _id: req.params.id, status: { $ne: "archived" } },
         { status, updatedBy: req.admin?._id },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
     ).populate("subject chapter topic scenario", "name title");
 
     if (!question) return res.status(404).json({ success: false, message: "Question not found." });
@@ -560,7 +560,7 @@ const createScenario = async (req, res) => {
 
 const updateScenario = async (req, res) => {
     const scenario = await QuestionScenario.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
     });
     if (!scenario) return res.status(404).json({ success: false, message: "Scenario not found." });

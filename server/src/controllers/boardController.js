@@ -41,7 +41,7 @@ const updateBoard = async (req, res) => {
         if (message) return res.status(400).json({ success: false, message });
         const existingBoard = await Board.findOne({ _id: { $ne: req.params.id }, name: createExactNameRegex(trimmedName) });
         if (existingBoard) return res.status(400).json({ success: false, message: "Board already exists" });
-        const board = await Board.findByIdAndUpdate(req.params.id, { name: trimmedName }, { new: true, runValidators: true });
+        const board = await Board.findByIdAndUpdate(req.params.id, { name: trimmedName }, { returnDocument: "after", runValidators: true });
         if (!board) return res.status(404).json({ success: false, message: "Board not found" });
         return res.status(200).json({ success: true, message: "Board updated successfully", board });
     } catch (error) {

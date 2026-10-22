@@ -215,7 +215,7 @@ const updateChapter = async (req, res, next) => {
                 group: trimmedGroup,
                 subject: trimmedSubject,
             },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         );
 
         if (!updatedChapter) {

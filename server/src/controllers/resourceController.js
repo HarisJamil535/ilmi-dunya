@@ -100,7 +100,7 @@ const updateBook = async (req, res, next) => {
         const book = await Book.findByIdAndUpdate(
             req.params.id,
             { ...req.publication, title: title.trim(), pdfUrl: pdfUrl.trim(), board, class: classId, group, subject },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         ).populate(populateContext);
 
         if (!book) return res.status(404).json({ success: false, message: "Book not found" });
@@ -193,7 +193,7 @@ const updatePastPaper = async (req, res, next) => {
         const paper = await PastPaper.findByIdAndUpdate(
             req.params.id,
             { ...req.publication, title: title.trim(), year: parsedYear, session, examType, isNewPattern: Boolean(isNewPattern), pdfUrl: pdfUrl.trim(), board, class: classId, group, subject },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         ).populate(populateContext);
 
         if (!paper) return res.status(404).json({ success: false, message: "Past paper not found" });
@@ -260,7 +260,7 @@ const saveChapterNote = async (req, res, next) => {
                 group: parentChapter.group,
                 subject: parentChapter.subject,
             },
-            { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+            { returnDocument: "after", upsert: true, runValidators: true, setDefaultsOnInsert: true }
         ).populate(["chapter", ...populateContext]);
 
         res.status(200).json({ success: true, message: "Chapter note saved successfully", note });
@@ -332,7 +332,7 @@ const updateAnswerSheet = async (req, res, next) => {
         const answerSheet = await AnswerSheet.findByIdAndUpdate(
             req.params.id,
             { title: title.trim(), pdfUrl: pdfUrl.trim(), board, class: classId },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         ).populate(["board", "class"]);
         if (!answerSheet) return res.status(404).json({ success: false, message: "Answer sheet not found." });
         res.status(200).json({ success: true, message: "Answer sheet updated successfully.", answerSheet });

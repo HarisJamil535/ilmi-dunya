@@ -146,7 +146,7 @@ const updateAssessment = async (req, res) => {
     }
 
     const assessment = await Assessment.findByIdAndUpdate(req.params.id, payload, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
     });
 
@@ -155,7 +155,7 @@ const updateAssessment = async (req, res) => {
 };
 
 const deleteAssessment = async (req, res) => {
-    const assessment = await Assessment.findByIdAndUpdate(req.params.id, { status: "archived" }, { new: true });
+    const assessment = await Assessment.findByIdAndUpdate(req.params.id, { status: "archived" }, { returnDocument: "after" });
     if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found." });
     res.json({ success: true, assessment });
 };

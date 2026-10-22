@@ -4,6 +4,7 @@ const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const limits = require('./src/middleware/rateLimits');
 const path = require('node:path');
 const adminRoutes = require('./src/routes/adminRoutes');
 const boardRoutes = require('./src/routes/boardRoutes');
@@ -52,59 +53,44 @@ app.use(helmet({
     } },
 }));
 app.use(compression());
-app.use('/api', cors({
-    origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin) || origin === process.env.SITE_URL) return callback(null, true);
-        return callback(Object.assign(new Error("Not allowed by CORS"), { status: 403 }));
-    },
-    credentials: true,
-}));
+// A page served by this very server is never cross-origin, so its own host (for example the www and
+// non-www versions of the site) is always allowed; other origins must be listed in CLIENT_ORIGIN.
+const corsOptions = (req, callback) => {
+    const origin = req.get('origin');
+    let sameHost = false;
+    if (origin) {
+        try { sameHost = new URL(origin).host === req.get('host'); } catch { sameHost = false; }
+    }
+    if (!origin || sameHost || allowedOrigins.includes(origin) || origin === process.env.SITE_URL) return callback(null, { origin: true, credentials: true });
+    return callback(Object.assign(new Error("Not allowed by CORS"), { status: 403 }));
+};
+app.use('/api', cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
-app.get('/health', (req, res) => res.json({ success: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'unavailable' }));
+app.get('/health', (req, res) => { initializeDatabase().catch(() => {}); res.json({ success: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'unavailable' }); });
 app.use(async (req, res, next) => {
     if (require.main !== module && process.env.NODE_ENV !== 'production') return next();
     if (req.path === '/robots.txt' || req.path.startsWith('/assets/') || req.path === '/logo.png' || req.path === '/theme-init.js') return next();
+    // While the database is unreachable, answer at once for a few seconds instead of making every visitor wait for a new connection attempt.
+    if (Date.now() - lastDatabaseFailure < 3000) return res.status(503).set('Retry-After', '5').json({ success: false, message: 'Service temporarily unavailable. Please retry shortly.' });
     try {
         await initializeDatabase();
         next();
     } catch (error) {
+        lastDatabaseFailure = Date.now();
         res.status(503).set('Retry-After', '10').json({ success: false, message: 'Service temporarily unavailable. Please retry shortly.' });
     }
 });
 app.use('/api', requestSafety);
-app.use('/api', require('./src/middleware/publicCacheInvalidation')(invalidatePublicPages));
+const { microCache, clearMicroCache } = require('./src/middleware/microCache');
+app.use('/api', require('./src/middleware/publicCacheInvalidation')(() => { invalidatePublicPages(); clearMicroCache(); }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     maxAge: "7d",
     immutable: true,
 }));
 
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 600,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: "Too many requests. Please wait a moment and try again." },
-});
-
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 40,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: "Too many login attempts. Please try again later." },
-});
-
-const studentOtpLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: "Too many verification attempts. Please wait 15 minutes and try again." },
-});
-
 const visitLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 60,
+    limit: 300,
     standardHeaders: false,
     legacyHeaders: false,
     // Over the limit, the visit is answered but not counted.
@@ -113,18 +99,22 @@ const visitLimiter = rateLimit({
 
 // Uploaded images are cached by browsers for a year, so they are served before the API rate limit.
 app.get("/api/media/images/:id", require("./src/services/mediaStore").serveImage);
-app.use("/api", apiLimiter);
+app.use("/api", limits.apiLimiter);
+// Public lists that every visitor reads; cleared immediately when an admin changes content.
+for (const route of ['/api/boards', '/api/classes', '/api/groups', '/api/subjects', '/api/chapters', '/api/topics/chapter', '/api/home-content']) app.use(route, microCache());
 app.use("/api/home-content/visit", visitLimiter);
-app.use("/api/admin/login", authLimiter);
-app.use("/api/admin/forgot-password", authLimiter);
-app.use("/api/admin/reset-password", authLimiter);
-app.use("/api/students/login", authLimiter);
-app.use("/api/students/register", studentOtpLimiter);
-app.use("/api/students/forgot-password", authLimiter);
-app.use("/api/students/forgot-password", studentOtpLimiter);
-app.use("/api/students/reset-password", authLimiter);
-app.use("/api/students/reset-password", studentOtpLimiter);
-app.use("/api/students/google", authLimiter);
+// Sign-in and password limits count failures per account, so a school sharing one IP is not locked out together.
+app.post("/api/admin/login", ...limits.adminLoginLimiters);
+app.post("/api/admin/forgot-password", limits.adminResetLimiter, limits.adminAccountResetLimiter);
+app.post("/api/admin/reset-password", limits.adminResetLimiter);
+app.post("/api/students/login", ...limits.studentLoginLimiters);
+app.post("/api/students/register", limits.registerLimiter);
+app.post("/api/students/register/verify", limits.verifyCodeLimiter);
+app.post("/api/students/register/google-profile", limits.googleLimiter);
+app.post("/api/students/forgot-password", limits.passwordResetLimiter);
+app.post("/api/students/reset-password", limits.resetCodeLimiter);
+app.post("/api/students/google", limits.googleLimiter);
+app.post("/api/students/google/nonce", limits.googleLimiter);
 
 app.use('/api/admin', adminRoutes);
 app.use("/api/boards", boardRoutes);
@@ -164,6 +154,7 @@ const validateRuntimeConfig = () => {
 };
 
 let databaseReady;
+let lastDatabaseFailure = 0;
 mongoose.connection.on('disconnected', () => { databaseReady = undefined; });
 const initializeDatabase = async () => {
     if (!databaseReady) {
@@ -182,7 +173,15 @@ if (require.main === module) {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
         process.exit(1);
     }
-    app.listen(PORT);
+    const server = app.listen(PORT);
+    // Longer than typical proxy idle timeouts (60 s), so a proxy never reuses a connection this server just closed.
+    server.keepAliveTimeout = 65000;
+    server.headersTimeout = 66000;
+    // Hosts send SIGTERM on every deploy: finish requests already running (a test submission, a download) first.
+    process.once('SIGTERM', () => {
+        server.close(() => mongoose.connection.close().finally(() => process.exit(0)));
+        setTimeout(() => process.exit(0), 10000).unref();
+    });
     initializeDatabase().catch(error => {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
     });

@@ -4,6 +4,10 @@ const LearningActivity = require("../models/LearningActivity");
 const { resultsWithheld, withholdScores } = require("../services/attemptRules");
 const { createResultCard } = require("../services/resultCardPdf");
 const { formatDate } = require("../services/pakistanTime");
+const { createConcurrencyLimit } = require("../services/concurrencyLimit");
+
+// A PDF is built in memory; when a whole class asks at once they are served a few at a time.
+const pdfTurn = createConcurrencyLimit(6);
 
 const pakistanDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" });
 const dayKey = value => pakistanDay.format(new Date(value));
@@ -127,7 +131,9 @@ const getDashboardSummary = async (req, res) => {
 };
 
 // A student's own result card: profile, totals and every completed test, as a PDF.
-const downloadResultCard = async (req, res, next) => {
+const downloadResultCard = (req, res, next) => pdfTurn(() => buildResultCard(req, res, next));
+
+const buildResultCard = async (req, res, next) => {
     try {
         const [student, attempts] = await Promise.all([
             Student.findById(req.student._id).select("name email phone city school schoolClass schoolSection createdAt").lean(),
@@ -166,6 +172,8 @@ const downloadResultCard = async (req, res, next) => {
         });
         doc.on("error", next);
         doc.pipe(res);
+        // The turn ends when the download does, not when the PDF is generated.
+        await new Promise(resolve => { res.once("close", resolve); res.once("finish", resolve); });
     } catch (error) { next(error); }
 };
 

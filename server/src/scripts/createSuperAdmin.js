@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const bcrypt = require("bcryptjs");
+const { hashPassword } = require("../services/passwords");
 const mongoose = require("mongoose");
 const connectDB = require("../config/db");
 const Admin = require("../models/Admin");
@@ -30,7 +30,7 @@ async function main() {
         process.stdout.write(`An admin with ${email} already exists. No changes were made.\n`);
         return;
     }
-    await Admin.create({ name, email, password: await bcrypt.hash(password, 12), role: "super_admin" });
+    await Admin.create({ name, email, password: await hashPassword(password), role: "super_admin" });
     process.stdout.write(`Super admin ${email} created. Remove SUPER_ADMIN_PASSWORD from the environment now.\n`);
 }
 

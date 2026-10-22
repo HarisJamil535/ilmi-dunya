@@ -41,7 +41,7 @@ const updateClass = async (req, res) => {
         if (message) return res.status(400).json({ success: false, message });
         const existingClass = await Class.findOne({ _id: { $ne: req.params.id }, name: createExactNameRegex(trimmedName) });
         if (existingClass) return res.status(400).json({ success: false, message: "Class already exists" });
-        const updatedClass = await Class.findByIdAndUpdate(req.params.id, { name: trimmedName }, { new: true, runValidators: true });
+        const updatedClass = await Class.findByIdAndUpdate(req.params.id, { name: trimmedName }, { returnDocument: "after", runValidators: true });
         if (!updatedClass) return res.status(404).json({ success: false, message: "Class not found" });
         return res.status(200).json({ success: true, message: "Class updated successfully", class: updatedClass });
     } catch (error) {
