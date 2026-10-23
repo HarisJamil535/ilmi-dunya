@@ -3,6 +3,7 @@ const Question = require("../models/Question");
 const mongoose = require("mongoose");
 const { assessmentPayload } = require('../services/assessmentPublishing');
 const { fail } = require('../services/publishing');
+const { publishingOverview, changePublishing } = require('../services/testPublishing');
 
 const calculateTotals = async (questions = [], scope = {}) => {
     if (!questions.length) return { normalizedQuestions: [], totalMarks: 0, durationMinutes: 1 };
@@ -160,7 +161,19 @@ const deleteAssessment = async (req, res) => {
     res.json({ success: true, assessment });
 };
 
+// Chapter and topic switches for turning MCQ tests on and off.
+const getPublishing = async (req, res) => {
+    res.json({ success: true, chapters: await publishingOverview(req.query) });
+};
+
+const setPublishing = async (req, res) => {
+    const result = await changePublishing(req.body || {}, req.admin._id);
+    res.json({ success: true, ...result });
+};
+
 module.exports = {
+    getPublishing,
+    setPublishing,
     getAssessments,
     getAssessment,
     createAssessment,

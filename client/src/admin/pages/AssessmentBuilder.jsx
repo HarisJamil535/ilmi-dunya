@@ -216,10 +216,10 @@ const AssessmentBuilder = () => {
       : [...new Set([...current, ...visibleIds])]);
   };
 
-  const publishAssessment = async (assessment) => {
+  const publishAssessment = async (assessment, status = "published") => {
     setError("");
     try {
-      const response = await axiosInstance.put(`/assessments/${assessment._id}`, { status: "published" });
+      const response = await axiosInstance.put(`/assessments/${assessment._id}`, { status });
       setAssessments((current) => sortByTitle(current.map((item) => item._id === assessment._id ? response.data.assessment : item)));
     } catch (err) {
       setError(err.response?.data?.message || "Unable to publish this test. Please check its questions and try again.");
@@ -291,6 +291,7 @@ const AssessmentBuilder = () => {
           <ClipboardCheck className="h-7 w-7" />
           <h1 className="mt-3 text-2xl font-black">MCQ Test Builder</h1>
           <p className="mt-1 text-sm text-primary-muted">Choose a syllabus topic, assemble reusable questions, then publish the test for students.</p>
+          <Link to="/admin/assessments/publishing" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black text-white ring-1 ring-white/20 hover:bg-white/20"><Check size={16} />Publish or unpublish whole chapters and topics</Link>
         </header>
 
         <form id="test-builder-form" onSubmit={submit} className="grid scroll-mt-24 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -415,7 +416,10 @@ const AssessmentBuilder = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => editTest(assessment)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700">Edit</button>
-                  {assessment.status === "draft" && <button type="button" onClick={() => publishAssessment(assessment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"><Check size={15} />Publish test</button>}
+                  <button type="button" role="switch" aria-checked={assessment.status === "published"} onClick={() => publishAssessment(assessment, assessment.status === "published" ? "draft" : "published")} title={assessment.status === "published" ? "Unpublish: hide from students" : "Publish: show to students"} className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs font-black text-slate-600 hover:bg-slate-50">
+                    <span className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${assessment.status === "published" ? "bg-emerald-500" : "bg-slate-300"}`}><span className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${assessment.status === "published" ? "translate-x-5" : "translate-x-1"}`} /></span>
+                    {assessment.status === "published" ? "Published" : "Draft"}
+                  </button>
                   <DeleteButton onClick={() => setAssessmentToArchive(assessment)} title="Archive test" aria-label={`Archive ${assessment.title}`} />
                 </div>
               </div>

@@ -22,6 +22,7 @@ const HomeStatsManagement = lazy(() => import("@/admin/pages/HomeStatsManagement
 const TestimonialsManagement = lazy(() => import("@/admin/pages/TestimonialsManagement"));
 const QuestionBankManagement = lazy(() => import("@/admin/pages/QuestionBankManagement"));
 const AssessmentBuilder = lazy(() => import("@/admin/pages/AssessmentBuilder"));
+const TestPublishing = lazy(() => import("@/admin/pages/TestPublishing"));
 const AssessmentAnalytics = lazy(() => import("@/admin/pages/AssessmentAnalytics"));
 const NewsManagement = lazy(() => import("@/admin/pages/NewsManagement"));
 const AdminManagement = lazy(() => import("@/admin/pages/AdminManagement"));
@@ -55,6 +56,7 @@ const AdminRoutes = () => {
                         <Route path="home-content/news" element={<NewsManagement />} />
                         <Route path="assessments/questions" element={<QuestionBankManagement />} />
                         <Route path="assessments/builder" element={<AssessmentBuilder />} />
+                        <Route path="assessments/publishing" element={<TestPublishing />} />
                         <Route path="assessments/analytics" element={<AssessmentAnalytics />} />
                         <Route path="chapters/:chapterId/topics" element={<TopicManagement />} />
                         <Route path="admin-management" element={<AdminManagement />} />

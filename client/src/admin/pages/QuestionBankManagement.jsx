@@ -774,7 +774,7 @@ const QuestionBankManagement = () => {
           )}
 
           {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-600">{error}</p>}
-          {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
+          {message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}{isMcq && <> <Link to="/admin/assessments/publishing" className="underline underline-offset-2">Publish these MCQs as tests</Link></>}</p>}
 
           <div className="mt-5 flex justify-end">
             <button disabled={saving || uploadingImage} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm disabled:opacity-60">
