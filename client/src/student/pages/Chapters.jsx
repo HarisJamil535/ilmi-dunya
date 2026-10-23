@@ -258,7 +258,7 @@ const Chapters = () => {
                       <div className="chapter-actions">
                         <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><YouTubeIcon size={22} />Video</Link>
                         <Link to={`/notes?${notesParams.toString()}`} title={`Open notes for the complete ${chapterTitle}`} className="action-notes"><NotebookPen aria-hidden="true" />Notes</Link>
-                        <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise notes</Link>
+                        <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise<span className="label-extra"> notes</span></Link>
                         <Link to={`/tests/start?chapter=${chapter._id}&type=chapter_test`} title={`Take an MCQ test covering all topics in ${chapterTitle}`} className="action-test"><ClipboardCheck aria-hidden="true" />Test</Link>
                       </div>
                     </div>
