@@ -1,7 +1,8 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, ChevronDown, ClipboardCheck, FileCheck2, FileText, GraduationCap, Landmark, Layers, NotebookPen, PlayCircle, SearchX } from "lucide-react";
+import { BookOpen, ChevronDown, ClipboardCheck, Download, FileCheck2, FileText, GraduationCap, Landmark, Layers, ListOrdered, MousePointerClick, NotebookPen, SearchX } from "lucide-react";
+import YouTubeIcon from "../components/YouTubeIcon";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ChapterTopics from "../components/ChapterTopics";
@@ -67,7 +68,7 @@ const Chapters = () => {
   const [isLoading, setIsLoading] = useState(true);
   usePageLoading(isLoading);
   const [error, setError] = useState(null);
-  const [expandedChapter, setExpandedChapter] = useState(null);
+  const [openChapters, setOpenChapters] = useState(() => new Set());
   const [answerSheet, setAnswerSheet] = useState(null);
   const [retry, setRetry] = useState(0);
 
@@ -97,7 +98,7 @@ const Chapters = () => {
   useEffect(() => {
     const controller = new AbortController();
     setAnswerSheet(null);
-    setExpandedChapter(null);
+    setOpenChapters(new Set());
     const fetchChapters = async () => {
       if (!hasRequiredContext) {
         setChapters([]);
@@ -155,7 +156,13 @@ const Chapters = () => {
     return () => controller.abort();
   }, [boardParam, classParam, subjectParam, subjectId, groupParam, boardId, classId, groupId, hasRequiredContext, retry]);
 
-  const toggleChapter = (chapterId) => setExpandedChapter(current => current === chapterId ? null : chapterId);
+  const toggleChapter = (chapterId) => setOpenChapters(current => {
+    const next = new Set(current);
+    if (next.has(chapterId)) next.delete(chapterId); else next.add(chapterId);
+    return next;
+  });
+  const allOpen = chapters.length > 0 && openChapters.size === chapters.length;
+  const toggleAll = () => setOpenChapters(allOpen ? new Set() : new Set(chapters.map(chapter => chapter._id)));
 
   const resourceLinks = {
     subject: subjectParam, grade: classParam, board: boardParam, group: groupParam, subjectId, boardId, classId, groupId,
@@ -170,31 +177,24 @@ const Chapters = () => {
         ]} />
         <header className="chapters-hero">
           <div className="hero-copy">
-            <span className="hero-eyebrow"><Layers aria-hidden="true" size={14} />Subject chapters</span>
             <h1 className="capitalize">{hasRequiredContext ? pageContext.subject : "Select a subject to view its chapters"}</h1>
-            {hasRequiredContext && <div className="chapter-context">
-              <span><GraduationCap aria-hidden="true" size={14} />Class {pageContext.grade}</span>
-              <span className="capitalize"><Landmark aria-hidden="true" size={14} />{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>
-              {pageContext.group && <span className="capitalize"><Layers aria-hidden="true" size={14} />{pageContext.group}</span>}
-            </div>}
-            <p>{chapters.length > 0 ? `${chapters.length} ${chapters.length === 1 ? "chapter" : "chapters"} with video lessons, notes and MCQ tests. Tap a chapter to see its topics.` : "Select a chapter to explore its topics, notes, videos and tests."}</p>
+            {hasRequiredContext && <ul className="chapter-context" aria-label="Course details">
+              <li><GraduationCap aria-hidden="true" size={16} />Class {pageContext.grade}</li>
+              <li className="capitalize"><Landmark aria-hidden="true" size={16} />{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</li>
+              {pageContext.group && <li className="capitalize"><Layers aria-hidden="true" size={16} />{pageContext.group}</li>}
+              {chapters.length > 0 && <li><ListOrdered aria-hidden="true" size={16} />{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</li>}
+            </ul>}
+            <p>Video lectures, notes, exercise solutions, important questions and MCQ tests for every chapter.</p>
           </div>
           <nav className="resource-panel" aria-label="Subject resources">
-            <p className="resource-kicker">Subject resources</p>
             <Link to={buildResourceLink({ path: "/book", ...resourceLinks })} className="resource-link is-primary">
-              <span className="resource-icon"><BookOpen aria-hidden="true" size={20} /></span>
-              <span className="resource-text"><strong>Download full book</strong><small>Complete textbook PDF</small></span>
-              <ArrowUpRight className="resource-arrow" size={18} aria-hidden="true" />
+              <Download aria-hidden="true" size={18} /><span>Download book</span>
             </Link>
             <Link to={buildResourceLink({ path: "/past-papers", ...resourceLinks })} className="resource-link">
-              <span className="resource-icon"><FileText aria-hidden="true" size={20} /></span>
-              <span className="resource-text"><strong>Past papers</strong><small>Previous board exams</small></span>
-              <ArrowUpRight className="resource-arrow" size={18} aria-hidden="true" />
+              <FileText aria-hidden="true" size={18} /><span>Past papers</span>
             </Link>
             {answerSheet && <Link to={buildResourceLink({ path: "/answer-sheet", ...resourceLinks, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id })} className="resource-link answer-sheet-resource">
-              <span className="resource-icon"><FileCheck2 aria-hidden="true" size={20} /></span>
-              <span className="resource-text"><strong>Answer sheet</strong><small>Check your answers</small></span>
-              <ArrowUpRight className="resource-arrow" size={18} aria-hidden="true" />
+              <FileCheck2 aria-hidden="true" size={18} /><span>Answer sheet</span>
             </Link>}
           </nav>
         </header>
@@ -221,54 +221,55 @@ const Chapters = () => {
           </div>
         ) : (
           <div className="chapters-body">
-            <div className="chapter-list-heading"><h2>Chapters</h2><span>Open a chapter to reach every topic and its important questions</span></div>
-            <div className="chapter-list">
-            {chapters.map((chapter) => {
-              const chapterNumStr = String(chapter.chapterNumber || 1).padStart(2, "0");
-              const chapterTitle = chapter.name || chapter.title || `Chapter ${chapter.chapterNumber || 1}`;
-              const open = expandedChapter === chapter._id;
-              const videoLink = buildTopicLink({
-                chapter,
-                subject: subjectParam,
-                grade: classParam,
-                board: boardParam,
-                group: groupParam,
-              });
-              const notesParams = new URLSearchParams({ chapterId: chapter._id });
-              if (subjectParam) notesParams.set("subject", subjectParam);
-              if (classParam) notesParams.set("class", classParam);
-              if (boardParam) notesParams.set("board", boardParam);
-              if (groupParam) notesParams.set("group", groupParam);
+            <ol className="how-it-works" aria-label="How to use this page">
+              <li><span className="step-icon"><MousePointerClick aria-hidden="true" size={18} /></span><div><strong>Open a chapter</strong><small>See all of its topics</small></div></li>
+              <li><span className="step-icon"><ListOrdered aria-hidden="true" size={18} /></span><div><strong>Pick a topic</strong><small>Read important long & short questions</small></div></li>
+              <li><span className="step-icon"><ClipboardCheck aria-hidden="true" size={18} /></span><div><strong>Watch, then test</strong><small>Video lecture and MCQ test</small></div></li>
+            </ol>
 
-              return (
-                <article key={chapter._id || chapter.chapterNumber} className={`chapter-item ${open ? "is-expanded" : ""}`}>
-                  <div className="chapter-heading-row">
-                    <button type="button" aria-expanded={open} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="chapter-toggle">
-                      <span className="chapter-number">{chapterNumStr}</span>
-                      <span className="chapter-title-block">
-                        <span className="chapter-overline">Chapter {chapter.chapterNumber || 1}</span>
-                        <h2>{chapterTitle}</h2>
-                        {chapter.description && <span className="chapter-description">{chapter.description}</span>}
-                      </span>
-                      <span className="chapter-expand">
-                        <span className="chapter-expand-label">{open ? "Hide topics" : "Topics"}</span>
-                        <ChevronDown aria-hidden="true" size={18} />
-                      </span>
-                    </button>
-                    <div className="chapter-actions">
-                      <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><PlayCircle aria-hidden="true" />Video</Link>
-                      <Link to={`/notes?${notesParams.toString()}`} title={`Open notes for the complete ${chapterTitle}`} className="action-notes"><NotebookPen aria-hidden="true" />Notes</Link>
-                      <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise notes</Link>
-                      <Link to={`/tests/start?chapter=${chapter._id}&type=chapter_test`} title={`Take an MCQ test covering all topics in ${chapterTitle}`} className="action-test"><ClipboardCheck aria-hidden="true" />Test</Link>
+            <section className="curriculum" aria-labelledby="curriculum-title">
+              <div className="curriculum-head">
+                <div><h2 id="curriculum-title">Course content</h2><p>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</p></div>
+                <button type="button" className="expand-all" onClick={toggleAll}>{allOpen ? "Collapse all" : "Expand all"}</button>
+              </div>
+              <div className="chapter-list">
+              {chapters.map((chapter) => {
+                const chapterTitle = chapter.name || chapter.title || `Chapter ${chapter.chapterNumber || 1}`;
+                const open = openChapters.has(chapter._id);
+                const videoLink = buildTopicLink({ chapter, subject: subjectParam, grade: classParam, board: boardParam, group: groupParam });
+                const notesParams = new URLSearchParams({ chapterId: chapter._id });
+                if (subjectParam) notesParams.set("subject", subjectParam);
+                if (classParam) notesParams.set("class", classParam);
+                if (boardParam) notesParams.set("board", boardParam);
+                if (groupParam) notesParams.set("group", groupParam);
+
+                return (
+                  <article key={chapter._id || chapter.chapterNumber} className={`chapter-item ${open ? "is-expanded" : ""}`}>
+                    <div className="chapter-heading-row">
+                      <button type="button" aria-expanded={open} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="chapter-toggle">
+                        <ChevronDown className="chapter-chevron" aria-hidden="true" size={20} />
+                        <span className="chapter-number">{chapter.chapterNumber || 1}</span>
+                        <span className="chapter-title-block">
+                          <span className="chapter-overline">Chapter {chapter.chapterNumber || 1}</span>
+                          <h2>{chapterTitle}</h2>
+                          {chapter.description && <span className="chapter-description">{chapter.description}</span>}
+                        </span>
+                      </button>
+                      <div className="chapter-actions">
+                        <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><YouTubeIcon size={22} />Video</Link>
+                        <Link to={`/notes?${notesParams.toString()}`} title={`Open notes for the complete ${chapterTitle}`} className="action-notes"><NotebookPen aria-hidden="true" />Notes</Link>
+                        <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise notes</Link>
+                        <Link to={`/tests/start?chapter=${chapter._id}&type=chapter_test`} title={`Take an MCQ test covering all topics in ${chapterTitle}`} className="action-test"><ClipboardCheck aria-hidden="true" />Test</Link>
+                      </div>
                     </div>
-                  </div>
-                  {open && <div id={`chapter-${chapter._id}`} className="chapter-topics-content">
-                    <ChapterTopics chapter={chapter} context={searchParams} />
-                  </div>}
-                </article>
-              );
-            })}
-            </div>
+                    {open && <div id={`chapter-${chapter._id}`} className="chapter-topics-content">
+                      <ChapterTopics chapter={chapter} context={searchParams} />
+                    </div>}
+                  </article>
+                );
+              })}
+              </div>
+            </section>
           </div>
         )}
       </section>
