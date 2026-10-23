@@ -1,8 +1,7 @@
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, FileText, ListChecks } from "lucide-react";
-import { IoLogoYoutube } from "react-icons/io5";
+import { ArrowRight, ClipboardCheck, PlayCircle } from "lucide-react";
 
 import axiosInstance from "../../api/axios";
 
@@ -27,12 +26,12 @@ export default function ChapterTopics({ chapter, context }) {
     return <li key={topic._id} className="topic-row">
       <Link to={`/topic-questions?${params}`} className="topic-question-link" title={`Open important long and short questions for ${topic.name}`}>
         <span className="topic-number">{topic.topicNumber}</span>
-        <span className="topic-copy"><strong>{topic.name}</strong><small><ListChecks size={14} /> Open important long & short questions</small></span>
+        <span className="topic-copy"><strong>{topic.name}</strong><small>Open important long & short questions</small></span>
         <ArrowRight className="topic-link-arrow" size={18} aria-hidden="true" />
       </Link>
       <div className="topic-actions">
-        <Link title={`Watch video lessons for ${topic.name}`} to={`/topics?${params}`} className="topic-video-action"><IoLogoYoutube size={18} /><span>Video</span></Link>
-        <Link title={`Take the MCQ test for ${topic.name}`} to={`/tests/start?topic=${topic._id}`} className="topic-test-action"><FileText size={16} /><span>Test</span></Link>
+        <Link title={`Watch video lessons for ${topic.name}`} to={`/topics?${params}`} className="topic-video-action"><PlayCircle size={17} aria-hidden="true" /><span>Video</span></Link>
+        <Link title={`Take the MCQ test for ${topic.name}`} to={`/tests/start?topic=${topic._id}`} className="topic-test-action"><ClipboardCheck size={17} aria-hidden="true" /><span>Test</span></Link>
       </div>
     </li>;
   })}</ol></div>;
