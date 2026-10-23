@@ -679,7 +679,6 @@ html.dark .news-page, html.dark .news-article { background: var(--app-bg-main); 
 html.dark .news-hero { background: linear-gradient(110deg, #191628 0%, #11141d 72%); }
 html.dark .news-feature, html.dark .news-card, html.dark .news-article-header, html.dark .news-article-content, html.dark .news-state, html.dark .news-categories { border-color: var(--app-border); background: var(--app-bg-card); }
 
-html.dark .chapters-header, html.dark .chapter-resource-panel, html.dark .chapter-resources a, html.dark .topic-discovery-icon, html.dark .topic-discovery-hint, html.dark .topic-row { border-color: var(--app-border); background: var(--app-bg-card); color: var(--app-text-primary); }
 html.dark .topic-discovery-callout { border-color: var(--brand-primary-muted); background: linear-gradient(90deg, var(--brand-primary-soft), var(--app-bg-card)); }
 html.dark .topic-row:hover { background: #202432; }
 html.dark .chapter-list-heading > span { background: var(--app-bg-muted); color: var(--app-text-muted); }
@@ -759,7 +758,6 @@ html.dark .study-resource-link, html.dark .not-found, html.dark .not-found-secon
 html.dark .study-questions li, html.dark .not-found-shortcuts { border-color: var(--app-border); }
 html.dark .not-found h1 { color: var(--app-text-primary); }
 html.dark .not-found-primary { color: #fff; background: var(--brand-primary); }
-html.dark .chapter-context span, html.dark .chapter-resources a.answer-sheet-resource { border-color: var(--brand-primary-muted); }
 html.dark .learning-button.secondary, html.dark .leaderboard-refresh {
   border-color: var(--app-border); background: var(--app-bg-card); color: #c4b5fd;
 }
@@ -804,9 +802,6 @@ html.dark .chapter-resource-kicker, html.dark .chapter-topics-intro > span,
 html.dark .topic-copy small, html.dark .learning-muted { color: var(--app-text-muted); }
 html.dark .topic-video-action { background: #321c27; border-color: #704052; color: #ffafc2; }
 html.dark .topic-video-action:hover { background: #422331; filter: none; }
-html.dark .chapter-resources a:first-child { background: #6944c6; color: #fff; }
-html.dark .chapter-resources a:first-child:hover { background: #5835b2; color: #fff; }
-html.dark .chapter-resources a:not(:first-child):hover { background: var(--brand-primary-soft); color: #d6cbff; }
 html.dark .news-categories button:hover { background: var(--brand-primary-soft); color: #d6cbff; }
 html.dark .news-categories button[aria-pressed="true"] { background: #6944c6; color: #fff; }
 html.dark :focus-visible { outline-color: #bca9ff; }
@@ -836,4 +831,3 @@ html.dark .learning-tabs button[aria-pressed="true"] { background: #6944c6; colo
 html.dark .home-button:hover, html.dark .not-found-primary:hover { background: #5835b2; }
 html.dark .home-eyebrow, html.dark .home-hero-links a,
 html.dark .home-text-link, html.dark .chapter-context span,
-html.dark .chapter-resources a.answer-sheet-resource { color: #c4b5fd; }

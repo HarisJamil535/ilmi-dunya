@@ -15,9 +15,9 @@ export default function ChapterTopics({ chapter, context }) {
       .catch(() => { if (!controller.signal.aborted) setState({ loading: false, topics: [], error: "Topics could not be loaded. Close and reopen this chapter to retry." }); });
     return () => controller.abort();
   }, [chapter._id]);
-  if (state.loading) return <div className="flex justify-center p-6"><Spinner /></div>;
-  if (state.error) return <p role="alert" className="p-5 text-sm text-red-600">{state.error}</p>;
-  if (!state.topics.length) return <p className="p-5 text-sm text-slate-500">No topics added yet.</p>;
+  if (state.loading) return <div className="topics-state"><Spinner /></div>;
+  if (state.error) return <p role="alert" className="topics-state is-error">{state.error}</p>;
+  if (!state.topics.length) return <p className="topics-state">No topics added yet.</p>;
   return <div className="chapter-topics-wrap">
     <div className="chapter-topics-intro"><h3>Chapter topics</h3><span>{state.topics.length} {state.topics.length === 1 ? "topic" : "topics"}</span></div>
     <ol className="chapter-topics-list">{state.topics.map(topic => {
@@ -28,7 +28,7 @@ export default function ChapterTopics({ chapter, context }) {
       <Link to={`/topic-questions?${params}`} className="topic-question-link" title={`Open important long and short questions for ${topic.name}`}>
         <span className="topic-number">{topic.topicNumber}</span>
         <span className="topic-copy"><strong>{topic.name}</strong><small><ListChecks size={14} /> Open important long & short questions</small></span>
-        <ArrowRight className="topic-link-arrow" size={18} />
+        <ArrowRight className="topic-link-arrow" size={18} aria-hidden="true" />
       </Link>
       <div className="topic-actions">
         <Link title={`Watch video lessons for ${topic.name}`} to={`/topics?${params}`} className="topic-video-action"><IoLogoYoutube size={18} /><span>Video</span></Link>

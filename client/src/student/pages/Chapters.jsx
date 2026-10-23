@@ -1,7 +1,7 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, Layers, Lightbulb, ListChecks, SearchX } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, Download, FileCheck2, FileText, GraduationCap, Landmark, Layers, Lightbulb, ListChecks, Play, SearchX } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { IoLogoYoutube } from "react-icons/io5";
 import axiosInstance from "../../api/axios";
@@ -158,132 +158,87 @@ const Chapters = () => {
 
   const toggleChapter = (chapterId) => setExpandedChapter(current => current === chapterId ? null : chapterId);
 
+  const resourceLinks = {
+    subject: subjectParam, grade: classParam, board: boardParam, group: groupParam, subjectId, boardId, classId, groupId,
+  };
+
   return (
-    <main className="chapters-page min-h-screen bg-slate-50 px-4 py-8 font-sans sm:px-6 lg:px-10">
-      <section className="mx-auto flex max-w-6xl flex-col gap-6">
+    <main className="chapters-page">
+      <section className="chapters-shell">
         <Breadcrumbs items={[
           { label: "Subjects", to: `/subjects?${searchParams.toString()}` },
           { label: pageContext.subject || "Chapters" },
         ]} />
-        <header className="chapters-header relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 lg:p-8">
-          <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.62fr)] lg:items-center">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
-              <Layers className="h-4 w-4" />
-              <span>Subject Chapters</span>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="max-w-4xl text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">
-                {hasRequiredContext ? (
-                  <>
-                    <span className="capitalize">{pageContext.subject}</span>
-                  </>
-                ) : (
-                  "Select a subject to view its chapters"
-                )}
-              </h1>
-              {hasRequiredContext && <div className="chapter-context"><span>Class {pageContext.grade}</span><span className="capitalize">{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>{pageContext.group && <span className="capitalize">{pageContext.group}</span>}</div>}
-              <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Select a chapter to explore its topics, notes, videos and tests.
-              </p>
-            </div>
+        <header className="chapters-hero">
+          <div className="hero-copy">
+            <span className="hero-eyebrow"><Layers aria-hidden="true" size={15} />Subject chapters</span>
+            <h1 className="capitalize">{hasRequiredContext ? pageContext.subject : "Select a subject to view its chapters"}</h1>
+            {hasRequiredContext && <div className="chapter-context">
+              <span><GraduationCap aria-hidden="true" size={14} />Class {pageContext.grade}</span>
+              <span className="capitalize"><Landmark aria-hidden="true" size={14} />{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</span>
+              {pageContext.group && <span className="capitalize"><Layers aria-hidden="true" size={14} />{pageContext.group}</span>}
+            </div>}
+            <p>Select a chapter to explore its topics, notes, videos and tests.</p>
+            {chapters.length > 0 && <ul className="hero-highlights" aria-label="What is included">
+              <li><strong>{chapters.length}</strong>{chapters.length === 1 ? "chapter" : "chapters"}</li>
+              <li><Play aria-hidden="true" size={14} />Video lessons</li>
+              <li><FileText aria-hidden="true" size={14} />Notes</li>
+              <li><ListChecks aria-hidden="true" size={14} />MCQ tests</li>
+            </ul>}
           </div>
-          <div className="chapter-resource-panel">
-            <p className="chapter-resource-kicker">Subject resources</p>
-            <div className={`chapter-resources grid gap-3 ${answerSheet ? "sm:grid-cols-3 lg:grid-cols-1" : "grid-cols-2 lg:grid-cols-1"}`}>
-            <Link
-              to={buildResourceLink({
-                path: "/book",
-                subject: subjectParam,
-                grade: classParam,
-                board: boardParam,
-                group: groupParam,
-                subjectId,
-                boardId,
-                classId,
-                groupId,
-              })}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-600 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-50 hover:text-blue-600"
-            >
-              <BookOpen className="h-4 w-4" />
-              <span>Download full book</span>
-              <ArrowRight className="resource-arrow" size={16} />
+          <nav className="resource-panel" aria-label="Subject resources">
+            <p className="resource-kicker">Subject resources</p>
+            <Link to={buildResourceLink({ path: "/book", ...resourceLinks })} className="resource-link is-primary">
+              <span className="resource-icon"><BookOpen aria-hidden="true" size={20} /></span>
+              <span className="resource-text"><strong>Download full book</strong><small>Complete textbook PDF</small></span>
+              <ArrowRight className="resource-arrow" size={18} aria-hidden="true" />
             </Link>
-            <Link
-              to={buildResourceLink({
-                path: "/past-papers",
-                subject: subjectParam,
-                grade: classParam,
-                board: boardParam,
-                group: groupParam,
-                subjectId,
-                boardId,
-                classId,
-                groupId,
-              })}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-amber-100 hover:text-amber-600"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Past papers</span>
-              <ArrowRight className="resource-arrow" size={16} />
+            <Link to={buildResourceLink({ path: "/past-papers", ...resourceLinks })} className="resource-link">
+              <span className="resource-icon"><FileText aria-hidden="true" size={20} /></span>
+              <span className="resource-text"><strong>Past papers</strong><small>Previous board exams</small></span>
+              <ArrowRight className="resource-arrow" size={18} aria-hidden="true" />
             </Link>
-            {answerSheet && <Link
-              to={buildResourceLink({ path: "/answer-sheet", subject: subjectParam, grade: classParam, board: boardParam, group: groupParam, subjectId, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id, groupId })}
-              className="answer-sheet-resource"
-            >
-              <FileCheck2 className="h-4 w-4" />
-              <span>Answer sheet</span>
-              <ArrowRight className="resource-arrow" size={16} />
+            {answerSheet && <Link to={buildResourceLink({ path: "/answer-sheet", ...resourceLinks, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id })} className="resource-link answer-sheet-resource">
+              <span className="resource-icon"><FileCheck2 aria-hidden="true" size={20} /></span>
+              <span className="resource-text"><strong>Answer sheet</strong><small>Check your answers</small></span>
+              <ArrowRight className="resource-arrow" size={18} aria-hidden="true" />
             </Link>}
-            </div>
-          </div>
-          </div>
+          </nav>
         </header>
 
         {!hasRequiredContext ? (
-          <div className="rounded-2xl border border-dashed border-primary-muted bg-white p-10 text-center shadow-sm">
-            <BookOpen className="mx-auto mb-4 h-10 w-10 text-primary" />
-            <h2 className="text-lg font-bold text-slate-900">No subject selected</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Go back to subjects and select the subject you want to study. The chapter list will appear here.
-            </p>
-            <Link
-              to="/subjects"
-              className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
-            >
-              Browse Subjects
-            </Link>
+          <div className="state-card is-dashed">
+            <span className="state-icon"><BookOpen aria-hidden="true" size={26} /></span>
+            <h2>No subject selected</h2>
+            <p>Go back to subjects and select the subject you want to study. The chapter list will appear here.</p>
+            <Link to="/subjects" className="state-button">Browse subjects</Link>
           </div>
         ) : isLoading ? (
-          <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-            <Spinner />
-
-          </div>
+          <div className="state-loading"><Spinner /></div>
         ) : error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-sm font-semibold text-rose-600">
+          <div className="state-card is-error">
             <p role="alert">{error}</p>
-            <button type="button" onClick={() => setRetry(value => value + 1)} className="mt-3 rounded-md border border-current px-3 py-2">Try again</button>
+            <button type="button" onClick={() => setRetry(value => value + 1)} className="state-button">Try again</button>
           </div>
         ) : chapters.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <SearchX className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-            <h2 className="text-lg font-bold text-slate-900">No chapters available</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              There are no chapters uploaded for this subject yet.
-            </p>
+          <div className="state-card">
+            <span className="state-icon"><SearchX aria-hidden="true" size={26} /></span>
+            <h2>No chapters available</h2>
+            <p>There are no chapters uploaded for this subject yet.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="chapters-body">
             <div className="topic-discovery-callout">
-              <span className="topic-discovery-icon"><Lightbulb size={18} /></span>
+              <span className="topic-discovery-icon"><Lightbulb size={18} aria-hidden="true" /></span>
               <div><h2>Important questions are inside every topic</h2><p>Expand a chapter, then click any topic name to view its board-focused long and short questions.</p></div>
-              <span className="topic-discovery-hint"><ListChecks size={16} /> Click a topic</span>
+              <span className="topic-discovery-hint"><ListChecks size={15} aria-hidden="true" /> Click a topic</span>
             </div>
             <div className="chapter-list-heading"><div><p>Course outline</p><h2>Explore all chapters</h2></div><span>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</span></div>
+            <div className="chapter-list">
             {chapters.map((chapter) => {
               const chapterNumStr = String(chapter.chapterNumber || 1).padStart(2, "0");
               const chapterTitle = chapter.name || chapter.title || `Chapter ${chapter.chapterNumber || 1}`;
+              const open = expandedChapter === chapter._id;
               const videoLink = buildTopicLink({
                 chapter,
                 subject: subjectParam,
@@ -298,71 +253,34 @@ const Chapters = () => {
               if (groupParam) notesParams.set("group", groupParam);
 
               return (
-                <article
-                  key={chapter._id || chapter.chapterNumber}
-                  className={`chapter-item group border border-slate-200 bg-white p-4 transition-colors hover:border-primary-muted sm:p-5 ${expandedChapter === chapter._id ? "is-expanded" : ""}`}
-                >
+                <article key={chapter._id || chapter.chapterNumber} className={`chapter-item ${open ? "is-expanded" : ""}`}>
                   <div className="chapter-heading-row">
-                    <button type="button" aria-expanded={expandedChapter === chapter._id} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="flex min-w-0 flex-1 items-center gap-4 text-left focus-visible:outline-primary">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-black tracking-wider text-primary transition group-hover:bg-primary group-hover:text-white">
-                        {chapterNumStr}
+                    <button type="button" aria-expanded={open} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="chapter-toggle">
+                      <span className="chapter-number">{chapterNumStr}</span>
+                      <span className="chapter-title-block">
+                        <span className="chapter-overline">Chapter {chapter.chapterNumber || 1}</span>
+                        <h2>{chapterTitle}</h2>
+                        {chapter.description && <span className="chapter-description">{chapter.description}</span>}
                       </span>
-                      <div className="min-w-0">
-                        <p className="chapter-overline">Chapter {chapter.chapterNumber || 1}</p>
-                        <h2 className="text-base font-bold leading-6 text-slate-900 transition group-hover:text-primary sm:text-lg">
-                          {chapterTitle}
-                        </h2>
-                        {chapter.description && (
-                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
-                            {chapter.description}
-                          </p>
-                        )}
-                      </div>
-                      <span className="chapter-expand-label">{expandedChapter === chapter._id ? "Hide topics" : "View topics"}</span>
-                      <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 transition-transform ${expandedChapter === chapter._id ? "rotate-180" : ""}`} />
+                      <span className="chapter-expand">
+                        <span className="chapter-expand-label">{open ? "Hide topics" : "View topics"}</span>
+                        <ChevronDown aria-hidden="true" size={18} />
+                      </span>
                     </button>
-
-                    <div className="chapter-actions ml-auto grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-                      <Link
-                        to={videoLink}
-                        title={`Watch videos for the complete ${chapterTitle}`}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-red-500 transition hover:bg-red-500 hover:text-white"
-                      >
-                        <IoLogoYoutube className="h-4 w-4" />
-                        Video
-                      </Link>
-                      <Link
-                        to={`/notes?${notesParams.toString()}`}
-                        title={`Open notes for the complete ${chapterTitle}`}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-600 transition hover:bg-emerald-500 hover:text-white"
-                      >
-                        <Download className="h-4 w-4" />
-                        Notes
-                      </Link>
-                      <Link
-                        to={`/notes?${notesParams.toString()}&type=exercise`}
-                        title={`View exercise notes for ${chapterTitle}`}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-xs font-bold text-primary transition hover:border-primary hover:bg-primary hover:text-white"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Exercise notes
-                      </Link>
-                      <Link
-                        to={`/tests/start?chapter=${chapter._id}&type=chapter_test`}
-                        title={`Take an MCQ test covering all topics in ${chapterTitle}`}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:bg-primary"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Test
-                      </Link>
+                    <div className="chapter-actions">
+                      <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><IoLogoYoutube aria-hidden="true" />Video</Link>
+                      <Link to={`/notes?${notesParams.toString()}`} title={`Open notes for the complete ${chapterTitle}`} className="action-notes"><Download aria-hidden="true" />Notes</Link>
+                      <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise notes</Link>
+                      <Link to={`/tests/start?chapter=${chapter._id}&type=chapter_test`} title={`Take an MCQ test covering all topics in ${chapterTitle}`} className="action-test"><ListChecks aria-hidden="true" />Test</Link>
                     </div>
                   </div>
-                  {expandedChapter === chapter._id && <div id={`chapter-${chapter._id}`} className="chapter-topics-content">
+                  {open && <div id={`chapter-${chapter._id}`} className="chapter-topics-content">
                     <ChapterTopics chapter={chapter} context={searchParams} />
                   </div>}
                 </article>
               );
             })}
+            </div>
           </div>
         )}
       </section>
