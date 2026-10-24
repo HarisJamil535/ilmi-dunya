@@ -5,6 +5,7 @@ import { applyMetadata, initialPage } from "./seo/pageMetadata";
 import PageLoadingProvider from "./shared/PageLoadingProvider";
 import PageLoader from "./shared/PageLoader";
 import NetworkNotice from "./shared/NetworkNotice";
+import BlockedNotice from "./shared/BlockedNotice";
 import { HelmetProvider } from 'react-helmet-async';
 const AdminRoutes = lazy(() => import("./routes/AdminRoutes"));
 
@@ -26,7 +27,7 @@ function App({ initialData, initialView, routerComponent, routerProps = {} }) {
   const Router = routerComponent || BrowserRouter;
   return (
     <HelmetProvider><Router {...routerProps}>
-      <PageLoadingProvider><AppRoutes initialData={initialData} initialView={initialView} /><NetworkNotice /></PageLoadingProvider>
+      <PageLoadingProvider><AppRoutes initialData={initialData} initialView={initialView} /><NetworkNotice /><BlockedNotice /></PageLoadingProvider>
     </Router></HelmetProvider>
   );
 }

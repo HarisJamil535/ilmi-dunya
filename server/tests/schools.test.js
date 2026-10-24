@@ -366,6 +366,8 @@ function studentFlow(t) {
     const crypto = require("node:crypto");
     const auth = require("../src/controllers/studentAuthController");
     const StudentAuthChallenge = require("../src/models/StudentAuthChallenge");
+    // No email or number in these signups is blocked.
+    t.mock.method(require("../src/models/BlockedIdentity"), "exists", async () => null);
     const previousSecret = process.env.JWT_SECRET;
     const previousKey = process.env.RESEND_API_KEY;
     process.env.JWT_SECRET = "test-only-school-signup-secret-0123456789";

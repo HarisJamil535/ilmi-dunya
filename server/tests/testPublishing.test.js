@@ -46,3 +46,14 @@ test("answers sent with a submit are checked before they are graded", async () =
     assert.equal(late.answers[0].selectedOption, undefined, "answers arriving after time is up are ignored");
     mock.restoreAll();
 });
+
+const { identitiesOf } = require("../src/services/studentBlocking");
+
+test("a block matches the email in any case and the number however it was typed", () => {
+    const keys = list => list.map(item => `${item.kind}:${item.value}`).sort();
+    const stored = keys(identitiesOf({ email: "Ali@Example.com ", phone: "+923001234567" }));
+    for (const typed of ["0300 1234567", "0300-1234567", "923001234567", "00923001234567", "+92 300 1234567"]) {
+        assert.deepEqual(keys(identitiesOf({ email: "ali@example.com", phone: typed })), stored, typed);
+    }
+    assert.deepEqual(identitiesOf({}), []);
+});

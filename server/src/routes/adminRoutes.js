@@ -5,6 +5,11 @@ const {
     getLoggedInAdmin,
     getDashboard,
     listStudents,
+    blockStudentAccount,
+    unblockStudentAccount,
+    deleteStudentAccount,
+    listBlockedIdentities,
+    removeBlockedIdentity,
     listAdmins,
     createAdmin,
     updateAdmin,
@@ -25,6 +30,11 @@ router.get("/me", authMiddleware, getLoggedInAdmin);
 router.post("/logout", authMiddleware, logoutAdmin);
 router.get("/dashboard", authMiddleware, getDashboard);
 router.get("/students", authMiddleware.requireSuperAdmin, listStudents);
+router.post("/students/:id/block", authMiddleware.requireSuperAdmin, blockStudentAccount);
+router.post("/students/:id/unblock", authMiddleware.requireSuperAdmin, unblockStudentAccount);
+router.delete("/students/:id", authMiddleware.requireSuperAdmin, deleteStudentAccount);
+router.get("/blocked-identities", authMiddleware.requireSuperAdmin, listBlockedIdentities);
+router.delete("/blocked-identities/:id", authMiddleware.requireSuperAdmin, removeBlockedIdentity);
 router.get("/leaderboard", authMiddleware.requireSuperAdmin, getLeaderboardAdminSummary);
 router.post("/leaderboard/reset", authMiddleware.requireSuperAdmin, resetLeaderboard);
 

@@ -9,6 +9,8 @@ const { sendIlmiDunyaEmail } = require("../utils/mailer");
 const { escapeHtml } = require("../services/seoDocument");
 const School = require("../models/School");
 const { resolveSchoolChoice, schoolFields } = require("../services/schoolSelection");
+const { normalizePakistaniPhone } = require("../services/phoneNumbers");
+const { isBlockedIdentity, sendBlocked } = require("../services/studentBlocking");
 const {
     emailDeliveryConfigured,
     whatsappDeliveryConfigured,
@@ -46,16 +48,6 @@ const safeStudent = (student) => ({
     isPhoneVerified: Boolean(student.isPhoneVerified),
 });
 
-const normalizePakistaniPhone = (value) => {
-    const raw = typeof value === "string" ? value.trim() : "";
-    if (!raw) return "";
-    let digits = raw.replace(/[^\d]/g, "");
-    if (raw.startsWith("+")) return digits.length >= 10 && digits.length <= 15 ? `+${digits}` : "";
-    if (digits.startsWith("00")) digits = digits.slice(2);
-    if (digits.startsWith("0")) digits = `92${digits.slice(1)}`;
-    else if (!digits.startsWith("92")) digits = `92${digits}`;
-    return digits.length >= 11 && digits.length <= 15 ? `+${digits}` : "";
-};
 
 const otpDigest = (challengeId, value) => crypto
     .createHmac("sha256", process.env.JWT_SECRET)
@@ -173,6 +165,7 @@ const issueStudentSession = async (student) => {
 const requestRegistrationCode = async (req, res) => {
     try {
         const profile = getProfile(req.body);
+        if (await isBlockedIdentity(profile)) return sendBlocked(res);
         const school = await resolveSchoolChoice(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in or reset your password." });
         if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
@@ -202,6 +195,7 @@ const verifyRegistrationCode = async (req, res) => {
     try {
         const challenge = await verifyOtpChallenge({ ...req.body, purpose: "signup" });
         const data = challenge.payload;
+        if (await isBlockedIdentity(data)) return sendBlocked(res);
         if (await Student.findOne({ $or: [{ email: data.email }, { phone: data.phone }] }).select("_id")) {
             return res.status(409).json({ success: false, message: "An account with this email or phone number already exists. Please log in." });
         }
@@ -240,6 +234,7 @@ const registerGoogleProfile = async (req, res) => {
         if (typeof token !== "string") return res.status(400).json({ success: false, message: "Restart Google sign-up to continue." });
         const identity = jwt.verify(token, process.env.JWT_SECRET, { audience: "student-google-signup" });
         const profile = getProfile({ ...req.body, email: identity.email }, { requirePassword: false });
+        if (await isBlockedIdentity({ email: identity.email, phone: profile.phone })) return sendBlocked(res);
         const school = await resolveSchoolChoice(req.body);
         if (await Student.findOne({ email: profile.email }).select("_id")) return res.status(409).json({ success: false, message: "An account with this email already exists. Log in with Google." });
         if (await Student.findOne({ phone: profile.phone }).select("_id")) return res.status(409).json({ success: false, message: "An account with this phone number already exists. Log in or use another number." });
@@ -279,6 +274,7 @@ const loginStudent = async (req, res) => {
         const { valid, upgrade } = await verifyPassword(password, student?.password);
         if (!student || !valid) return res.status(401).json({ success: false, message: "Invalid email/phone number or password." });
         if (upgrade) student.password = await hashPassword(password);
+        if (student.status === "blocked") return sendBlocked(res);
         if (student.status !== "active") return res.status(403).json({ success: false, message: "Your account is not active." });
         res.json(await issueStudentSession(student));
     } catch {
@@ -294,6 +290,7 @@ const requestPasswordReset = async (req, res) => {
         if (!emailPattern.test(email)) return res.status(400).json({ success: false, message: "Enter a valid email address." });
         if (!emailDeliveryConfigured()) return res.status(503).json({ success: false, message: "Email code delivery is unavailable right now." });
         const student = await Student.findOne({ email });
+        if (student?.status === "blocked" || (!student && await isBlockedIdentity({ email }))) return sendBlocked(res);
         const destination = student?.email || email;
         const account = student?.status === "active" ? student : null;
         const challenge = account
@@ -352,11 +349,13 @@ const loginWithGoogle = async (req, res) => {
                 return res.status(409).json({ success: false, message: "Verify this email or WhatsApp with a code before connecting Google to your existing account." });
             }
         }
+        if (!student && await isBlockedIdentity({ email })) return sendBlocked(res);
         if (!student) {
             const registrationToken = jwt.sign({ role: "student_google_signup", sub: identity.sub, email, name: identity.name || "" }, process.env.JWT_SECRET, { audience: "student-google-signup", expiresIn: "10m" });
             return res.status(200).json({ success: true, needsProfile: true, profile: { name: identity.name || "", email }, googleRegistrationToken: registrationToken });
         }
         if (student.googleSub && student.googleSub !== identity.sub) return res.status(409).json({ success: false, message: "This email is connected to a different Google account." });
+        if (student.status === "blocked") return sendBlocked(res);
         if (student.status !== "active") return res.status(403).json({ success: false, message: "Your account is not active." });
         student.googleSub = identity.sub;
         student.isEmailVerified = true;

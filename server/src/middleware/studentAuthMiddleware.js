@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const Student = require("../models/Student");
+const { sendBlocked } = require("../services/studentBlocking");
 
 const studentAuthMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -17,6 +18,7 @@ const studentAuthMiddleware = async (req, res, next) => {
         }
 
         const student = await Student.findById(decoded.id).select("-password +tokenVersion");
+        if (student?.status === "blocked") return sendBlocked(res);
         if (!student || student.status !== "active" || (decoded.ver || 0) !== (student.tokenVersion || 0)) {
             return res.status(401).json({ success: false, message: "Student account is not active" });
         }

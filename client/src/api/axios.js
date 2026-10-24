@@ -44,6 +44,14 @@ axiosInstance.interceptors.response.use(
             window.dispatchEvent(new CustomEvent('app-network-error', { detail: { service: Boolean(error.response) } }));
         }
         const status = error.response?.status;
+        // A blocked student is signed out and told why, wherever the request came from.
+        if (status === 403 && error.response?.data?.code === "ACCOUNT_BLOCKED" && typeof window !== "undefined") {
+            if (localStorage.getItem("studentToken")) {
+                localStorage.removeItem("studentToken");
+                notifyStudentAuthChanged();
+            }
+            window.dispatchEvent(new CustomEvent("ilmidunya:account-blocked", { detail: error.response.data }));
+        }
         const isAdminRequest = error.config?.authAudience === 'admin';
         const isStudentRequest = error.config?.authAudience === 'student';
 

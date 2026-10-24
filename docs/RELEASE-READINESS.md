@@ -131,3 +131,14 @@ Tested against a real MongoDB 7, the real server build, a real browser (Chromium
 
 - With 400 to 500 students at once, a 512 MB plan is close to its limit (about 400 MB peak). Use 1 GB if the plan allows it.
 - E-mail: 450 signups send 450 codes within minutes. Check the SMTP plan's hourly and daily limits before asking a whole school to register at once.
+
+# Blocking and deleting student accounts
+
+Super admins manage this on Admin, Students.
+
+- **Block** signs the student out on every device at once. A blocked student cannot sign in (password or Google), reset the password, keep using an open session (including a test in progress) or sign up again with the same email or phone number, however the number is typed. Each of these shows an animated "You are blocked from using IlmiDunya. Contact support to unblock your account." message. It is shown at sign-in only after the right password, so it reveals nothing to someone guessing passwords. Blocked students are not on the leaderboard. Results are kept.
+- **Unblock** restores the account. The student signs in again with the same password.
+- **Delete** removes the account with its test attempts and activity. After a plain delete the same email and number can sign up again. If the student was blocked (or the admin chooses "Block and delete"), the email and number stay blocked and are listed under "Blocked emails and numbers", where "Allow sign-up again" lifts the block.
+- Optional settings: `SUPPORT_EMAIL` and `SUPPORT_WHATSAPP` add contact buttons to the blocked message.
+- A blocked email now gets the blocked message on the password reset page instead of the neutral reply, because the sign-up page already tells that person they are blocked.
+- Run `npm --prefix server run indexes` once after deploying, so the blocked list gets its unique index (production does not build indexes automatically).

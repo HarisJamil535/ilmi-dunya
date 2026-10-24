@@ -13,6 +13,9 @@ const PastPaper = require("../models/PastPaper");
 const Question = require("../models/Question");
 const NewsArticle = require("../models/NewsArticle");
 const Student = require("../models/Student");
+const BlockedIdentity = require("../models/BlockedIdentity");
+const mongoose = require("mongoose");
+const { blockStudent, unblockStudent, deleteStudent } = require("../services/studentBlocking");
 const Testimonial = require("../models/Testimonial");
 const HomeStat = require("../models/HomeStat");
 const { sendIlmiDunyaEmail } = require("../utils/mailer");
@@ -156,6 +159,7 @@ const listStudents = async (req, res) => {
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 25, 1), 100);
     const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
     const filter = {};
+    if (["active", "blocked"].includes(req.query.status)) filter.status = req.query.status;
     if (search) {
         const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const pattern = new RegExp(escaped, "i");
@@ -176,6 +180,47 @@ const listStudents = async (req, res) => {
         signInMethod: googleSub ? "google" : "password",
     }));
     res.json({ success: true, students, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+};
+
+const studentId = (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) { res.status(400).json({ success: false, message: "Choose a valid student." }); return null; }
+    return req.params.id;
+};
+
+const blockStudentAccount = async (req, res) => {
+    const id = studentId(req, res); if (!id) return;
+    const student = await blockStudent(id, req.admin._id);
+    if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+    res.json({ success: true, student: { _id: student._id, status: student.status } });
+};
+
+const unblockStudentAccount = async (req, res) => {
+    const id = studentId(req, res); if (!id) return;
+    const student = await unblockStudent(id);
+    if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+    res.json({ success: true, student: { _id: student._id, status: student.status } });
+};
+
+const deleteStudentAccount = async (req, res) => {
+    const id = studentId(req, res); if (!id) return;
+    const result = await deleteStudent(id);
+    if (!result) return res.status(404).json({ success: false, message: "Student not found." });
+    res.json({ success: true, keptBlocked: result.keptBlocked });
+};
+
+// Emails and numbers of deleted accounts that are still blocked from signing up.
+const listBlockedIdentities = async (req, res) => {
+    const items = await BlockedIdentity.find({ accountDeleted: true }).sort({ updatedAt: -1 }).limit(500).lean();
+    res.json({ success: true, items: items.map(({ _id, kind, value, studentName, updatedAt }) => ({ _id, kind, value, studentName, blockedAt: updatedAt })) });
+};
+
+const removeBlockedIdentity = async (req, res) => {
+    const id = studentId(req, res); if (!id) return;
+    const item = await BlockedIdentity.findOneAndDelete({ _id: id, accountDeleted: true });
+    if (!item) return res.status(404).json({ success: false, message: "That blocked email or number was not found." });
+    // Lifting the block on one detail of a deleted account lifts the other too, so the person can sign up again.
+    if (item.student) await BlockedIdentity.deleteMany({ student: item.student, accountDeleted: true });
+    res.json({ success: true });
 };
 
 const listAdmins = async (req, res) => {
@@ -309,6 +354,11 @@ const resetAdminPassword = async (req, res) => {
 };
 
 module.exports = {
+    blockStudentAccount,
+    unblockStudentAccount,
+    deleteStudentAccount,
+    listBlockedIdentities,
+    removeBlockedIdentity,
     loginAdmin,
     logoutAdmin,
     getLoggedInAdmin,
