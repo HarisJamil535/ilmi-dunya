@@ -39,7 +39,8 @@ axiosInstance.interceptors.response.use(
             if (config.signal?.aborted) return Promise.reject(error);
             return axiosInstance.request(config);
         }
-        if (!canceled && temporary && typeof window !== 'undefined') {
+        // Callers that retry on their own (such as answer saving in a test) pass quietNetwork.
+        if (!canceled && temporary && !config?.quietNetwork && typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('app-network-error', { detail: { service: Boolean(error.response) } }));
         }
         const status = error.response?.status;

@@ -109,3 +109,25 @@ Tested against a real MongoDB 7, the real server build, a real browser (Chromium
 - An attempt that was started and never finished stays "in progress" after its time ends until the student opens it again; it is then graded on the saved answers.
 - Names, cities and schools of the top leaderboard entries are public by design.
 - Browser sign-in tokens are kept in browser storage (a cookie-based session would need a separate change).
+
+# QA round: real users, bad networks and 500 students at once
+
+## Fixed in this round
+
+- **Answers on a weak connection.** An answer that failed to save (a dropped or slow connection) was removed again and the student had to pick it a second time; while one answer was saving the other options were locked. The test page now shows the choice at once, keeps unsent answers on the device (they survive a reload), retries until the server has them and resends after reconnecting. Its status line reads "Saving...", "All answers saved" or "Connection lost. Keep answering...".
+- **Offline popup during a test.** The full-screen "trouble connecting" dialog covered the answer buttons on phones. During a test the page now shows its own inline message instead.
+- **Submitting with unsent answers.** A submit (including the automatic one when the student leaves the page, which cannot wait for a second request) now carries any answers not yet sent. The server checks each one (option exists, question belongs to the attempt, time not over) before grading. Submitting while offline closes the confirmation and explains that the answers are kept.
+- **Lighter pages.** The home hero image is WebP (186 KB to 53 KB, 27 KB on phones), the logo is a 4 KB WebP and the browser icon a 4 KB PNG instead of the 61 KB logo. The home page now transfers 256 KB instead of 472 KB; on slow 3G it loads in about 6 s instead of 10 s.
+- **School-wide signups.** One network may start 600 signups in 15 minutes (was 150), so a whole school can register together on its Wi-Fi. Each signup still needs its own e-mail code.
+
+## Results (4-core test machine, `NODE_OPTIONS=--max-old-space-size=300`)
+
+- 500 students doing everything at the same instant (sign in, dashboard, start, 3,000 answers, submit, result, PDF result card, leaderboard): 500 of 500 succeeded with distinct addresses and with one shared school address. Sign-in median about 5.5 s when all 500 sign in in the same second; other steps 0.1 to 4 s, PDF result cards up to 8 s (built six at a time). The health check stayed near 30 ms (95th percentile about 110 ms).
+- 500 already signed-in students starting a scheduled test together: start 3.1 s median, answers and submit under 2 s, no errors. Memory peaked at about 400 MB.
+- 450 students of one school signing up together from one Wi-Fi: all received the code, verified and were signed in.
+- Slow 3G, an 800 ms round trip (far from the server) and fast 4G: every tapped answer saved; a full 6-question test completes in about 8 s on slow 3G. Connection dropping mid-test, submitting while offline and reloading with unsent answers: no answer lost.
+
+## Set these on the host (in addition to the list above)
+
+- With 400 to 500 students at once, a 512 MB plan is close to its limit (about 400 MB peak). Use 1 GB if the plan allows it.
+- E-mail: 450 signups send 450 codes within minutes. Check the SMTP plan's hourly and daily limits before asking a whole school to register at once.

@@ -2,7 +2,8 @@ import { useContext, useState } from "react";
 import { ArrowRight, BookOpen, Building2, GraduationCap, Pause, Play } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
-import heroImg from "../../assets/hero_img.jpg";
+import heroImg from "../../assets/hero_img.webp";
+import heroImgSmall from "../../assets/hero_img-768.webp";
 import CustomSelect from "../../shared/CustomSelect";
 import { showStudentToast } from "../../shared/studentNotifications";
 
@@ -37,7 +38,7 @@ const Hero = ({ stats = [] }) => {
   return (
     <>
       <section className="home-hero" data-motion={wordsPaused ? "paused" : "playing"}>
-        <img src={heroImg} alt="" className="home-hero-photo" fetchPriority="low" decoding="async" />
+        <img src={heroImg} srcSet={`${heroImgSmall} 768w, ${heroImg} 1280w`} sizes="100vw" width="1280" height="720" alt="" className="home-hero-photo" fetchPriority="low" decoding="async" />
         <div className="home-hero-content home-width">
           <p className="home-eyebrow"><BookOpen size={16} /> Built for Classes 9–12 in Pakistan</p>
           <h1>IlmiDunya<span className="home-tagline"><span className="sr-only">Your world of learning.</span><span className="home-tagline-visual" aria-hidden="true">Your world of <span className="home-word-window">{["learning.", "discovery.", "progress."].map((word, index) => <span className="home-changing-word" key={word} style={{ "--word-index": index }}>{word}</span>)}</span></span></span></h1>

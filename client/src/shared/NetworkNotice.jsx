@@ -8,8 +8,10 @@ export default function NetworkNotice() {
   const dialog = useRef(null);
   const controller = useRef(null);
   useEffect(() => {
-    const failed = event => setNotice(event.detail?.service ? 'service' : 'network');
-    const offline = () => setNotice('offline');
+    // A test page shows its own connection status and keeps answers until they are sent.
+    const inTest = () => document.documentElement.dataset.testInProgress === 'true';
+    const failed = event => { if (!inTest()) setNotice(event.detail?.service ? 'service' : 'network'); };
+    const offline = () => { if (!inTest()) setNotice('offline'); };
     const online = () => setNotice(current => current ? 'network' : null);
     window.addEventListener('app-network-error', failed);
     window.addEventListener('offline', offline);

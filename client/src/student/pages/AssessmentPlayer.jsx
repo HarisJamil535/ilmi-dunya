@@ -2,13 +2,21 @@ import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, Flag, ListChecks, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CloudOff, Flag, ListChecks, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
 import MathText from "../../shared/MathText";
 import "./learning-experience.css";
 import "./test-introduction.css";
+
+// Answers not yet confirmed by the server survive a reload or a dropped connection.
+const unsavedKey = (attemptId) => `ilmi-unsaved-answers-${attemptId}`;
+const readUnsaved = (attemptId) => { try { return new Map(JSON.parse(localStorage.getItem(unsavedKey(attemptId)) || "[]")); } catch { return new Map(); } };
+const writeUnsaved = (attemptId, queue) => { try { if (queue.size) localStorage.setItem(unsavedKey(attemptId), JSON.stringify([...queue])); else localStorage.removeItem(unsavedKey(attemptId)); } catch { /* storage full or blocked */ } };
+const pendingList = (queue) => [...queue].map(([question, patch]) => ({ question, ...patch }));
+// A refused answer (time up, already submitted, invalid) will never succeed, so it is not retried.
+const isFinalFailure = (err) => { const status = err.response?.status; return Boolean(status) && status < 500 && ![408, 429].includes(status); };
 
 const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
@@ -26,7 +34,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const [customCount, setCustomCount] = useState("5");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const [saving, setSaving] = useState(false);
+  const [sync, setSync] = useState({ unsaved: 0, sending: false, offline: false });
   const [loading, setLoading] = useState(true);
   usePageLoading(loading);
   const [error, setError] = useState("");
@@ -36,7 +44,10 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const exitSubmittedRef = useRef(false);
   const exitRequestedRef = useRef(false);
   const startRequest = useRef(null);
-  const pendingSave = useRef(null);
+  const unsaved = useRef(new Map());
+  const inFlight = useRef(new Set());
+  const retryTimer = useRef(null);
+  const retryDelay = useRef(1000);
   const serverOffset = useRef(0);
   const audioContext = useRef(null);
   const retryAfter = useRef(0);
@@ -53,25 +64,23 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     submittingRef.current = true;
     const token = localStorage.getItem("studentToken");
     const apiBase = import.meta.env.VITE_API_URL || "/api";
-    fetch(`${apiBase}/attempts/${activeAttempt._id}/submit`, {
+    const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    // One request carries any answers not yet sent, because the page may close before a second one could start.
+    const submitNow = () => fetch(`${apiBase}/attempts/${activeAttempt._id}/submit`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page" }),
+      headers,
+      body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page", ...(unsaved.current.size ? { answers: pendingList(unsaved.current) } : {}) }),
       keepalive: true,
-    }).then(async (response) => {
+    });
+    submitNow().then(async (response) => {
       if (response.status === 409) {
-        await pendingSave.current;
-        return fetch(`${apiBase}/attempts/${activeAttempt._id}/submit`, {
-          method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ autoSubmitted: true, reason: "left_test_page" }), keepalive: true,
-        });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return submitNow();
       }
       return response;
     }).then((response) => {
       if (!response.ok) throw new Error("Automatic submission failed");
+      writeUnsaved(activeAttempt._id, new Map());
       exitSubmittedRef.current = true;
       if (document.visibilityState === "visible") navigate(`/tests/result/${activeAttempt._id}`, { replace: true });
     }).catch(() => {
@@ -104,23 +113,92 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
   }, [remaining, soundEnabled, submitting]);
 
+  const updateSync = useCallback((extra = {}) => {
+    setSync((current) => ({ ...current, unsaved: unsaved.current.size, sending: inFlight.current.size > 0, ...extra }));
+  }, []);
+
+  // Sends every answer still waiting, newest choice per question, and retries until the server has them.
+  const flushAnswers = useCallback(async () => {
+    const active = attemptRef.current;
+    if (!active) return true;
+    clearTimeout(retryTimer.current);
+    const batch = [...unsaved.current].filter(([questionId]) => !inFlight.current.has(questionId));
+    let temporaryFailure = false;
+    batch.forEach(([questionId]) => inFlight.current.add(questionId));
+    updateSync();
+    await Promise.all(batch.map(async ([questionId, patch]) => {
+      try {
+        await axiosInstance.patch(`/attempts/${active._id}/questions/${questionId}`, patch, { quietNetwork: true, timeout: 15000 });
+        if (unsaved.current.get(questionId) === patch) unsaved.current.delete(questionId);
+      } catch (err) {
+        if (isFinalFailure(err)) {
+          if (unsaved.current.get(questionId) === patch) unsaved.current.delete(questionId);
+          setActionError(err.response?.data?.message || "That answer could not be saved.");
+        } else temporaryFailure = true;
+      } finally {
+        inFlight.current.delete(questionId);
+      }
+    }));
+    writeUnsaved(active._id, unsaved.current);
+    if (temporaryFailure) {
+      updateSync({ offline: true });
+      retryTimer.current = setTimeout(() => { flushAnswers(); }, retryDelay.current);
+      retryDelay.current = Math.min(retryDelay.current * 2, 10000);
+      return false;
+    }
+    retryDelay.current = 1000;
+    // Choices made while this batch was sending go out next.
+    if ([...unsaved.current.keys()].some((questionId) => !inFlight.current.has(questionId))) return flushAnswers();
+    updateSync({ offline: false });
+    return unsaved.current.size === 0;
+  }, [updateSync]);
+
+  // Waits for queued answers, for up to the given time, before a submit.
+  const answersSettled = useCallback(async (waitMs) => {
+    const end = Date.now() + waitMs;
+    while (Date.now() < end) {
+      if (!unsaved.current.size) return true;
+      if (!inFlight.current.size) await flushAnswers();
+      if (!unsaved.current.size) return true;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    return !unsaved.current.size;
+  }, [flushAnswers]);
+
+  useEffect(() => {
+    const online = () => { retryDelay.current = 1000; flushAnswers(); };
+    window.addEventListener("online", online);
+    return () => { window.removeEventListener("online", online); clearTimeout(retryTimer.current); };
+  }, [flushAnswers]);
+
+  useEffect(() => {
+    if (!attempt || attempt.status !== "in_progress") return undefined;
+    document.documentElement.dataset.testInProgress = "true";
+    return () => { delete document.documentElement.dataset.testInProgress; };
+  }, [attempt]);
+
   const submitAttempt = useCallback(async (autoSubmitted = false) => {
     if (!attempt || submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
     setActionError("");
     try {
-      const saved = await pendingSave.current;
-      if (saved === false && !autoSubmitted) throw new Error("Your last answer could not be saved. Select it again before submitting.");
-      const response = await axiosInstance.post(`/attempts/${attempt._id}/submit`, { autoSubmitted });
+      // Give answers already on their way a moment; anything still waiting travels with the submit.
+      await answersSettled(3000);
+      const response = await axiosInstance.post(`/attempts/${attempt._id}/submit`, { autoSubmitted, ...(unsaved.current.size ? { answers: pendingList(unsaved.current) } : {}) }, { quietNetwork: true, timeout: 30000 });
+      unsaved.current.clear();
+      writeUnsaved(attempt._id, new Map());
       navigate(`/tests/result/${response.data.attempt._id}`, { replace: true });
     } catch (err) {
-      setActionError(err.response?.data?.message || err.message || "Unable to submit. Your saved answers are retained. Please try again.");
+      setActionError(err.response?.data?.message || (err.request && !err.response ? `You seem to be offline, so the test was not submitted. Your answers are kept on this device. Check your connection and submit again.` : err.message) || "Unable to submit. Your saved answers are retained. Please try again.");
       retryAfter.current = Date.now() + 5000;
       submittingRef.current = false;
       setSubmitting(false);
+      // Close the confirmation so the explanation is visible, and bring it into view.
+      setShowSubmitConfirm(false);
+      requestAnimationFrame(() => document.querySelector(".learning-alert")?.scrollIntoView({ behavior: "smooth", block: "center" }));
     }
-  }, [attempt, navigate]);
+  }, [attempt, navigate, answersSettled]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -140,19 +218,23 @@ const AssessmentPlayer = ({ chapter, topic }) => {
         questionCount: countMode === "all" ? "all" : Number(customCount),
       });
       const response = await startRequest.current;
-      const nextAttempt = response.data.attempt;
+      let nextAttempt = response.data.attempt;
+      // Answers chosen before a reload or crash that never reached the server are restored and sent.
+      unsaved.current = readUnsaved(nextAttempt._id);
+      if (unsaved.current.size) nextAttempt = { ...nextAttempt, answers: nextAttempt.answers.map((answer) => unsaved.current.has(String(answer.question._id)) ? { ...answer, ...unsaved.current.get(String(answer.question._id)) } : answer) };
       serverOffset.current = response.data.serverNow ? new Date(response.data.serverNow).getTime() - Date.now() : 0;
       setAttempt(nextAttempt);
       attemptRef.current = nextAttempt;
       if (document.visibilityState === "hidden") submitWhenLeaving();
       setRemaining(Math.max(Math.ceil((new Date(nextAttempt.expiresAt).getTime() - Date.now() - serverOffset.current) / 1000), 0));
       setLoading(false);
+      if (unsaved.current.size) flushAnswers();
     };
     start().catch((err) => {
       setError(err.response?.data?.message || "Unable to start the test. Please try again.");
       setLoading(false);
     });
-  }, [id, chapter, topic, confirmed, countMode, customCount, submitWhenLeaving]);
+  }, [id, chapter, topic, confirmed, countMode, customCount, submitWhenLeaving, flushAnswers]);
 
   useEffect(() => {
     const onPageHide = () => submitWhenLeaving();
@@ -200,21 +282,16 @@ const AssessmentPlayer = ({ chapter, topic }) => {
 
   const selectedOption = current?.selectedOption || "";
 
-  const saveAnswer = async (patch) => {
-    if (!attempt || !current || saving || pendingSave.current || submittingRef.current || remaining <= 0) return;
-    setSaving(true);
+  // The choice shows at once and is sent in the background; a slow or dropped connection never blocks the student.
+  const saveAnswer = (patch) => {
+    if (!attempt || !current || submittingRef.current || remaining <= 0) return;
     setActionError("");
-    const nextAnswer = { ...current, ...patch };
-    setAttempt((previous) => ({ ...previous, answers: previous.answers.map((answer) => answer.question._id === current.question._id ? nextAnswer : answer) }));
-    const request = axiosInstance.patch(`/attempts/${attempt._id}/questions/${current.question._id}`, patch)
-      .then(() => true)
-      .catch((err) => {
-        setAttempt((previous) => ({ ...previous, answers: previous.answers.map((answer) => answer.question._id === current.question._id ? current : answer) }));
-        setActionError(err.response?.data?.message || "Answer was not saved. Please select it again.");
-        return false;
-      }).finally(() => { setSaving(false); pendingSave.current = null; });
-    pendingSave.current = request;
-    await request;
+    const questionId = String(current.question._id);
+    setAttempt((previous) => ({ ...previous, answers: previous.answers.map((answer) => String(answer.question._id) === questionId ? { ...answer, ...patch } : answer) }));
+    unsaved.current.set(questionId, { ...unsaved.current.get(questionId), ...patch });
+    writeUnsaved(attempt._id, unsaved.current);
+    updateSync();
+    if (!inFlight.current.has(questionId)) flushAnswers();
   };
 
   const question = current?.question;
@@ -335,7 +412,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
               return (
                 <button
                   key={option.key}
-                  disabled={saving || submitting || remaining <= 0}
+                  disabled={submitting || remaining <= 0}
                   aria-pressed={active}
                   onClick={() => saveAnswer({ selectedOption: option.key, skipped: false })}
                   dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"}
@@ -365,7 +442,13 @@ const AssessmentPlayer = ({ chapter, topic }) => {
               <button disabled={currentIndex === answers.length - 1} onClick={() => setCurrentIndex((value) => value + 1)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Next</button>
             </div>
           </div>
-          {saving && <p className="mt-4 text-xs font-bold text-slate-400">Saving answer...</p>}
+          <p role="status" aria-live="polite" className={`mt-4 inline-flex items-center gap-1.5 text-xs font-bold ${sync.offline ? "text-amber-700" : "text-slate-400"}`}>
+            {sync.offline
+              ? <><CloudOff className="h-3.5 w-3.5" />Connection lost. Keep answering: {sync.unsaved} {sync.unsaved === 1 ? "answer is" : "answers are"} kept on this device and will be sent automatically.</>
+              : sync.unsaved || sync.sending
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving...</>
+                : answeredCount > 0 && <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />All answers saved</>}
+          </p>
         </div>
 
         <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-36 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto">

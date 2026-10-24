@@ -212,6 +212,30 @@ const saveAnswer = async (req, res) => {
     });
 };
 
+async function answersSentWithSubmit(attempt, answers, receivedAt) {
+    if (answers === undefined) return {};
+    if (!Array.isArray(answers) || answers.length > attempt.answers.length) return { error: "Send each answer at most once." };
+    // Choices that reach the server after the time limit do not count, as with single saves.
+    if (new Date(attempt.expiresAt) <= receivedAt) return {};
+    const byQuestion = new Map(attempt.answers.map((answer) => [String(answer.question), answer]));
+    const chosen = answers.filter((item) => typeof item?.selectedOption === "string" && item.selectedOption);
+    const options = new Map((await Question.find({ _id: { $in: chosen.map((item) => String(item.question)).filter((questionId) => byQuestion.has(questionId)) } }).select("options.key").lean())
+        .map((question) => [String(question._id), new Set(question.options.map((option) => option.key))]));
+    for (const item of answers) {
+        const answer = byQuestion.get(String(item?.question));
+        if (!answer) return { error: "An answer does not belong to this test." };
+        if (item.selectedOption !== undefined) {
+            if (typeof item.selectedOption !== "string" || (item.selectedOption && !options.get(String(item.question))?.has(item.selectedOption))) return { error: "Choose a valid answer option." };
+            answer.selectedOption = item.selectedOption;
+            answer.skipped = !item.selectedOption;
+            if (item.selectedOption) answer.answeredAt = receivedAt;
+        }
+        if (item.skipped !== undefined && !item.selectedOption) answer.skipped = Boolean(item.skipped);
+        if (item.flaggedForReview !== undefined) answer.flaggedForReview = Boolean(item.flaggedForReview);
+    }
+    return {};
+}
+
 const submitAttempt = async (req, res) => {
     const receivedAt = new Date();
     const attempt = await AssessmentAttempt.findOne({ _id: req.params.id, student: req.student._id }).select("+gradingSnapshot");
@@ -221,6 +245,9 @@ const submitAttempt = async (req, res) => {
     }
     const assessment = await Assessment.findById(attempt.assessment).lean();
     if (!assessment) return res.status(404).json({ message: "Test not found. Please contact support." });
+    // Answers the browser could not send yet (a weak connection, or the page closing) arrive with the submit.
+    const late = await answersSentWithSubmit(attempt, req.body?.answers, receivedAt);
+    if (late.error) return res.status(400).json({ message: late.error });
     let grading = attempt.gradingSnapshot;
     if (!grading?.length) {
         const questions = await Question.find({ _id: { $in: attempt.answers.map((answer) => answer.question) } }).lean();
@@ -298,4 +325,5 @@ module.exports = {
     submitAttempt,
     getResult,
     getStudentAttempts,
+    answersSentWithSubmit,
 };

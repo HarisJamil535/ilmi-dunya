@@ -18,3 +18,31 @@ test("students only get tests that are published and open right now", () => {
     assert.deepEqual(filter.$and[0].$or[2], { startsAt: { $lte: now } });
     assert.deepEqual(filter.$and[1].$or[2], { endsAt: { $gt: now } });
 });
+
+const { mock } = require("node:test");
+const mongoose = require("mongoose");
+const Question = require("../src/models/Question");
+const { answersSentWithSubmit } = require("../src/controllers/attemptController");
+
+test("answers sent with a submit are checked before they are graded", async () => {
+    const [q1, q2] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
+    mock.method(Question, "find", () => ({ select: () => ({ lean: async () => [{ _id: q1, options: [{ key: "A" }, { key: "B" }] }, { _id: q2, options: [{ key: "A" }, { key: "B" }] }] }) }));
+    const now = new Date("2026-05-01T10:00:00Z");
+    const attempt = () => ({ expiresAt: new Date("2026-05-01T10:30:00Z"), answers: [{ question: q1 }, { question: q2 }] });
+
+    const ok = attempt();
+    assert.deepEqual(await answersSentWithSubmit(ok, [{ question: String(q1), selectedOption: "B" }, { question: String(q2), flaggedForReview: true }], now), {});
+    assert.equal(ok.answers[0].selectedOption, "B");
+    assert.equal(ok.answers[0].skipped, false);
+    assert.equal(ok.answers[1].flaggedForReview, true);
+
+    assert.match((await answersSentWithSubmit(attempt(), [{ question: String(q1), selectedOption: "Z" }], now)).error, /valid answer/);
+    assert.match((await answersSentWithSubmit(attempt(), [{ question: String(new mongoose.Types.ObjectId()), selectedOption: "A" }], now)).error, /does not belong/);
+    assert.match((await answersSentWithSubmit(attempt(), "A", now)).error, /at most once/);
+    assert.match((await answersSentWithSubmit(attempt(), [{}, {}, {}], now)).error, /at most once/);
+
+    const late = attempt();
+    assert.deepEqual(await answersSentWithSubmit(late, [{ question: String(q1), selectedOption: "A" }], new Date("2026-05-01T10:31:00Z")), {});
+    assert.equal(late.answers[0].selectedOption, undefined, "answers arriving after time is up are ignored");
+    mock.restoreAll();
+});

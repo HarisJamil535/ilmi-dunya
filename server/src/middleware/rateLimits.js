@@ -41,7 +41,8 @@ const adminLoginLimiters = [
 ];
 
 // Signup sends an email, so it is limited per address; a class of students signing up together fits.
-const registerLimiter = limiter({ limit: 150, key: req => `register:${ipOf(req)}`, message: `Too many sign-up attempts from this network. ${wait}` });
+// A whole school may sign up together from one Wi-Fi; each sign-up still needs its own email code.
+const registerLimiter = limiter({ limit: 600, key: req => `register:${ipOf(req)}`, message: `Too many sign-up attempts from this network. ${wait}` });
 const verifyCodeLimiter = limiter({ limit: 600, failuresOnly: true, key: req => `verify:${ipOf(req)}`, message: `Too many incorrect codes. ${wait}` });
 const passwordResetLimiter = limiter({ limit: 60, key: req => `reset:${ipOf(req)}`, message: `Too many password reset requests from this network. ${wait}` });
 const resetCodeLimiter = limiter({ limit: 120, failuresOnly: true, key: req => `reset-code:${ipOf(req)}`, message: `Too many incorrect codes. ${wait}` });

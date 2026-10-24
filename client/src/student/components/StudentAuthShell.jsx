@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, BookOpen, ShieldCheck, Sparkles } from "lucide-react";
-import logo from "../../assets/logo.png";
-import hero from "../../assets/hero_img.jpg";
+import logo from "../../assets/logo-128.webp";
+import hero from "../../assets/hero_img.webp";
+import heroSmall from "../../assets/hero_img-768.webp";
 import ThemeToggle from "../../shared/ThemeToggle";
 
 const StudentAuthShell = ({ eyebrow, title, description, children, maxWidth = "max-w-md" }) => (
   <main className="grid h-[100dvh] overflow-hidden bg-slate-50 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
     <aside className="relative hidden h-[100dvh] overflow-hidden bg-primary-dark text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-      <img src={hero} alt="A student preparing for exams" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={hero} srcSet={`${heroSmall} 768w, ${hero} 1280w`} sizes="(min-width: 1024px) 50vw, 100vw" alt="A student preparing for exams" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-br from-[#25114d]/95 via-[#4629a7]/85 to-[#36277e]/80" />
       <div className="relative z-10 flex items-center gap-3">
         <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white p-2 shadow-lg"><img src={logo} alt="" className="h-full w-full object-contain" /></span>
