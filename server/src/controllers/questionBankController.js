@@ -602,6 +602,23 @@ const validateImportRow = (row, context) => {
     return errors;
 };
 
+// Questions already saved in the same chapter or topic, so uploading a file twice adds nothing twice.
+const questionKey = text => String(text || "").normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+const savedQuestionKeys = async (context, contentType) => {
+    if (!isObjectId(context?.chapter)) return new Set();
+    const filter = { chapter: context.chapter, status: { $ne: "archived" }, contentType: contentType === "mcq" ? { $nin: ["long_question", "short_question"] } : contentType };
+    if (context.topic) filter.topic = context.topic;
+    const saved = await Question.find(filter).select("questionText").lean();
+    return new Set(saved.map(item => questionKey(item.questionText)));
+};
+const makeDuplicateCheck = context => {
+    const cache = new Map();
+    return async row => {
+        if (!cache.has(row.contentType)) cache.set(row.contentType, await savedQuestionKeys(context, row.contentType));
+        return cache.get(row.contentType);
+    };
+};
+
 const importPreview = async (req, res) => {
     try {
         let rows = Array.isArray(req.body.rows) ? req.body.rows : [];
@@ -618,12 +635,14 @@ const importPreview = async (req, res) => {
 
         const seen = new Set();
         const preview = [];
+        const savedFor = makeDuplicateCheck(importContext);
 
         for (const [index, source] of rows.entries()) {
             const row = normalizeImportRow(source, req.body.kind);
             const errors = validateImportRow(row, importContext);
-            const normalized = String(row.questionText || "").trim().toLowerCase();
+            const normalized = questionKey(row.questionText);
             if (normalized && seen.has(normalized)) errors.push("Duplicate question in uploaded file.");
+            else if (normalized && !errors.length && (await savedFor(row)).has(normalized)) errors.push("Already in the question bank for this topic.");
             seen.add(normalized);
 
             preview.push({ rowNumber: index + 1, row, status: errors.length ? "invalid" : "valid", errors });
@@ -648,14 +667,20 @@ const importCommit = async (req, res) => {
         const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
         const { errors: contextErrors, values: contextValues } = await getImportContextValues(req.body.context || {});
         if (contextErrors.length) return res.status(400).json({ success: false, message: contextErrors.join(" ") });
+        if (rows.length > 500) return res.status(400).json({ success: false, message: "Send at most 500 rows at a time." });
         const created = [];
         const failed = [];
+        const savedFor = makeDuplicateCheck(contextValues);
 
         for (const [index, source] of rows.entries()) {
             try {
                 const row = normalizeImportRow(source, req.body.kind);
                 const errors = validateImportRow(row, contextValues);
                 if (errors.length) throw new Error(errors.join(" "));
+                const saved = await savedFor(row);
+                const key = questionKey(row.questionText);
+                if (saved.has(key)) throw new Error("Already in the question bank for this topic.");
+                saved.add(key);
                 const payload = await buildQuestionFromImportRow(row, req.admin?._id, contextValues);
                 const question = await Question.create(payload);
                 created.push(question);

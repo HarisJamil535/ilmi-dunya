@@ -10,6 +10,7 @@ import SmartSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import MathText from "../../shared/MathText";
+import ChapterBulkImport from "../components/ChapterBulkImport";
 
 const optionKeys = ["A", "B", "C", "D"];
 
@@ -56,7 +57,11 @@ const Field = ({ label, helper, children }) => (
   </label>
 );
 
-const toSelectOptions = (items) => items.map((item) => ({ _id: item._id, name: item.name }));
+// Chapters and topics show the numbers given when they were added, so files can be matched by number.
+const toSelectOptions = (items) => items.map((item) => ({
+  _id: item._id,
+  name: item.topicNumber ? `${item.topicNumber} · ${item.name}` : item.chapterNumber ? `Chapter ${item.chapterNumber} · ${item.name}` : item.name,
+}));
 const sortByName = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortChapters = (items) => [...items].sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortTopics = (items) => [...items].sort((a, b) => String(a.topicNumber || "").localeCompare(String(b.topicNumber || ""), undefined, { numeric: true, sensitivity: "base" }) || (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
@@ -118,6 +123,7 @@ const QuestionBankManagement = () => {
   const [importKind, setImportKind] = useState("standard_mcq");
   const [importContext, setImportContext] = useState(null);
   const [importBusy, setImportBusy] = useState(false);
+  const [importMode, setImportMode] = useState("chapter");
   const [listFilter, setListFilter] = useState(() => Object.fromEntries(
     ["status", "contentType", "board", "class", "group", "subject", "chapter", "topic", "search", "publishedOnly"].map((key) => [key, searchParams.get(key) || ""])
   ));
@@ -542,13 +548,13 @@ const QuestionBankManagement = () => {
     }
   };
 
-  const downloadTemplate = async () => {
+  const downloadTemplate = async (kind = importKind) => {
     try {
-      const response = await axiosInstance.get("/questions/import/template", { responseType: "blob", params: { kind: importKind } });
+      const response = await axiosInstance.get("/questions/import/template", { responseType: "blob", params: { kind } });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${importKind}-import-template.xlsx`);
+      link.setAttribute("download", `${kind}-import-template.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -972,8 +978,21 @@ const QuestionBankManagement = () => {
         </section>
 
         <details className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <summary className="cursor-pointer text-base font-black text-slate-900">Bulk upload from Excel</summary>
+          <summary className="cursor-pointer text-base font-black text-slate-900">Bulk upload from Excel <span className="ml-2 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-black text-primary-dark">Upload a whole chapter at once</span></summary>
           <div className="pt-4">
+          <div role="tablist" aria-label="Upload method" className="mb-5 grid max-w-xl grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+            {[["chapter", "Whole chapter · many files"], ["single", "One file"]].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={importMode === value} onClick={() => setImportMode(value)} disabled={importBusy} className={`rounded-xl px-3 py-2.5 text-sm font-black transition ${importMode === value ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{label}</button>)}
+          </div>
+          {importMode === "chapter" ? (form.board && form.class && form.group && form.subject && form.chapter
+            ? <ChapterBulkImport
+                key={form.chapter}
+                context={{ board: form.board, class: form.class, group: form.group, subject: form.subject, chapter: form.chapter }}
+                chapter={chapters.find((item) => item._id === form.chapter)}
+                topics={topics}
+                onImported={() => { loadQuestions(); loadScenarios(); }}
+              />
+            : <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Select the board, class, group, subject and <strong>chapter</strong> in the form above. You don't need to choose a topic: each file is matched to its topic by the number in its name.</p>
+          ) : <>
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <p className="text-sm text-slate-600">Select the syllabus location above, download a template, fill in questions, then upload it here.</p>
@@ -984,7 +1003,7 @@ const QuestionBankManagement = () => {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={downloadTemplate} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700">
+              <button type="button" onClick={() => downloadTemplate()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700">
                 <Download className="h-4 w-4" />
                 Download Format
               </button>
@@ -1014,6 +1033,11 @@ const QuestionBankManagement = () => {
               </div>
             </div>
           )}
+          </>}
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Excel format</span>
+            {[["standard_mcq", "MCQs"], ["scenario_mcq", "Scenario MCQs"], ["short_question", "Short"], ["long_question", "Long"]].map(([kind, label]) => <button key={kind} type="button" onClick={() => downloadTemplate(kind)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:border-primary hover:text-primary"><Download className="h-3.5 w-3.5" />{label}</button>)}
+          </div>
           </div>
         </details>
       </div>
