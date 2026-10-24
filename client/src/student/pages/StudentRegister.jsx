@@ -8,6 +8,7 @@ import CustomSelect from "../../shared/CustomSelect";
 import SchoolFields from "../../shared/SchoolFields";
 import { emptySchoolChoice, useSchools, validateSchoolChoice } from "../../shared/schoolChoice";
 import StudentAuthShell from "../components/StudentAuthShell";
+import CodeHelp from "../components/CodeHelp";
 import { AuthField, AuthSubmit, OtpField, PasswordField } from "../components/StudentAuthControls";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,6 +20,7 @@ const StudentRegister = () => {
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState("profile");
   const [challengeId, setChallengeId] = useState("");
+  const [codeSentAt, setCodeSentAt] = useState(0);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +77,7 @@ const StudentRegister = () => {
     try {
       const response = await axiosInstance.post("/students/register", { ...form, channel: "email" });
       setChallengeId(response.data.challengeId || "");
+      setCodeSentAt(Date.now());
       setStep("verify");
       setOtp("");
       showStudentToast({ type: "success", title: "Code sent", message: response.data.message });
@@ -106,6 +109,7 @@ const StudentRegister = () => {
     {step === "verify" ? <form onSubmit={verifyCode} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/50 sm:space-y-4 sm:rounded-3xl sm:p-6">
       <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary"><MailCheck className="h-5 w-5" /></span><span>{form.email}<br /><strong>Code expires in 10 minutes.</strong></span></div>
       <OtpField value={otp} onChange={setOtp} />
+      <CodeHelp sentAt={codeSentAt} onResend={requestCode} />
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
       <AuthSubmit loading={loading}>Verify and create account</AuthSubmit>
       <button type="button" onClick={() => { setStep("security"); setError(""); setOtp(""); }} className="flex w-full items-center justify-center gap-2 py-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" />Change verification method</button>

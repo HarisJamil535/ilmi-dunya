@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import StudentAuthShell from "../components/StudentAuthShell";
+import CodeHelp from "../components/CodeHelp";
 import { AuthField, AuthSubmit, OtpField, PasswordField } from "../components/StudentAuthControls";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,9 +20,10 @@ const ForgotPassword = () => {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [codeSentAt, setCodeSentAt] = useState(0);
 
   const requestCode = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     if (!emailPattern.test(email.trim())) return setError("Enter the email address registered with your account.");
     setBusy(true);
     setError("");
@@ -29,6 +31,8 @@ const ForgotPassword = () => {
       const response = await axiosInstance.post("/students/forgot-password", { email: email.trim(), channel: "email" });
       setChallengeId(response.data.challengeId || "");
       setMessage(response.data.message);
+      setCodeSentAt(Date.now());
+      setOtp("");
       setStep("verify");
     } catch (err) {
       setError(err.response?.data?.message || "We could not send a reset code right now.");
@@ -70,6 +74,7 @@ const ForgotPassword = () => {
     </form> : <form onSubmit={resetPassword} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
       <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary"><MailCheck className="h-5 w-5" /></span><span>{message}<br /><strong>Code expires in 10 minutes.</strong></span></div>
       <OtpField value={otp} onChange={(value) => { setOtp(value); setError(""); }} />
+      <CodeHelp sentAt={codeSentAt} onResend={() => requestCode()} />
       <PasswordField label="New password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} placeholder="At least 8 characters, with a letter and number" />
       <PasswordField label="Confirm new password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setError(""); }} placeholder="Enter the new password again" />
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}

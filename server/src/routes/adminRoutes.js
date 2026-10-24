@@ -5,6 +5,8 @@ const {
     getLoggedInAdmin,
     getDashboard,
     listStudents,
+    getEmailStatus,
+    sendTestEmail,
     blockStudentAccount,
     unblockStudentAccount,
     deleteStudentAccount,
@@ -30,6 +32,8 @@ router.get("/me", authMiddleware, getLoggedInAdmin);
 router.post("/logout", authMiddleware, logoutAdmin);
 router.get("/dashboard", authMiddleware, getDashboard);
 router.get("/students", authMiddleware.requireSuperAdmin, listStudents);
+router.get("/email-status", authMiddleware.requireSuperAdmin, getEmailStatus);
+router.post("/email-test", authMiddleware.requireSuperAdmin, sendTestEmail);
 router.post("/students/:id/block", authMiddleware.requireSuperAdmin, blockStudentAccount);
 router.post("/students/:id/unblock", authMiddleware.requireSuperAdmin, unblockStudentAccount);
 router.delete("/students/:id", authMiddleware.requireSuperAdmin, deleteStudentAccount);

@@ -18,7 +18,7 @@ const mongoose = require("mongoose");
 const { blockStudent, unblockStudent, deleteStudent } = require("../services/studentBlocking");
 const Testimonial = require("../models/Testimonial");
 const HomeStat = require("../models/HomeStat");
-const { sendIlmiDunyaEmail } = require("../utils/mailer");
+const { sendIlmiDunyaEmail, emailSetupReport, verifySmtpLogin, describeEmailError } = require("../utils/mailer");
 const { escapeHtml } = require("../services/seoDocument");
 
 const SESSION_EXPIRES_IN = process.env.ADMIN_JWT_EXPIRES_IN || "8h";
@@ -223,6 +223,29 @@ const removeBlockedIdentity = async (req, res) => {
     res.json({ success: true });
 };
 
+// Shows how e-mail is set up and tests the SMTP login, so a super admin can see why codes do not arrive.
+const getEmailStatus = async (req, res) => {
+    const report = emailSetupReport();
+    const login = report.smtp ? await verifySmtpLogin() : null;
+    res.set("Cache-Control", "no-store").json({ success: true, ...report, login });
+};
+
+const sendTestEmail = async (req, res) => {
+    const to = typeof req.body?.to === "string" ? req.body.to.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ success: false, message: "Enter the email address to send the test to." });
+    try {
+        const sent = await sendIlmiDunyaEmail({
+            to,
+            subject: "IlmiDunya test email",
+            html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#17202a"><h1 style="color:#5938c8">Email is working</h1><p>This test was sent from the IlmiDunya admin panel at ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Karachi" })} (Pakistan time). Students will receive their verification codes the same way.</p><p>If this arrived in Spam or Promotions, mark it as "Not spam" and check the domain's SPF and DKIM records.</p></div>`,
+        });
+        if (!sent) return res.status(503).json({ success: false, message: "No email service is set on the server." });
+        res.json({ success: true, message: `Sent to ${to}. Check the inbox, and the Spam and Promotions folders.` });
+    } catch (error) {
+        res.status(502).json({ success: false, message: describeEmailError(error) });
+    }
+};
+
 const listAdmins = async (req, res) => {
     const admins = await Admin.find().sort({ role: -1, createdAt: -1 }).lean();
     res.json({ success: true, admins: admins.map(safeAdmin), permissions: Admin.permissions });
@@ -354,6 +377,8 @@ const resetAdminPassword = async (req, res) => {
 };
 
 module.exports = {
+    getEmailStatus,
+    sendTestEmail,
     blockStudentAccount,
     unblockStudentAccount,
     deleteStudentAccount,

@@ -142,3 +142,15 @@ Super admins manage this on Admin, Students.
 - Optional settings: `SUPPORT_EMAIL` and `SUPPORT_WHATSAPP` add contact buttons to the blocked message.
 - A blocked email now gets the blocked message on the password reset page instead of the neutral reply, because the sign-up page already tells that person they are blocked.
 - Run `npm --prefix server run indexes` once after deploying, so the blocked list gets its unique index (production does not build indexes automatically).
+
+# Verification code e-mails
+
+Three common settings made every code fail, and are now handled:
+
+- `SMTP_PORT=465` without `SMTP_SECURE=true` (Hostinger uses 465 with SSL): the connection hung and failed after 8 s. Port 465 now uses SSL unless `SMTP_SECURE` says otherwise.
+- No `MAIL_FROM`: mail was sent "from" `no-reply@ilmidunya.pk`, which a mailbox on another address is not allowed to send as (rejected with "sender address not owned"). The sender now defaults to the SMTP mailbox itself.
+- A password pasted with quotes around it was sent with the quotes. Surrounding quotes and spaces are now removed.
+
+Also: codes are sent with a plain-text version (HTML-only mail is more often filed as spam), replies go to the mailbox or `SUPPORT_EMAIL`, the server log says why a send failed in plain words, and every start logs the e-mail setup and whether the SMTP login works. Super admins have Admin, Students, Email delivery to check the setup and send a test e-mail. The sign-up and password reset code screens point students to their Spam/Promotions folders and offer "Send a new code" after the one-minute wait.
+
+Still outside the code: the domain's SPF, DKIM and DMARC records must allow the mail service (Hostinger adds them for its own mailboxes; Resend needs its records added and the domain verified), otherwise Gmail may place codes in Spam.

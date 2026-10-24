@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const { OAuth2Client } = require("google-auth-library");
 const Student = require("../models/Student");
 const StudentAuthChallenge = require("../models/StudentAuthChallenge");
-const { sendIlmiDunyaEmail } = require("../utils/mailer");
+const { sendIlmiDunyaEmail, describeEmailError } = require("../utils/mailer");
 const { escapeHtml } = require("../services/seoDocument");
 const School = require("../models/School");
 const { resolveSchoolChoice, schoolFields } = require("../services/schoolSelection");
@@ -108,7 +108,8 @@ const createOtpChallenge = async ({ purpose, channel, destination, student, payl
     } catch (error) {
         await StudentAuthChallenge.deleteOne({ _id: challenge._id });
         const diagnosticCode = String(error.code || error.name || "DELIVERY_FAILED").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
-        process.stderr.write(`[student-auth] ${channel} delivery failed: ${diagnosticCode}\n`);
+        // The reason goes to the server log (never to the student) so the setup can be fixed.
+        process.stderr.write(`[student-auth] ${channel} delivery failed: ${diagnosticCode}${channel === "email" ? ` - ${describeEmailError(error).replace(/\s+/g, " ")}` : ""}\n`);
         throw Object.assign(new Error(error.status === 429 ? "Too many code requests. Please wait and try again." : `${channel === "email" ? "Email" : "WhatsApp"} code delivery is unavailable right now. Please try another method or try again shortly.`), { status: error.status || 503 });
     }
     return challenge;

@@ -153,6 +153,15 @@ const validateRuntimeConfig = () => {
     require('./src/services/seoDocument').siteOrigin();
 };
 
+// Students cannot sign up without the code e-mail, so a broken mail setup is logged at every start.
+const reportEmailSetup = () => {
+    const { emailSetupReport, verifySmtpLogin } = require('./src/utils/mailer');
+    const report = emailSetupReport();
+    process.stdout.write(`[email] provider: ${report.provider}${report.smtp ? ` (${report.smtp.host}:${report.smtp.port}, ${report.smtp.secure ? 'SSL' : 'STARTTLS'})` : ''}, from: ${report.from || 'none'}\n`);
+    report.warnings.forEach(warning => process.stderr.write(`[email] WARNING: ${warning}\n`));
+    if (report.smtp) verifySmtpLogin().then(result => (result.ok ? process.stdout : process.stderr).write(`[email] ${result.ok ? '' : 'WARNING: '}${result.message}\n`));
+};
+
 let databaseReady;
 let lastDatabaseFailure = 0;
 mongoose.connection.on('disconnected', () => { databaseReady = undefined; });
@@ -185,6 +194,7 @@ if (require.main === module) {
     initializeDatabase().catch(error => {
         process.stderr.write(`${error.message} (${error.code || 'startup'})\n`);
     });
+    reportEmailSetup();
 } else if (process.env.NODE_ENV === 'production') {
     try {
         validateRuntimeConfig();

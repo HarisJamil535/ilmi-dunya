@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Ban, Search, ShieldCheck, Trash2, Users, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AdminAlert, AdminLoader, AdminPageHeader, AdminActionButton } from "../components/AdminUI";
+import EmailDeliveryCheck from "../components/EmailDeliveryCheck";
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
 const titleCase = (value) => value ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Not provided";
@@ -185,6 +186,8 @@ const StudentManagement = () => {
           </li>)}
         </ul> : <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nothing is blocked from deleted accounts.</p>}
       </section>
+
+      <EmailDeliveryCheck />
 
       <ActionDialog key={action ? `${action.type}-${action.student._id}` : "none"} action={action} busy={busy} onCancel={() => setAction(null)} onConfirm={confirmAction} />
     </div>
