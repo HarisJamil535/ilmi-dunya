@@ -107,7 +107,7 @@ const StudentRegister = () => {
 
   return <StudentAuthShell eyebrow={step === "verify" ? "One last step" : "Student account"} title={step === "verify" ? "Verify your email" : step === "security" ? "Secure your account" : "Create your account"} description={step === "verify" ? "Enter the one-time code sent to your email to activate your account." : step === "security" ? "Create a password. We will verify your email before creating the account." : "Join IlmiDunya to save your test history and track your progress."} maxWidth="max-w-xl">
     {step === "verify" ? <form onSubmit={verifyCode} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/50 sm:space-y-4 sm:rounded-3xl sm:p-6">
-      <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary"><MailCheck className="h-5 w-5" /></span><span>{form.email}<br /><strong>Code expires in 10 minutes.</strong></span></div>
+      <div className="flex items-start gap-3 rounded-2xl bg-primary-soft p-4 text-sm leading-6 text-primary-dark"><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-primary"><MailCheck className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-bold [overflow-wrap:anywhere]">{form.email}</span><strong>Code expires in 10 minutes.</strong></span></div>
       <OtpField value={otp} onChange={setOtp} />
       <CodeHelp sentAt={codeSentAt} onResend={requestCode} />
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
@@ -129,7 +129,7 @@ const StudentRegister = () => {
       </>}
       {step === "security" && <>
         <PasswordField label="Create password" autoComplete="new-password" value={form.password} onChange={(event) => updateField("password", event.target.value)} placeholder="At least 8 characters, with a letter and number" error={fieldErrors.password} />
-        <div className="flex items-start gap-3 rounded-2xl border border-primary-soft bg-primary-soft/60 p-4 text-sm font-semibold leading-6 text-primary-dark"><MailCheck className="mt-0.5 h-5 w-5 shrink-0" />A six-digit verification code will be sent to <strong className="break-all">{form.email}</strong>.</div>
+        <div className="flex items-start gap-3 rounded-2xl border border-primary-soft bg-primary-soft/60 p-4 text-sm leading-6 text-primary-dark"><MailCheck className="mt-0.5 h-5 w-5 shrink-0" /><p className="min-w-0 flex-1 font-semibold">A six-digit verification code will be sent to<strong className="block font-black [overflow-wrap:anywhere]">{form.email}</strong></p></div>
         {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
         <AuthSubmit loading={loading}>Create account and send code</AuthSubmit>
         <button type="button" onClick={() => { setStep("profile"); setError(""); }} className="flex w-full items-center justify-center gap-2 py-2 text-sm font-bold text-slate-500 transition hover:text-primary"><ArrowLeft className="h-4 w-4" />Edit your details</button>
