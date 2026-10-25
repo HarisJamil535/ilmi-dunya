@@ -30,27 +30,31 @@ test("preview explains a published test without creating an attempt", async (t) 
     assert.equal(response.body.test.resume, false);
 });
 
-test("equal points, coverage, accuracy, and time share rank; subsequent ranks skip ties", async (t) => {
-    t.mock.method(LeaderboardState, "findOne", () => ({ lean: async () => null }));
+test("leaderboard skips practice sets, withheld results and blocked students; equal records share a rank", async (t) => {
+    const Student = require("../src/models/Student");
+    t.mock.method(LeaderboardState, "findOne", () => ({ select: () => ({ lean: async () => null }) }));
+    const started = new Date("2026-05-01T08:00:00Z");
+    // Three tests of 20 questions each per student, every attempt using the full time.
+    const row = (student, i, pct) => ({ _id: `${student}${i}`, student, score: pct / 5, totalMarks: 20, questionCount: 20, startedAt: started, expiresAt: new Date(started.getTime() + 1200e3), submittedAt: new Date(started.getTime() + 1200e3), timeTakenSeconds: 1200, type: "topic_test", chapter: `${student}c${i}`, topic: `${student}t${i}` });
     let aggregations = 0;
-    t.mock.method(AssessmentAttempt, "aggregate", async (pipeline) => {
+    t.mock.method(AssessmentAttempt, "aggregate", (pipeline) => {
         aggregations += 1;
         assert.equal(pipeline[0].$match["answers.0"].$exists, true);
         assert.deepEqual(pipeline[0].$match.isPartialPractice, { $ne: true });
-        assert.deepEqual(pipeline[3].$match["assessment.type"], { $ne: "custom_practice" });
-        assert.equal(pipeline.find((stage) => stage.$group?._id?.chapter)?.$group._id.chapter, "$assessment.chapter");
-        assert.equal(pipeline.find((stage) => stage.$group?._id?.topic)?.$group._id.topic, "$assessment.topic");
-        assert.deepEqual(pipeline.find((stage) => stage.$sort?.safeRatio)?.$sort, { safeRatio: -1, safeTime: 1, submittedAt: 1, _id: 1 });
-        return [
-        { studentId: "a", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.001 },
-        { studentId: "b", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.001 },
-        { studentId: "c", points: 100, testsTaken: 1, averagePercentage: 100, totalTimeSeconds: 20.002 },
-        { studentId: "d", points: 90, testsTaken: 1, averagePercentage: 90, totalTimeSeconds: 1 },
-        ];
+        const filter = pipeline.find((stage) => stage.$match?.["assessment.type"]).$match;
+        assert.deepEqual(filter["assessment.type"], { $ne: "custom_practice" });
+        assert.deepEqual(filter["assessment.showResultImmediately"], { $ne: false });
+        const rows = ["a", "b", "c", "blocked"].flatMap((student) => [0, 1, 2].map((i) => row(student, i, student === "c" ? 70 : 90)));
+        return { allowDiskUse: async () => rows };
+    });
+    t.mock.method(Student, "find", (query) => {
+        if (query.status === "active") return { select: () => ({ lean: async () => query._id.$in.filter((id) => id !== "blocked").map((_id) => ({ _id })) }) };
+        return { select: () => ({ populate: () => ({ lean: async () => query._id.$in.map((_id) => ({ _id, name: _id.toUpperCase() })) }) }) };
     });
     let result;
-    await getLeaderboard({ query: {} }, { set() {}, json(value) { result = value; } });
-    assert.deepEqual(result.leaders.map((item) => item.rank), [1, 1, 3, 4]);
-    await getLeaderboard({ query: {} }, { set() {}, json(value) { result = value; } });
-    assert.equal(aggregations, 1);
+    await getLeaderboard({ query: {} }, { set() { return this; }, json(value) { result = value; } });
+    assert.deepEqual(result.leaders.map((item) => [item.studentId, item.rank]), [["a", 1], ["b", 1], ["c", 3]]);
+    assert.ok(result.leaders[0].points > result.leaders[2].points);
+    await getLeaderboard({ query: {} }, { set() { return this; }, json(value) { result = value; } });
+    assert.equal(aggregations, 1, "the ranking is cached for a few seconds");
 });

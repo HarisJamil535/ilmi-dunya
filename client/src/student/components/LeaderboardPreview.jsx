@@ -65,14 +65,14 @@ export default function LeaderboardPreview() {
           <div className="home-podium-top"><span className="home-podium-place">{leader.rank === 1 ? <Crown size={19} /> : <Medal size={19} />} Rank {leader.rank}</span><Trophy size={25} strokeWidth={1.4} aria-hidden="true" /></div>
           <div className="home-podium-identity"><span className="home-podium-avatar" aria-hidden="true">{leader.name?.trim().slice(0, 1).toUpperCase()}</span><div><h3>{leader.name}</h3><p>{leader.className || "Student"}{leader.city ? ` · ${leader.city}` : ""}</p></div></div>
           {leader.school && <p className="home-podium-school">{leader.school}</p>}
-          <div className="home-podium-score"><strong>{Number(leader.points).toLocaleString()}</strong><span>earned points</span><span className="home-podium-mark" aria-hidden="true">{String(leader.rank).padStart(2, "0")}</span></div>
+          <div className="home-podium-score"><strong>{Number(leader.points).toLocaleString()}</strong><span>IlmiDunya score</span><span className="home-podium-mark" aria-hidden="true">{String(leader.rank).padStart(2, "0")}</span></div>
         </li>)}</ol>
         {leaders.length > 3 && <ol className="home-leader-list" start={4}>{leaders.slice(3).map((leader) => <li key={leader.studentId} className="home-leader-row">
           <span className="home-leader-rank" aria-label={`Rank ${leader.rank}`}>{leader.rank === 1 ? <Crown size={24} /> : String(leader.rank).padStart(2, "0")}</span>
           <span className="home-leader-avatar" aria-hidden="true">{leader.name?.slice(0, 1)}</span>
           <div><strong>{leader.name}</strong><small>{leader.className || "Student"}{leader.city ? ` / ${leader.city}` : ""}</small></div>
           <div className="home-leader-school"><small>{leader.school}</small></div>
-          <div className="home-leader-points"><strong>{Number(leader.points).toLocaleString()}</strong><small>points</small></div>
+          <div className="home-leader-points"><strong>{Number(leader.points).toLocaleString()}</strong><small>score</small></div>
         </li>)}</ol>}
         <div className="home-leader-invite"><span><strong>Your name could be next.</strong> Keep learning, one test at a time.</span><Link to="/tests">Take a practice test <ArrowRight size={17} /></Link></div>
         </>}

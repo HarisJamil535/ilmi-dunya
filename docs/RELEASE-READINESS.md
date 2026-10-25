@@ -154,3 +154,17 @@ Three common settings made every code fail, and are now handled:
 Also: codes are sent with a plain-text version (HTML-only mail is more often filed as spam), replies go to the mailbox or `SUPPORT_EMAIL`, the server log says why a send failed in plain words, and every start logs the e-mail setup and whether the SMTP login works. Super admins have Admin, Students, Email delivery to check the setup and send a test e-mail. The sign-up and password reset code screens point students to their Spam/Promotions folders and offer "Send a new code" after the one-minute wait.
 
 Still outside the code: the domain's SPF, DKIM and DMARC records must allow the mail service (Hostinger adds them for its own mailboxes; Resend needs its records added and the domain verified), otherwise Gmail may place codes in Spam.
+
+## Student ranking (IlmiDunya Score)
+
+The leaderboard ranks students by how well they know the syllabus, not by how many tests they repeat.
+The rules live in `server/src/services/ranking.js` (`RULES`) and are covered by `server/tests/ranking.test.js`.
+
+- Attempt score (0-100): 90% accuracy, plus up to 10 for finishing early when at least 60% is correct. Under 3 seconds per question counts as guessing and scores 0.
+- Test score: 60% first ranked attempt + 40% best ranked attempt. Retakes are ranked only 12 hours after the previous ranked attempt, at most 3 per test.
+- Longer tests weigh more (full weight at 20 questions). Per chapter, the chapter test or the topic tests count, whichever is higher.
+- Skill: weighted average; with few tests a high average is pulled toward 50%. Activity factor 0.6-1.0 (full at 30 tests).
+- Score = 10 x Skill x Activity (out of 1000). 3 counted tests are needed to appear. Ties: accuracy, then seconds per question, then who got there first.
+- Periods: this week, this month, all time (Pakistan time, week starts Monday). Students see their own position via `GET /api/leaderboard/me`.
+
+After deploying, run `npm --prefix server run indexes` once to build the new `{ status, submittedAt }` attempt index.

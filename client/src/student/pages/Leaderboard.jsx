@@ -1,11 +1,13 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { Award, Crown, Filter, Medal, RefreshCw, School, Timer, Trophy, UserRound, Sparkles } from "lucide-react";
+import { Award, ChevronDown, Crown, Filter, Medal, RefreshCw, School, Target, Timer, Trophy, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useStudentSession } from "../../auth/useStudentSession";
 import axiosInstance from "../../api/axios";
 import CustomSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
-import { formatDuration, formatScore } from "../utils/resultFormat";
+import { formatScore } from "../utils/resultFormat";
 import "./learning-experience.css";
 
 const podiumStyles = {
@@ -21,13 +23,23 @@ const rankIcon = (rank) => {
   return <span className="text-sm font-black text-slate-500">#{rank}</span>;
 };
 
-const formatTime = (seconds = 0) => {
-  return formatDuration(seconds);
-};
+const perQuestion = (seconds = 0) => `${Number(seconds || 0).toFixed(1)}s`;
+const PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
+
+const HOW_IT_WORKS = [
+  ["Accuracy matters most", "Your score is mostly how many answers you get right. More tests help, but they never beat higher accuracy."],
+  ["Your first attempt counts most", "Each test: 60% from your first attempt, 40% from your best retake. A retake counts 12 hours after your last one, up to 3 times."],
+  ["Speed is a small bonus", "Finish early with at least 60% correct to earn up to 10% extra. Answering in under 3 seconds a question is treated as guessing and scores 0."],
+  ["Full tests count more", "Longer tests count more than short ones. For each chapter, your chapter test or your topic tests count, whichever is better."],
+  ["3 tests to get ranked", "Complete at least 3 tests to appear on the leaderboard. Your score is out of 1000."],
+];
 
 const Leaderboard = () => {
   const { boards, classes, groups, isLoadingContext } = useContext(AppContext);
   const [filters, setFilters] = useState({ board: "", class: "", group: "", subject: "" });
+  const [period, setPeriod] = useState("all");
+  const signedIn = useStudentSession();
+  const [mine, setMine] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +60,12 @@ const Leaderboard = () => {
   }, [filters.board, filters.class, filters.group]);
 
   const query = useMemo(() => {
-    const params = new URLSearchParams({ limit: "15" });
+    const params = new URLSearchParams({ limit: "15", period });
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
     return params.toString();
-  }, [filters]);
+  }, [filters, period]);
 
   useEffect(() => {
     let mounted = true;
@@ -67,6 +79,8 @@ const Leaderboard = () => {
         const response = await axiosInstance.get(`/leaderboard?${query}`, { signal: controller.signal });
         if (!mounted) return;
         setLeaders(response.data.leaders || []);
+        if (signedIn) axiosInstance.get(`/leaderboard/me?${query}`, { signal: controller.signal }).then(({ data }) => mounted && setMine(data)).catch(() => mounted && setMine(null));
+        else setMine(null);
         setUpdatedAt(response.data.generatedAt || new Date().toISOString());
         setError("");
       } catch (err) {
@@ -84,7 +98,7 @@ const Leaderboard = () => {
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [query, refresh]);
+  }, [query, refresh, signedIn]);
 
   const topThree = leaders.slice(0, 3);
   const rest = leaders.slice(3);
@@ -126,7 +140,22 @@ const Leaderboard = () => {
           </div>
         </section>
 
-        <p className="leaderboard-rule"><Sparkles size={16} /> Unlimited attempts. Your best result for each test earns up to 100 points. Equal points are settled by tests completed, accuracy, then time.</p>
+        <div className="leaderboard-periods" role="tablist" aria-label="Ranking period">
+          {PERIODS.map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={period === value} onClick={() => setPeriod(value)} className={period === value ? "is-active" : ""}>{label}</button>)}
+        </div>
+
+        {signedIn && mine && <section className="leaderboard-mine" aria-label="Your position">
+          <span className="leaderboard-mine-icon"><Target size={22} /></span>
+          {mine.ranked
+            ? <div><strong>You are #{mine.rank} of {mine.of}</strong><p>Score {formatScore(mine.points)} · {Number(mine.accuracy).toFixed(1)}% accuracy · {mine.testsTaken} tests · {perQuestion(mine.secondsPerQuestion)} per question</p></div>
+            : <div><strong>{mine.testsNeeded > 0 ? `Take ${mine.testsNeeded} more ${mine.testsNeeded === 1 ? "test" : "tests"} to get ranked` : "Keep practising to get ranked"}</strong><p>You have {mine.testsTaken} counted {mine.testsTaken === 1 ? "test" : "tests"} {period === "all" ? "so far" : period === "week" ? "this week" : "this month"}. Every completed full test counts.</p></div>}
+          <Link to="/tests" className="leaderboard-mine-link">Take a test</Link>
+        </section>}
+
+        <details className="leaderboard-how">
+          <summary><Trophy size={16} /> How ranking works <ChevronDown size={16} className="leaderboard-how-chevron" /></summary>
+          <ul>{HOW_IT_WORKS.map(([title, text]) => <li key={title}><strong>{title}</strong><span>{text}</span></li>)}</ul>
+        </details>
         {error && <p className="learning-alert" role="alert">{error}</p>}
 
         {loading ? (
@@ -137,7 +166,7 @@ const Leaderboard = () => {
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
             <Award className="mx-auto h-10 w-10 text-slate-300" />
             <h2 className="mt-4 text-xl font-black text-slate-950">No rankings yet</h2>
-            <p className="mt-2 text-sm text-slate-500">Students will appear here after submitting MCQ tests for the selected filters.</p>
+            <p className="mt-2 text-sm text-slate-500">Students appear here after completing at least 3 full MCQ tests{period === "week" ? " this week" : period === "month" ? " this month" : ""} for the selected filters.</p>
           </div>
         ) : (
           <>
@@ -153,7 +182,7 @@ const Leaderboard = () => {
                     <div className="podium-medal">
                       {rankIcon(leader.rank)}
                     </div>
-                    <span className="podium-points">{formatScore(leader.points)} <small>PTS</small></span>
+                    <span className="podium-points">{formatScore(leader.points)} <small>SCORE</small></span>
                   </div>
                   <h2 className="mt-6 text-2xl font-black text-slate-950">{leader.name}</h2>
                   <div className="podium-details">
@@ -163,7 +192,7 @@ const Leaderboard = () => {
                   <div className="podium-metrics">
                     <span><strong>{Number(leader.averagePercentage).toFixed(2)}%</strong><small>Accuracy</small></span>
                     <span><strong>{leader.testsTaken}</strong><small>Tests</small></span>
-                    <span><strong>{formatTime(leader.totalTimeSeconds)}</strong><small>Total time</small></span>
+                    <span><strong>{perQuestion(leader.secondsPerQuestion)}</strong><small>Per question</small></span>
                   </div>
                   <div className="podium-progress" aria-hidden="true"><div style={{ width: `${Math.min(100, Math.max(0, leader.averagePercentage))}%` }} /></div>
                 </article>
@@ -183,9 +212,9 @@ const Leaderboard = () => {
                       <h3 className="font-black text-slate-950">{leader.name}</h3>
                       <p className="mt-1 text-sm font-semibold text-slate-500">{leader.className || "Student"} · {leader.city || "Pakistan"} · {leader.school}</p>
                     </div>
-                    <p className="leaderboard-row-points">{formatScore(leader.points)}<small>points</small></p>
+                    <p className="leaderboard-row-points">{formatScore(leader.points)}<small>score</small></p>
                     <p className="leaderboard-row-accuracy">{Number(leader.averagePercentage).toFixed(2)}%<small>accuracy</small></p>
-                    <p className="leaderboard-row-time"><Timer className="h-4 w-4" /> {formatTime(leader.totalTimeSeconds)}</p>
+                    <p className="leaderboard-row-time"><Timer className="h-4 w-4" /> {perQuestion(leader.secondsPerQuestion)} <small>/ question</small></p>
                   </article>
                 ))}
               </div>

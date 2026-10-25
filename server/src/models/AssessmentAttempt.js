@@ -47,5 +47,7 @@ assessmentAttemptSchema.index({ student: 1, assessment: 1, status: 1 });
 assessmentAttemptSchema.index({ student: 1, startedAt: -1 });
 assessmentAttemptSchema.index({ assessment: 1, submittedAt: -1 });
 assessmentAttemptSchema.index({ status: 1, score: -1, timeTakenSeconds: 1, submittedAt: -1 });
+// The leaderboard reads finished attempts by submission date.
+assessmentAttemptSchema.index({ status: 1, submittedAt: -1 });
 
 module.exports = mongoose.model("AssessmentAttempt", assessmentAttemptSchema);

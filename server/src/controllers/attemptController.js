@@ -3,7 +3,9 @@ const AssessmentAttempt = require("../models/AssessmentAttempt");
 const Question = require("../models/Question");
 const LearningActivity = require("../models/LearningActivity");
 const { gradeAttempt } = require("../services/assessmentScoring");
-const { pointsForAttempt, rankEligibility } = require("../services/leaderboardScoring");
+const { rankEligibility } = require("../services/leaderboardScoring");
+const { attemptRankingNote } = require("../services/ranking");
+const { loadRankableAttempts } = require("./leaderboardController");
 const LeaderboardState = require("../models/LeaderboardState");
 const mongoose = require("mongoose");
 const { supportsSelection, resolveQuestionCount, selectQuestions, shuffled } = require("../services/attemptSelection");
@@ -302,7 +304,17 @@ const getResult = async (req, res) => {
     const state = await LeaderboardState.findOne({ key: "global" }).select("resetAt").lean();
     const inCycle = !state?.resetAt || (attempt.submittedAt && attempt.submittedAt >= state.resetAt);
     attempt.ranking = { eligible: eligibility.eligible && inCycle, reason: inCycle ? eligibility.reason : "This result belongs to a previous leaderboard cycle." };
-    attempt.points = attempt.ranking.eligible ? pointsForAttempt(attempt.score, attempt.totalMarks) : 0;
+    attempt.points = 0;
+    if (attempt.ranking.eligible) {
+        // Score this attempt the way the leaderboard does, next to the student's other attempts at the same test.
+        const own = await loadRankableAttempts({ studentId: req.student._id, since: state?.resetAt || null });
+        const self = own.find((row) => String(row._id) === String(attempt._id));
+        if (self) {
+            const note = attemptRankingNote(self, own.filter((row) => row.scopeKey === self.scopeKey));
+            attempt.ranking = { eligible: note.counts, reason: note.reason };
+            attempt.points = note.score;
+        }
+    }
     res.json({ success: true, attempt });
 };
 
