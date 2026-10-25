@@ -162,9 +162,10 @@ The rules live in `server/src/services/ranking.js` (`RULES`) and are covered by 
 
 - Attempt score (0-100): 90% accuracy, plus up to 10 for finishing early when at least 60% is correct. Under 3 seconds per question counts as guessing and scores 0.
 - Test score: 60% first ranked attempt + 40% best ranked attempt. Retakes are ranked only 12 hours after the previous ranked attempt, at most 3 per test.
-- Longer tests weigh more (full weight at 20 questions). Per chapter, the chapter test or the topic tests count, whichever is higher.
-- Skill: weighted average; with few tests a high average is pulled toward 50%. Activity factor 0.6-1.0 (full at 30 tests).
-- Score = 10 x Skill x Activity (out of 1000). 3 counted tests are needed to appear. Ties: accuracy, then seconds per question, then who got there first.
+- Longer tests weigh more (full weight at 20 questions). A shorter set chosen from a chapter or topic counts from 10 questions. Per chapter, the chapter test or the topic tests count, whichever is higher.
+- Skill: weighted average; with few tests a high average is pulled toward 50% (as if 2 more full tests at 50%). Activity factor 0.6-1.0 (full at 30 tests).
+- Score = 10 x Skill x Activity (out of 1000). One counted test is enough to appear. Ties: accuracy, then seconds per question, then who got there first.
+- A test left without submitting is marked with its saved answers 5 minutes after its time runs out (`server/src/services/expiredAttempts.js`), so walking out of a hard test cannot hide it. This applies to tests started after the code first runs (`LeaderboardState.expiredAttemptsFrom`).
 - Periods: this week, this month, all time (Pakistan time, week starts Monday). Students see their own position via `GET /api/leaderboard/me`.
 
 After deploying, run `npm --prefix server run indexes` once to build the new `{ status, submittedAt }` attempt index.

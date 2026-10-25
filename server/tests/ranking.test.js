@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { scoreAttempt, rankedAttempts, scoreTest, scoreStudent, buildRanking, attemptRankingNote, RULES } = require("../src/services/ranking");
+const { scoreAttempt, rankedAttempts, scoreTest, scoreStudent, buildRanking, attemptRankingNote, countsForRanking, RULES } = require("../src/services/ranking");
 
 const base = new Date("2026-05-01T08:00:00Z").getTime();
 let seq = 0;
@@ -39,6 +39,14 @@ test("short tests weigh less than full-length tests", () => {
     assert.equal(scoreTest([att({ n: 5 })]).weight, 0.5);
     assert.equal(scoreTest([att({ n: 20 })]).weight, 1);
     assert.equal(scoreTest([att({ n: 60 })]).weight, 1);
+    const shortFirst = scoreTest([att({ n: 5, pct: 100 }), att({ n: 20, hours: 13 })]);
+    assert.ok(shortFirst.weight < 0.75, "a short lucky first set cannot borrow a full retake's weight");
+});
+
+test("shorter sets chosen from a chapter or topic count from 10 questions", () => {
+    assert.equal(countsForRanking({ isPartialPractice: true, questionCount: 9 }), false);
+    assert.equal(countsForRanking({ isPartialPractice: true, questionCount: 10 }), true);
+    assert.equal(countsForRanking({ isPartialPractice: false, questionCount: 6 }), true, "a full test always counts");
 });
 
 test("a chapter test and its topic tests do not both count", () => {
@@ -50,14 +58,14 @@ test("a chapter test and its topic tests do not both count", () => {
     assert.equal(other.testsTaken, 2, "different chapters both count");
 });
 
-test("many low scores no longer beat fewer high scores, and one lucky test cannot top the board", () => {
+test("accuracy beats volume, and one lucky test cannot top the board", () => {
     const many = (student, pct, count) => Array.from({ length: count }, (_, i) => att({ student, pct, share: 1, scope: `${student}-${i}`, chapter: `${student}-c${i}` }));
     const { ranked, all } = buildRanking([...many("A", 30, 40), ...many("B", 90, 10), ...many("C", 100, 1), ...many("D", 85, 40)]);
-    assert.deepEqual(ranked.map(r => r.studentId), ["D", "B", "A"], "C needs 3 tests to be ranked");
+    assert.deepEqual(ranked.map(r => r.studentId), ["D", "B", "C", "A"], "one perfect test is listed, but below steady high accuracy");
     const byId = Object.fromEntries(all.map(r => [r.studentId, r]));
     assert.ok(byId.B.points > byId.A.points * 1.8, "accuracy dominates volume");
     assert.ok(byId.C.points < byId.B.points, "a single 100% is pulled toward the 50% starting point");
-    assert.equal(byId.C.ranked, false);
+    assert.ok(byId.C.points < 450, "a single test is pulled toward the 50% starting point");
     assert.ok(byId.D.points <= 1000 && byId.D.points > 700);
 });
 
@@ -87,5 +95,5 @@ test("the result page explains whether an attempt counts", () => {
     assert.equal(attemptRankingNote(later, [first, quick, later]).counts, true);
     const rushed = att({ scope: "q", share: 0.01 });
     assert.deepEqual([attemptRankingNote(rushed, [rushed]).score, attemptRankingNote(rushed, [rushed]).counts], [0, true]);
-    assert.equal(RULES.minTestsToRank, 3);
+    assert.equal(RULES.minTestsToRank, 1);
 });

@@ -6,6 +6,7 @@ const { gradeAttempt } = require("../services/assessmentScoring");
 const { rankEligibility } = require("../services/leaderboardScoring");
 const { attemptRankingNote } = require("../services/ranking");
 const { loadRankableAttempts } = require("./leaderboardController");
+const { finishExpiredAttempts, gradingFor } = require("../services/expiredAttempts");
 const LeaderboardState = require("../models/LeaderboardState");
 const mongoose = require("mongoose");
 const { supportsSelection, resolveQuestionCount, selectQuestions, shuffled } = require("../services/attemptSelection");
@@ -250,12 +251,7 @@ const submitAttempt = async (req, res) => {
     // Answers the browser could not send yet (a weak connection, or the page closing) arrive with the submit.
     const late = await answersSentWithSubmit(attempt, req.body?.answers, receivedAt);
     if (late.error) return res.status(400).json({ message: late.error });
-    let grading = attempt.gradingSnapshot;
-    if (!grading?.length) {
-        const questions = await Question.find({ _id: { $in: attempt.answers.map((answer) => answer.question) } }).lean();
-        const marks = new Map(assessment.questions.map((item) => [String(item.question), item.marks]));
-        grading = questions.map((question) => ({ question: question._id, correctOption: question.correctOption, marks: marks.get(String(question._id)) ?? question.marks ?? 1 }));
-    }
+    const grading = await gradingFor(attempt, assessment);
     const result = gradeAttempt(attempt, grading, attempt.passingMarksSnapshot ?? assessment.passingMarks, receivedAt);
     if (req.body?.autoSubmitted && result.status === "submitted") result.autoSubmitted = true;
     // Only finalize the exact answer revision that was graded.
@@ -307,6 +303,8 @@ const getResult = async (req, res) => {
     attempt.points = 0;
     if (attempt.ranking.eligible) {
         // Score this attempt the way the leaderboard does, next to the student's other attempts at the same test.
+        // A test this student left unsubmitted earlier is finished first, so the first attempt is the real first.
+        await finishExpiredAttempts({ studentId: req.student._id });
         const own = await loadRankableAttempts({ studentId: req.student._id, since: state?.resetAt || null });
         const self = own.find((row) => String(row._id) === String(attempt._id));
         if (self) {

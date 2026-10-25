@@ -302,7 +302,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const chosenCount = countMode === "all" ? preview?.questionCount : Number(customCount);
   const countValid = countMode === "all" || (Number.isInteger(chosenCount) && chosenCount >= 5 && chosenCount <= preview?.availableQuestions);
   const partial = preview?.canChooseCount && countMode !== "all" && chosenCount < preview.availableQuestions;
-  const ranked = preview?.ranked && !partial;
+  // Mirrors the server: a shorter chosen set counts for ranking from 10 questions.
+  const ranked = preview?.ranked && (!partial || chosenCount >= 10);
 
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
@@ -342,7 +343,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
             <li className="test-introduction-exit-rule"><span aria-hidden="true">3</span><div><h3>Stay on the test page</h3><p>Leaving or switching away submits your saved answers automatically.</p></div></li>
             {preview?.resultsWithheld
               ? <li><span aria-hidden="true">4</span><div><h3>Results are released later</h3><p>Your score and answers will appear once your teacher releases the results. Released results count on the leaderboard.</p></div></li>
-              : <li><span aria-hidden="true">4</span><div><h3>{ranked ? "Your first attempt counts most" : "Practise without ranking"}</h3><p>{ranked ? "For the leaderboard, your first attempt counts 60% and your best retake 40%. Retakes count 12 hours apart, up to 3 times. Take your time: answering too quickly scores 0." : "Shorter practice sets do not affect the leaderboard. Select all questions to compete in a topic or chapter test."}</p></div></li>}
+              : <li><span aria-hidden="true">4</span><div><h3>{ranked ? "Your first attempt counts most" : "Practise without ranking"}</h3><p>{ranked ? "For the leaderboard, your first attempt counts 60% and your best retake 40%. Retakes count 12 hours apart, up to 3 times. Answering too quickly scores 0, and a test left without submitting is marked when its time runs out." : "Sets of fewer than 10 questions are practice and do not affect the leaderboard. Choose 10 or more questions to compete."}</p></div></li>}
             {(preview?.closesAt || preview?.maxAttempts > 0) && !preview?.resume && <li><span aria-hidden="true">5</span><div><h3>Test limits</h3><p>{[
               preview.closesAt && `This test closes on ${new Date(preview.closesAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}; an attempt in progress ends then.`,
               preview.maxAttempts > 0 && `You can attempt it ${preview.maxAttempts === 1 ? "once" : `${preview.maxAttempts} times`}.`,

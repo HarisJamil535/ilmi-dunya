@@ -4,13 +4,17 @@
 //    Answering faster than about 3 seconds per question is treated as guessing and scores 0.
 // 2. Test score: 60% of the first ranked attempt + 40% of the best ranked attempt. A retake is ranked only
 //    12 hours after the previous ranked attempt, and at most 3 attempts per test are ranked.
-// 3. Test weight: longer tests count more, up to 20 questions (sqrt(questions / 20), at most 1).
+// 3. Test weight: longer tests count more, up to 20 questions (sqrt(questions / 20), at most 1). A shorter
+//    set chosen from a chapter or topic counts when it has at least 10 questions.
 //    For each chapter, either its chapter test or its topic tests count, whichever average is higher,
 //    because a chapter test is built from the same questions.
 // 4. Skill: weighted average of test scores. With few tests a high average is pulled toward 50% (as if
-//    5 more tests at 50%), so a lucky start cannot top the board; a low average is never lifted.
+//    2 more full tests at 50%), so a lucky start cannot top the board; a low average is never lifted.
 // 5. Activity: 0.6 to 1.0, rising with the number of tests (full at 30), with diminishing returns.
-// 6. IlmiDunya Score = 10 x Skill x Activity, out of 1000. Students need 3 counted tests to be ranked.
+// 6. IlmiDunya Score = 10 x Skill x Activity, out of 1000. One counted test puts a student on the board;
+//    the pull toward 50% and the activity factor keep steady work ahead of a single lucky test.
+// 7. A test left without submitting is marked with its saved answers when its time runs out, so walking out
+//    of a hard test cannot hide it (see services/expiredAttempts.js).
 
 const RULES = Object.freeze({
     accuracyShare: 90,
@@ -21,10 +25,11 @@ const RULES = Object.freeze({
     maxRankedAttempts: 3,
     retakeGapHours: 12,
     fullWeightQuestions: 20,
+    minSetQuestions: 10,
     priorScore: 50,
-    priorWeight: 5,
+    priorWeight: 2,
     fullActivityTests: 30,
-    minTestsToRank: 3,
+    minTestsToRank: 1,
 });
 
 const round = (value, digits = 2) => Number(Number(value).toFixed(digits));
@@ -49,6 +54,9 @@ function scoreAttempt(attempt) {
     return { score: round(score), accuracy, guessed: false, speed, used, questions };
 }
 
+// A full test always counts; a shorter set chosen from a chapter or topic needs at least 10 questions.
+const countsForRanking = attempt => !attempt.isPartialPractice || Number(attempt.questionCount) >= RULES.minSetQuestions;
+
 // Which attempts of one test count: the first, then retakes at least 12 hours apart, at most 3.
 function rankedAttempts(attempts) {
     const sorted = [...attempts].sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt));
@@ -70,7 +78,9 @@ function scoreTest(attempts) {
     const first = scored[0];
     const best = scored.reduce((top, item) => item.score > top.score ? item : top, first);
     const score = RULES.firstAttemptShare * first.score + (1 - RULES.firstAttemptShare) * best.score;
-    const weight = Math.min(1, Math.sqrt(Math.max(first.questions, 1) / RULES.fullWeightQuestions));
+    // Weighted by the questions behind each share, so a short lucky first set cannot borrow a long retake's weight.
+    const questions = RULES.firstAttemptShare * first.questions + (1 - RULES.firstAttemptShare) * best.questions;
+    const weight = Math.min(1, Math.sqrt(Math.max(questions, 1) / RULES.fullWeightQuestions));
     return {
         score: round(score), weight, accuracy: best.accuracy, used: best.used, questions: best.questions,
         lastAt: Math.max(...ranked.map(item => new Date(item.submittedAt).getTime())),
@@ -169,4 +179,4 @@ function attemptRankingNote(attempt, sameTestAttempts) {
     return { counts: false, score: scored.score, reason: "Retakes count for ranking 12 hours after your last ranked attempt. This one is practice." };
 }
 
-module.exports = { RULES, scoreAttempt, rankedAttempts, scoreTest, withoutOverlap, scoreStudent, buildRanking, attemptRankingNote };
+module.exports = { RULES, countsForRanking, scoreAttempt, rankedAttempts, scoreTest, withoutOverlap, scoreStudent, buildRanking, attemptRankingNote };

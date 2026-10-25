@@ -30,8 +30,9 @@ const HOW_IT_WORKS = [
   ["Accuracy matters most", "Your score is mostly how many answers you get right. More tests help, but they never beat higher accuracy."],
   ["Your first attempt counts most", "Each test: 60% from your first attempt, 40% from your best retake. A retake counts 12 hours after your last one, up to 3 times."],
   ["Speed is a small bonus", "Finish early with at least 60% correct to earn up to 10% extra. Answering in under 3 seconds a question is treated as guessing and scores 0."],
-  ["Full tests count more", "Longer tests count more than short ones. For each chapter, your chapter test or your topic tests count, whichever is better."],
-  ["3 tests to get ranked", "Complete at least 3 tests to appear on the leaderboard. Your score is out of 1000."],
+  ["Longer tests count more", "Any test of 10 or more questions counts, and longer ones count more. For each chapter, your chapter test or your topic tests count, whichever is better."],
+  ["Steady work wins", "One counted test puts you on the board. A few lucky tests are pulled toward 50%, so consistent accuracy across many tests ranks highest. Your score is out of 1000."],
+  ["Finish what you start", "Leaving a test without submitting does not hide it: it is marked with your saved answers when its time runs out."],
 ];
 
 const Leaderboard = () => {
@@ -148,7 +149,7 @@ const Leaderboard = () => {
           <span className="leaderboard-mine-icon"><Target size={22} /></span>
           {mine.ranked
             ? <div><strong>You are #{mine.rank} of {mine.of}</strong><p>Score {formatScore(mine.points)} · {Number(mine.accuracy).toFixed(1)}% accuracy · {mine.testsTaken} tests · {perQuestion(mine.secondsPerQuestion)} per question</p></div>
-            : <div><strong>{mine.testsNeeded > 0 ? `Take ${mine.testsNeeded} more ${mine.testsNeeded === 1 ? "test" : "tests"} to get ranked` : "Keep practising to get ranked"}</strong><p>You have {mine.testsTaken} counted {mine.testsTaken === 1 ? "test" : "tests"} {period === "all" ? "so far" : period === "week" ? "this week" : "this month"}. Every completed full test counts.</p></div>}
+            : <div><strong>{mine.testsNeeded > 0 ? `Take ${mine.testsNeeded} more ${mine.testsNeeded === 1 ? "test" : "tests"} to get ranked` : "Keep practising to get ranked"}</strong><p>You have {mine.testsTaken} counted {mine.testsTaken === 1 ? "test" : "tests"} {period === "all" ? "so far" : period === "week" ? "this week" : "this month"}. Every test of 10 or more questions counts.</p></div>}
           <Link to="/tests" className="leaderboard-mine-link">Take a test</Link>
         </section>}
 

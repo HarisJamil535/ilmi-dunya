@@ -3,6 +3,7 @@ const AssessmentAttempt = require("../models/AssessmentAttempt");
 const LeaderboardState = require("../models/LeaderboardState");
 const Student = require("../models/Student");
 const { buildRanking, RULES } = require("../services/ranking");
+const { finishExpiredAttempts } = require("../services/expiredAttempts");
 const leaderboardCache = new Map();
 
 const cachedLeaders = async (key, load) => {
@@ -46,12 +47,14 @@ const periodStart = (period, now = new Date()) => {
 
 // Finished, rankable attempts with only the fields the ranking needs (answers are counted, not loaded).
 async function loadRankableAttempts({ assessmentMatch = {}, since = null, studentId = null }) {
-    const match = { status: { $in: ["submitted", "timed_out"] }, isPartialPractice: { $ne: true }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, "answers.0": { $exists: true } };
+    const match = { status: { $in: ["submitted", "timed_out"] }, totalMarks: { $gt: 0 }, submittedAt: { $ne: null }, "answers.0": { $exists: true } };
     if (since) match.submittedAt.$gte = since;
     if (studentId) match.student = studentId;
     const rows = await AssessmentAttempt.aggregate([
         { $match: match },
-        { $project: { student: 1, assessment: 1, score: 1, totalMarks: 1, startedAt: 1, expiresAt: 1, submittedAt: 1, timeTakenSeconds: 1, questionCount: { $size: "$answers" } } },
+        { $project: { student: 1, assessment: 1, score: 1, totalMarks: 1, startedAt: 1, expiresAt: 1, submittedAt: 1, timeTakenSeconds: 1, isPartialPractice: 1, questionCount: { $size: "$answers" } } },
+        // A shorter set chosen from a chapter or topic counts once it is long enough to measure (RULES.minSetQuestions).
+        { $match: { $or: [{ isPartialPractice: { $ne: true } }, { questionCount: { $gte: RULES.minSetQuestions } }] } },
         { $lookup: { from: "assessments", localField: "assessment", foreignField: "_id", as: "assessment" } },
         { $unwind: "$assessment" },
         // Withheld results stay off the leaderboard until an admin releases them.
@@ -73,6 +76,7 @@ const rankingFor = (query) => {
     const assessmentMatch = buildAssessmentMatch(query);
     const key = JSON.stringify([period, ...["board", "class", "group", "subject"].map(name => query[name] || "")]);
     return cachedLeaders(key, async () => {
+        await finishExpiredAttempts();
         const resetAt = await cycleStart();
         const attempts = await loadRankableAttempts({ assessmentMatch, since: laterOf(resetAt, periodStart(period)) });
         // Blocked and deleted students are left out before ranks are given.
@@ -119,6 +123,7 @@ const getMyRanking = async (req, res) => {
     const { period, ranked } = await rankingFor(req.query);
     const mine = ranked.find(row => row.studentId === String(req.student._id));
     if (mine) return res.set("Cache-Control", "no-store").json({ success: true, period, ranked: true, rank: mine.rank, of: ranked.length, points: mine.points, accuracy: mine.accuracy, testsTaken: mine.testsTaken, secondsPerQuestion: mine.secondsPerQuestion });
+    await finishExpiredAttempts({ studentId: req.student._id });
     const resetAt = await cycleStart();
     const own = await loadRankableAttempts({ assessmentMatch: buildAssessmentMatch(req.query), since: laterOf(resetAt, periodStart(PERIODS.includes(req.query.period) ? req.query.period : "all")), studentId: req.student._id });
     const row = buildRanking(own).all[0];

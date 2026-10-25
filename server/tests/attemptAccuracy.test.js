@@ -30,9 +30,11 @@ test("preview explains a published test without creating an attempt", async (t) 
     assert.equal(response.body.test.resume, false);
 });
 
-test("leaderboard skips practice sets, withheld results and blocked students; equal records share a rank", async (t) => {
+test("leaderboard skips short practice sets, withheld results and blocked students; equal records share a rank", async (t) => {
     const Student = require("../src/models/Student");
-    t.mock.method(LeaderboardState, "findOne", () => ({ select: () => ({ lean: async () => null }) }));
+    t.mock.method(LeaderboardState, "findOne", () => ({ select: () => ({ lean: async () => ({ expiredAttemptsFrom: new Date("2026-01-01") }) }) }));
+    let sweeps = 0;
+    t.mock.method(AssessmentAttempt, "find", (filter) => { sweeps += 1; assert.equal(filter.status, "in_progress"); return { select: () => ({ limit: async () => [] }) }; });
     const started = new Date("2026-05-01T08:00:00Z");
     // Three tests of 20 questions each per student, every attempt using the full time.
     const row = (student, i, pct) => ({ _id: `${student}${i}`, student, score: pct / 5, totalMarks: 20, questionCount: 20, startedAt: started, expiresAt: new Date(started.getTime() + 1200e3), submittedAt: new Date(started.getTime() + 1200e3), timeTakenSeconds: 1200, type: "topic_test", chapter: `${student}c${i}`, topic: `${student}t${i}` });
@@ -40,7 +42,7 @@ test("leaderboard skips practice sets, withheld results and blocked students; eq
     t.mock.method(AssessmentAttempt, "aggregate", (pipeline) => {
         aggregations += 1;
         assert.equal(pipeline[0].$match["answers.0"].$exists, true);
-        assert.deepEqual(pipeline[0].$match.isPartialPractice, { $ne: true });
+        assert.deepEqual(pipeline[2].$match.$or, [{ isPartialPractice: { $ne: true } }, { questionCount: { $gte: 10 } }]);
         const filter = pipeline.find((stage) => stage.$match?.["assessment.type"]).$match;
         assert.deepEqual(filter["assessment.type"], { $ne: "custom_practice" });
         assert.deepEqual(filter["assessment.showResultImmediately"], { $ne: false });
@@ -57,4 +59,5 @@ test("leaderboard skips practice sets, withheld results and blocked students; eq
     assert.ok(result.leaders[0].points > result.leaders[2].points);
     await getLeaderboard({ query: {} }, { set() { return this; }, json(value) { result = value; } });
     assert.equal(aggregations, 1, "the ranking is cached for a few seconds");
+    assert.equal(sweeps, 1, "expired tests are finished before ranking");
 });

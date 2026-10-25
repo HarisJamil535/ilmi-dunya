@@ -62,7 +62,8 @@ for (const type of ["topic_test", "chapter_test"]) {
             assert.equal(saved.gradingSnapshot.length, expected);
             assert.equal(saved.isPartialPractice, expected < 55);
             assert.equal(saved.passingMarksSnapshot, Math.ceil(expected * 2 * .4));
-            assert.equal(rankEligibility(assessment, { ...saved, status: "submitted" }).eligible, expected === 55);
+            assert.equal(rankEligibility(assessment, { ...saved, status: "submitted" }).eligible, true, "a set of 10 or more questions counts");
+            assert.equal(rankEligibility(assessment, { ...saved, answers: saved.answers.slice(0, 9), status: "submitted" }).eligible, expected === 55, "a short chosen set is practice; a full test always counts");
         });
     }
 }
