@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const School = require("../models/School");
 const Student = require("../models/Student");
 const Assessment = require("../models/Assessment");
+const Subject = require("../models/Subject");
+require("../models/Class"); // a subject is shown with its class name
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const { fail } = require("./publishing");
 const { dateRange } = require("./pakistanTime");
@@ -31,6 +33,17 @@ async function loadScope(schoolId, query = {}) {
         fail("Choose a class before choosing a section.");
     }
 
+    // An optional subject narrows every report to tests of that subject.
+    let subject = null;
+    let subjectTests = null;
+    if (query.subjectId) {
+        if (!mongoose.isValidObjectId(query.subjectId)) fail("Choose a valid subject.");
+        const found = await Subject.findById(query.subjectId).select("name class").populate("class", "name").lean();
+        if (!found) fail("Subject not found.", 404);
+        subject = { _id: found._id, name: found.name, className: found.class?.name || "" };
+        subjectTests = await Assessment.find({ subject: found._id }).distinct("_id");
+    }
+
     const range = dateRange(query.from, query.to);
     const filter = {
         schoolRef: school._id,
@@ -44,12 +57,14 @@ async function loadScope(schoolId, query = {}) {
         school,
         className: grade?.name || "",
         sectionName: section?.name || "",
+        subject,
         range,
         studentFilter: filter,
         studentIds,
         attemptFilter: {
             student: { $in: studentIds },
             status: { $in: COMPLETED },
+            ...(subjectTests ? { assessment: { $in: subjectTests } } : {}),
             ...(range.start || range.end ? { startedAt: { ...(range.start ? { $gte: range.start } : {}), ...(range.end ? { $lte: range.end } : {}) } } : {}),
         },
     };

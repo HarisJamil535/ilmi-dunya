@@ -21,5 +21,7 @@ router.delete("/:id/classes/:classId/sections/:sectionId", authMiddleware, schoo
 
 router.get("/:id/results", authMiddleware, results.getSchoolResults);
 router.get("/:id/results/export", authMiddleware, results.exportSchoolResults);
+router.get("/:id/results/subjects", authMiddleware, results.getResultSubjects);
+router.get("/:id/results/pdf", authMiddleware, results.exportSchoolResultsPdf);
 
 module.exports = router;

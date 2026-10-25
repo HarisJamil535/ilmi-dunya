@@ -273,4 +273,4 @@ function createResultCard({ student, attempts, generatedAt = new Date(), referen
     return doc;
 }
 
-module.exports = { createResultCard, summarize, latin, planPages, MAX_ROWS };
+module.exports = { createResultCard, summarize, latin, planPages, stamp, MAX_ROWS };

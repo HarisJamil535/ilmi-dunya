@@ -169,3 +169,13 @@ The rules live in `server/src/services/ranking.js` (`RULES`) and are covered by 
 - Periods: this week, this month, all time (Pakistan time, week starts Monday). Students see their own position via `GET /api/leaderboard/me`.
 
 After deploying, run `npm --prefix server run indexes` once to build the new `{ status, submittedAt }` attempt index.
+
+## School result PDFs and verification
+
+Admin → School Results downloads three files for a school, class or section, optionally narrowed to one subject and a date range:
+
+- **Result report (PDF)**: key results, grade distribution, subject/chapter/topic performance, topics that need attention, merit list, students yet to attempt, grading scale, signature lines, IlmiDunya stamp and a verification QR code.
+- **Student report cards (PDF)**: one card per student who took tests, with every attempt (topic, try number, date and time, right/wrong/skipped, marks, score, time, grade, result), subject summary, position and remarks. Each card has its own reference and page numbering.
+- **Excel workbook**: unchanged, now also honours the subject filter.
+
+PDFs are built on a worker thread (`services/schoolReportPdf.js`, data from `services/schoolReportData.js`), limited to 800 students and 6,000 attempts per file. Every PDF is recorded in `IssuedReport`; anyone can check a reference at `/verify/<reference>` (API `GET /api/verify/:reference`, rate limited, no contact details shown). Set `SITE_URL=https://www.ilmidunya.org` so QR codes point to the live site, and run `npm --prefix server run indexes` after deploying for the new `IssuedReport` indexes.

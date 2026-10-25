@@ -49,6 +49,7 @@ const resetCodeLimiter = limiter({ limit: 120, failuresOnly: true, key: req => `
 const adminResetLimiter = limiter({ limit: 20, key: req => `admin-reset:${ipOf(req)}`, message: `Too many password reset requests. ${wait}` });
 // Each admin account can only be sent a few reset codes per window, wherever the requests come from.
 const adminAccountResetLimiter = limiter({ limit: 5, key: req => `admin-reset-account:${accountOf(req)}`, message: `Too many password reset requests. ${wait}` });
+const reportVerifyLimiter = limiter({ limit: 120, key: req => `report-verify:${ipOf(req)}`, message: `Too many checks from this network. ${wait}` });
 const googleLimiter = limiter({ limit: 300, key: req => `google:${ipOf(req)}`, message: `Too many sign-in attempts. ${wait}` });
 
-module.exports = { apiLimiter, studentLoginLimiters, adminLoginLimiters, registerLimiter, verifyCodeLimiter, passwordResetLimiter, resetCodeLimiter, adminResetLimiter, adminAccountResetLimiter, googleLimiter, accountOf };
+module.exports = { apiLimiter, studentLoginLimiters, adminLoginLimiters, registerLimiter, verifyCodeLimiter, passwordResetLimiter, resetCodeLimiter, adminResetLimiter, adminAccountResetLimiter, googleLimiter, reportVerifyLimiter, accountOf };

@@ -33,6 +33,7 @@ function summarySheet(scope, report, generatedAt) {
             line("School", scope.school.name),
             line("Class", scope.className || "All classes"),
             line("Section", scope.sectionName || "All sections"),
+            line("Subject", scope.subject ? `${scope.subject.name}${scope.subject.className ? ` (${scope.subject.className})` : ""}` : "All subjects"),
             line("Attempts taken", sheetRange(scope)),
             line("Report generated", `${formatDateTime(generatedAt)} (Pakistan time)`),
             [text(""), text("")],
@@ -99,7 +100,7 @@ async function buildWorkbookOffThread(scope, report, generatedAt = new Date(), {
     // Only plain values cross to the worker; database ids are not needed in the file.
     const payload = {
         generatedAt: generatedAt.getTime(),
-        scope: { school: { name: scope.school.name }, className: scope.className, sectionName: scope.sectionName, range: { start: scope.range.start, end: scope.range.end } },
+        scope: { school: { name: scope.school.name }, className: scope.className, sectionName: scope.sectionName, subject: scope.subject ? { name: scope.subject.name, className: scope.subject.className } : null, range: { start: scope.range.start, end: scope.range.end } },
         report: {
             summary: report.summary,
             studentRows: report.studentRows,
@@ -124,7 +125,7 @@ async function buildWorkbookOffThread(scope, report, generatedAt = new Date(), {
 function workbookName(scope, generatedAt = new Date()) {
     const part = value => String(value || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
     const day = formatDate(generatedAt).replaceAll(" ", "-");
-    return `${["results", part(scope.school.name), part(scope.className), part(scope.sectionName), day].filter(Boolean).join("_")}.xlsx`;
+    return `${["results", part(scope.school.name), part(scope.className), part(scope.sectionName), part(scope.subject?.name), day].filter(Boolean).join("_")}.xlsx`;
 }
 
 module.exports = { buildWorkbook, buildWorkbookOffThread, workbookName };

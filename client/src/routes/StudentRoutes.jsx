@@ -26,6 +26,7 @@ const NewsArticle = lazy(() => import("../student/pages/NewsArticle"));
 const TopicQuestions = lazy(() => import("../student/pages/TopicQuestions"));
 const PublicStudyPage = lazy(() => import("../student/pages/PublicStudyPage"));
 const AnswerSheetViewer = lazy(() => import("../student/pages/AnswerSheetViewer"));
+const VerifyDocument = lazy(() => import("../student/pages/VerifyDocument"));
 
 const StudentRoutes = ({ initialData, initialView }) => {
   const HomeView = initialData?.type === 'home' ? initialView : Home;
@@ -55,6 +56,8 @@ const StudentRoutes = ({ initialData, initialView }) => {
           <Route path="/news" element={<NewsView initialData={initialData?.type === 'news' ? initialData : undefined} />} />
           <Route path="/news/:slug" element={<ArticleView initialData={initialData?.type === 'article' ? initialData : undefined} />} />
           <Route path="/topic-questions" element={<TopicQuestions />} />
+          <Route path="/verify" element={<VerifyDocument />} />
+          <Route path="/verify/:reference" element={<VerifyDocument />} />
           <Route element={<StudentProtectedRoute />}>
             <Route path="/dashboard" element={<StudentDashboard />} />
             <Route path="/tests/start" element={<TestStart />} />
