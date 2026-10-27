@@ -59,7 +59,7 @@ export default function PublicStudyPage({ initialData }) {
     {!readable && <StructuredSEO page={data} manageMetadata={false} />}
     <nav aria-label="Breadcrumb" className="study-breadcrumbs">{data.breadcrumbs.map(item => <Link key={item.href} to={item.href}>{item.title}</Link>)}</nav>
     <header className="study-heading"><BookOpen size={26} /><h1>{data.title}</h1>{data.scope && <p className="study-scope">{data.scope}</p>}
-      {data.intro?.length > 0 && <div className="study-intro">{data.intro.map((text, i) => <p key={i}>{text}</p>)}</div>}
+      {data.intro?.some(Boolean) && <div className="study-intro">{data.intro.filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>}
     </header>
     {data.summary && <div className="study-summary">{data.summary.split(/\n+/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}
     {data.kind === 'directory' && <StudyPathSelector options={data.studyOptions} />}

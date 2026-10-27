@@ -257,10 +257,11 @@ async function subjectPage(cat, subject, view) {
         };
     }
     const [books, papers] = await Promise.all([
-        Book.find({ subject: subject._id }).select("title slug summary").lean(),
-        PastPaper.find({ subject: subject._id }).sort({ year: -1, session: 1 }).select("title slug year session examType").limit(40).lean(),
+        Book.find({ subject: subject._id }).select("title slug summary sourceName edition").lean(),
+        PastPaper.find({ subject: subject._id }).sort({ year: -1, session: 1 }).select("title slug year session examType isNewPattern").limit(40).lean(),
     ]);
     const { pagePath } = require("./publicPages");
+    const copyLabels = labelsFrom(l.board, l.cls, subject);
     return {
         kind: "seo-subject", title: `${who} Notes, MCQs & Past Papers`,
         scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}${l.group ? ` · ${l.group}` : ""}`,
@@ -275,8 +276,8 @@ async function subjectPage(cat, subject, view) {
         ],
         sections: [
             { title: `${who} chapters`, links: inventory.map(item => ({ title: `Chapter ${item.chapter.chapterNumber}: ${item.chapter.name}`, href: u.chapter(subject, item.chapter), summary: chapterLine(item) || "Topics and study material" })) },
-            { title: "Textbooks", links: books.map(book => ({ title: book.title || `${who} textbook`, href: pagePath("book", book), summary: book.summary || "" })) },
-            { title: `${who} past papers`, links: papers.map(paper => ({ title: paper.title || `${paper.year} ${paper.session || ""} paper`, href: pagePath("past-paper", paper), summary: [paper.year, paper.session, paper.examType].filter(Boolean).join(" · ") })) },
+            { title: "Textbooks", links: books.map(book => ({ title: resourceCopy("book", book, copyLabels).title, href: pagePath("book", book), summary: book.summary || `${l.boardName} ${who} textbook to read online` })) },
+            { title: `${who} past papers`, links: papers.map(paper => ({ title: resourceCopy("past-paper", paper, copyLabels).title.replace(/ – .*$/, ""), href: pagePath("past-paper", paper), summary: [paper.year, titleCase(paper.session), titleCase(paper.examType)].filter(Boolean).join(" · ") })) },
         ].filter(section => section.links.length),
         actions: [{ title: "Open chapter study tools", href: `/chapters?boardId=${id(subject.board)}&classId=${id(subject.class)}${subject.group ? `&groupId=${id(subject.group)}` : ""}&subjectId=${id(subject)}` }],
         breadcrumbs: crumbs,
@@ -354,6 +355,7 @@ async function chapterPage(cat, subject, chapter, view) {
         summary: chapter.summary || chapter.description || "",
         intro: [
             `${l.boardName} ${who} Chapter ${chapter.chapterNumber}, ${chapter.name}: ${plural(topics.length, "topic")}${mcqs.total ? `, ${plural(mcqs.total, "MCQ")} with answers` : ""}${notes.length ? `, notes${notes.some(note => note.noteType === "exercise") ? " and exercise solutions" : ""}` : ""}.`,
+            ...(!(chapter.summary || chapter.description) && topics.length ? [`This chapter covers ${topics.slice(0, 12).map(topic => `${topic.topicNumber} ${topic.name}`).join(", ")}${topics.length > 12 ? " and more" : ""}. Read the notes, revise the short and long questions, and practise the MCQs to prepare it fully.`] : []),
         ],
         quickLinks: [
             { title: `Chapter ${chapter.chapterNumber} MCQs`, href: `${base}/mcqs`, note: mcqs.total ? plural(mcqs.total, "MCQ") : "With answers" },
@@ -399,6 +401,36 @@ async function topicPage(cat, subject, chapter, topic) {
         meta: pageMeta(`${topic.topicNumber} ${topic.name} – ${who} Chapter ${chapter.chapterNumber} | ${l.short || l.boardName}`, `${topic.topicNumber} ${topic.name}: ${l.boardFull} ${l.classAlt} ${l.subjectName} Chapter ${chapter.chapterNumber} short questions, long questions and MCQs with answers.`, base, questions.length > 0 || mcqs.total > 0 || (topic.summary || "").length >= 80),
         updatedAt: topic.updatedAt,
     };
+}
+
+// The words a page uses for its syllabus, from populated board, class and subject records.
+const labelsFrom = (board, cls, subject) => ({ boardName: board?.name || "", boardFull: boardFull(board), short: boardShort(board) || board?.name || "", className: cls?.name || "", classAlt: classNames(cls).alt, subjectName: subject?.name || "" });
+const TEST_KIND = { subject_test: "Full Book", full_syllabus_test: "Full Syllabus", mock_test: "Mock", previous_paper_practice: "Past Paper Practice", chapter_test: "Chapter", topic_test: "Topic", custom_practice: "Practice" };
+const titleCase = value => String(value || "").replace(/[_-]+/g, " ").replace(/\b\w/g, char => char.toUpperCase()).trim();
+
+// Search-friendly title and a factual summary for a book, past paper or MCQ test, built from its real details.
+// An admin's own summary (80+ characters) is always used instead of the generated one.
+function resourceCopy(kind, doc, l, { chapters = [], chapter = null } = {}) {
+    const who = [l.className, l.subjectName].filter(Boolean).join(" ");
+    const whoAlt = [l.classAlt, l.subjectName].filter(Boolean).join(" ");
+    const chapterList = chapters.length ? ` It covers ${plural(chapters.length, "chapter")}: ${chapters.slice(0, 12).map(item => `${item.chapterNumber}. ${item.name}`).join(", ")}${chapters.length > 12 ? " and more" : ""}.` : "";
+    let title = "";
+    let summary = "";
+    if (kind === "book") {
+        const extra = [doc.sourceName, doc.edition].filter(Boolean).join(", ");
+        title = `${who} Textbook${extra ? ` (${extra})` : ""} – ${l.boardFull}`;
+        summary = `The ${l.boardName} ${who} textbook (${whoAlt} book)${doc.sourceName ? ` by ${doc.sourceName}` : ""}${doc.edition ? `, ${doc.edition}` : ""}, to read online.${chapterList} Study each chapter with notes, short and long questions and MCQs with answers on IlmiDunya.`;
+    } else if (kind === "past-paper") {
+        const details = [titleCase(doc.examType), titleCase(doc.session)].filter(Boolean).join(", ");
+        title = `${who} Past Paper ${doc.year || ""}${details ? ` (${details})` : ""}${doc.isNewPattern ? " New Pattern" : ""} – ${l.boardName}`.replace(/\s+/g, " ");
+        summary = `${l.boardFull} ${who} (${whoAlt}) past paper from ${doc.year || "a previous year"}${doc.session ? `, ${titleCase(doc.session).toLowerCase()} session` : ""}${doc.examType ? `, ${titleCase(doc.examType).toLowerCase()} exam` : ""}${doc.isNewPattern ? ", new pattern" : ""}. See the real paper format and the kind of questions asked, then revise each chapter with notes and practise MCQs with answers.`;
+    } else if (kind === "mcqs") {
+        const count = doc.questions?.length || 0;
+        const scope = chapter ? `Chapter ${chapter.chapterNumber} ${chapter.name} ` : "";
+        title = `${who} ${scope}${TEST_KIND[doc.type] || ""} MCQ Test – ${l.boardName}`.replace(/\s+/g, " ");
+        summary = `Online ${TEST_KIND[doc.type] ? `${TEST_KIND[doc.type].toLowerCase()} ` : ""}MCQ test for ${l.boardFull} ${who} (${whoAlt})${chapter ? `, Chapter ${chapter.chapterNumber}: ${chapter.name}` : ""}: ${plural(count, "MCQ")}${doc.durationMinutes ? ` in ${doc.durationMinutes} minutes` : ""}. Submit to see your score, the correct answers and explanations straight away.`;
+    }
+    return { title: title.trim(), summary };
 }
 
 const RESERVED = new Set(["learn", "news", "api", "admin", "assets", "uploads", "sitemaps", "subjects", "chapters", "topics", "videos", "book", "notes", "past-papers", "answer-sheet", "topic-questions", "login", "register", "forgot-password", "dashboard", "leaderboard", "tests", "assessments", "verify"]);
@@ -564,4 +596,4 @@ async function hubLinks() {
     return [...pairs.values()].sort((a, b) => a.board.localeCompare(b.board) || a.order - b.order);
 }
 
-module.exports = { seoPage, isSeoPath, legacyAddress, seoSitemapEntries, hubLinks, subjectUrl, clearCatalog, PUBLIC_MCQS, chapterSegment, topicSegment, boardFull, classNames };
+module.exports = { resourceCopy, labelsFrom, seoPage, isSeoPath, legacyAddress, seoSitemapEntries, hubLinks, subjectUrl, clearCatalog, PUBLIC_MCQS, chapterSegment, topicSegment, boardFull, classNames };

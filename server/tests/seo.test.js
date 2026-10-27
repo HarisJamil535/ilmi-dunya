@@ -60,8 +60,10 @@ test('private pages are noindex; sitemap queries exclude drafts and thin resourc
     assert.match(html, /noindex, follow/);
     assert.equal(sitemapFilter('news').isPublished, true);
     assert.equal(sitemapFilter('mcqs').status, 'published');
-    assert.ok(sitemapFilter('mcqs').$or[1].description.$regex);
-    assert.ok(sitemapFilter('book').summary.$regex);
+    assert.deepEqual(sitemapFilter('mcqs')['questions.0'], { $exists: true }, 'a test needs MCQs to be listed');
+    assert.ok(sitemapFilter('mcqs').type.$nin.includes('custom_practice'));
+    assert.deepEqual(sitemapFilter('book'), {}, 'books and papers get generated summaries, so all are listed');
+    assert.ok(sitemapFilter('subject').summary.$regex, 'academic pages still need their own summary or content');
     assert.equal(pagePath('book', { _id: '111111111111111111111111', title: 'Physics book' }), '/learn/book/111111111111111111111111/physics-book');
     assert.equal(pageNumber('-50'), 1);
     assert.equal(pageNumber('999999999'), 10000);

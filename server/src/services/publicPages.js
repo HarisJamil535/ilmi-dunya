@@ -69,16 +69,19 @@ async function publicPage(path, query = {}) {
     if (["subject", "chapter", "topic", "book", "notes", "past-paper", "mcqs"].includes(kind) && (!name(doc.board) || !name(doc.class) || (kind !== "subject" && !name(doc.subject)))) fail("This resource's academic context is unavailable.", 404);
     const canonicalPath = pagePath(kind, doc);
     const scope = context(doc);
-    const title = resourceTitle(kind, doc);
+    let title = resourceTitle(kind, doc);
     const sections = [];
     const actions = [];
     let questions = [];
     let hasNext = false;
     const breadcrumbs = [{ title: "Home", href: "/" }, { title: "Study library", href: "/learn" }];
-    if (name(doc.board)) breadcrumbs.push({ title: name(doc.board), href: pagePath("board", doc.board) });
-    if (name(doc.subject)) breadcrumbs.push({ title: name(doc.subject), href: pagePath("subject", doc.subject) });
+    const seo = require("./seoPages");
+    if (name(doc.board)) breadcrumbs.push({ title: name(doc.board), href: await seo.legacyAddress("board", doc.board) || pagePath("board", doc.board) });
+    if (name(doc.subject)) breadcrumbs.push({ title: name(doc.subject), href: await seo.subjectUrl(doc.subject) || pagePath("subject", doc.subject) });
     const parentChapter = kind === 'topic' ? doc.chapterId : doc.chapter;
-    if (parentChapter && ['topic', 'notes', 'mcqs'].includes(kind) && name(parentChapter)) breadcrumbs.push({ title: name(parentChapter), href: pagePath('chapter', parentChapter) });
+    if (parentChapter && ['topic', 'notes', 'mcqs'].includes(kind) && name(parentChapter)) breadcrumbs.push({ title: name(parentChapter), href: await seo.legacyAddress("chapter", { ...parentChapter, subject: doc.subject }) || pagePath('chapter', parentChapter) });
+    const chapterHref = async item => await seo.legacyAddress("chapter", { ...item, subject: doc.subject }) || pagePath("chapter", item);
+    let bookChapters = [];
     if (["board", "class"].includes(kind)) {
         const subjects = await Subject.find({ [kind]: doc._id }).populate("board class group").sort({ name: 1, _id: 1 }).skip((page - 1) * size).limit(size + 1).lean();
         hasNext = subjects.length > size;
@@ -114,7 +117,8 @@ async function publicPage(path, query = {}) {
                 Chapter.find({ subject: doc.subject._id }).sort({ chapterNumber: 1 }).select('name slug chapterNumber').limit(30).lean(),
                 PastPaper.find({ subject: doc.subject._id }).sort({ year: -1 }).select('title slug year session').limit(8).lean(),
             ]);
-            sections.push({ title: 'Study this book chapter by chapter', links: chapters.map(item => ({ ...link('chapter', item), title: `Chapter ${item.chapterNumber}: ${item.name}` })) });
+            bookChapters = chapters;
+            sections.push({ title: 'Study this book chapter by chapter', links: await Promise.all(chapters.map(async item => ({ ...link('chapter', item), href: await chapterHref(item), title: `Chapter ${item.chapterNumber}: ${item.name}` }))) });
             sections.push({ title: 'Related past papers', links: papers.map(item => link('past-paper', item)) });
         } else if (kind === 'notes') {
             const [topics, otherNotes] = await Promise.all([
@@ -128,9 +132,13 @@ async function publicPage(path, query = {}) {
             sections.push({ title: 'More papers for this subject', links: papers.map(item => link('past-paper', item)) });
         }
     }
-    const summary = doc.summary || doc.description || "";
+    // Books, papers and tests get a search-friendly title and, when the admin wrote none, a summary from their real details.
+    const copy = ["book", "past-paper", "mcqs"].includes(kind) ? seo.resourceCopy(kind, doc, seo.labelsFrom(doc.board, doc.class, doc.subject), { chapters: bookChapters, chapter: kind === "mcqs" ? doc.chapter : null }) : null;
+    if (copy?.title) title = copy.title;
+    const ownSummary = doc.summary || doc.description || "";
+    const summary = copy && ownSummary.length < 80 ? copy.summary : ownSummary;
     const count = sections.reduce((total, section) => total + section.links.length, 0);
-    const indexable = ["board", "class", "subject", "chapter"].includes(kind) ? count > 0 || summary.length >= 80 : kind === "topic" ? questions.length > 0 || summary.length >= 80 : summary.length >= 80;
+    const indexable = ["board", "class", "subject", "chapter"].includes(kind) ? count > 0 || summary.length >= 80 : kind === "topic" ? questions.length > 0 || summary.length >= 80 : kind === "mcqs" ? (doc.questions?.length || 0) > 0 && summary.length >= 80 : summary.length >= 80;
     const suffix = page > 1 ? `?page=${page}` : "";
     const description = summary || (sections.length
         ? `${title}. Browse ${sections.filter(section => section.links.length).map(section => section.title.toLowerCase()).join(', ')} for this syllabus on IlmiDunya.`
@@ -145,8 +153,9 @@ const resourceReady = { summary: { $regex: /[\s\S]{80}/ } };
 const sitemapModels = { ...models, news: NewsArticle };
 function sitemapFilter(kind) {
     if (kind === "news") return { isPublished: true, excerpt: { $regex: /[\s\S]{60}/ }, content: { $regex: /[\s\S]{160}/ } };
-    // Chapter and topic tests are covered by the readable chapter and topic pages.
-    if (kind === "mcqs") return { status: "published", type: { $nin: ["topic_test", "chapter_test"] }, $or: [resourceReady, { description: { $regex: /[\s\S]{80}/ } }] };
+    // Chapter and topic tests are covered by the readable chapter and topic pages; the rest get generated summaries.
+    if (kind === "mcqs") return { status: "published", type: { $nin: ["topic_test", "chapter_test", "custom_practice"] }, "questions.0": { $exists: true } };
+    if (["book", "past-paper"].includes(kind)) return {};
     // Curated descriptions avoid indexing empty academic shells and thin legacy resources.
     if (["board", "class"].includes(kind)) return {};
     return resourceReady;

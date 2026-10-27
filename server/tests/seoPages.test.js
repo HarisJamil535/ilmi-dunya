@@ -101,3 +101,18 @@ test("renamed chapters and old addresses lead to the current page; unknown ones 
     assert.equal(await legacyAddress("topic", { name: "Algorithms", topicNumber: "3.1", subjectId: ids.cs, chapterId: { _id: ids.ch3, name: "Programming Fundamentals", chapterNumber: 3 } }), "/federal-board/class-9/computer-science/chapter-3-programming-fundamentals/3-1-algorithms");
     assert.equal(await legacyAddress("mcqs", { type: "mock_test", subject: ids.cs, chapter: { _id: ids.ch3, name: "x", chapterNumber: 3 } }), null, "other tests keep their own page");
 });
+
+test("books, past papers and tests get search-friendly titles and summaries when the admin wrote none", () => {
+    const { resourceCopy, labelsFrom } = require("../src/services/seoPages");
+    const l = labelsFrom({ name: "Federal Board" }, { name: "Class 9" }, { name: "Computer Science" });
+    const book = resourceCopy("book", { sourceName: "National Book Foundation" }, l, { chapters: [{ chapterNumber: 1, name: "Introduction" }, { chapterNumber: 3, name: "Programming Fundamentals" }] });
+    assert.equal(book.title, "Class 9 Computer Science Textbook (National Book Foundation) – Federal Board (FBISE)");
+    assert.match(book.summary, /9th Class Computer Science book/);
+    assert.match(book.summary, /3\. Programming Fundamentals/);
+    assert.ok(book.summary.length >= 80, "long enough to be shown and indexed");
+    const paper = resourceCopy("past-paper", { year: 2024, session: "morning", examType: "annual" }, l);
+    assert.equal(paper.title, "Class 9 Computer Science Past Paper 2024 (Annual, Morning) – Federal Board");
+    const test = resourceCopy("mcqs", { type: "subject_test", questions: new Array(40), durationMinutes: 45 }, l);
+    assert.equal(test.title, "Class 9 Computer Science Full Book MCQ Test – Federal Board");
+    assert.match(test.summary, /40 MCQs in 45 minutes/);
+});
