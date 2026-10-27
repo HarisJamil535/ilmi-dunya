@@ -272,7 +272,7 @@ const submitAttempt = async (req, res) => {
 const getResult = async (req, res) => {
     const attempt = await AssessmentAttempt.findOne({ _id: req.params.id, student: req.student._id })
         .select("+gradingSnapshot")
-        .populate("assessment", "title type board class group subject chapter totalMarks passingMarks showCorrectAnswers showResultImmediately")
+        .populate("assessment", "title type board class group subject chapter topic totalMarks passingMarks showCorrectAnswers showResultImmediately")
         .populate({
             path: "answers.question",
             populate: { path: "scenario", select: "title scenarioText contentLanguage" },
