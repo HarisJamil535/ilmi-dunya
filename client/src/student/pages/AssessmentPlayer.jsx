@@ -2,7 +2,7 @@ import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, CloudOff, Flag, Keyboard, ListChecks, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, CloudOff, Quote, Sparkles, Flag, Keyboard, ListChecks, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
@@ -18,6 +18,33 @@ const writeUnsaved = (attemptId, queue) => { try { if (queue.size) localStorage.
 const pendingList = (queue) => [...queue].map(([question, patch]) => ({ question, ...patch }));
 // A refused answer (time up, already submitted, invalid) will never succeed, so it is not retried.
 const isFinalFailure = (err) => { const status = err.response?.status; return Boolean(status) && status < 500 && ![408, 429].includes(status); };
+
+// Short, simple encouragement shown while a student works; one changes every 30 seconds.
+const QUOTES = [
+  "Every question you try makes you stronger.",
+  "Read carefully. You know more than you think.",
+  "Stay calm, think clearly, and trust your preparation.",
+  "Small steps every day lead to big results.",
+  "Mistakes are proof that you are trying.",
+  "Focus on this question. The rest can wait.",
+  "Hard work today, success tomorrow.",
+  "Believe in yourself. You have prepared for this.",
+  "Do your best. That is always enough.",
+  "Learning never stops, and neither do you.",
+  "One question at a time. You are doing great.",
+  "Practice makes progress, not perfection.",
+  "Your effort today builds your future.",
+  "Take a deep breath. You have got this.",
+  "Great students are made by steady effort.",
+  "Keep going. Every answer counts.",
+];
+
+// A short cheer when a student reaches a quarter, half, three quarters and all of the test.
+const milestoneFor = (percent) => percent >= 100 ? "Every question answered. Review your flags, then submit with confidence!"
+  : percent >= 75 ? "Three quarters done. The finish line is close!"
+  : percent >= 50 ? "Halfway there. Keep up the great work!"
+  : percent >= 25 ? "Great start! A quarter of the test is done."
+  : "You have got this. Read each question carefully.";
 
 const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
@@ -366,6 +393,14 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     return () => window.removeEventListener("keydown", onKey);
   }, [attempt]);
 
+  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * QUOTES.length));
+  const testRunning = Boolean(attempt && attempt.status === "in_progress");
+  useEffect(() => {
+    if (!testRunning) return undefined;
+    const interval = setInterval(() => setQuoteIndex((value) => (value + 1) % QUOTES.length), 30000);
+    return () => clearInterval(interval);
+  }, [testRunning]);
+
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
   if (loading) {
@@ -440,11 +475,24 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           </div>
           <div className="test-player-controls">
             <div className={`test-clock is-${timeTone}`} role="timer" aria-label={`Time remaining ${formatTime(remaining)}`}>
-              <span className="test-clock-ring" aria-hidden="true">
-                <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" className="track" /><circle cx="22" cy="22" r="19" className="value" style={{ strokeDashoffset: `${119.4 * (1 - timeShare)}` }} /></svg>
-                <Clock3 size={17} className="test-clock-icon" />
+              {/* A stopwatch: the ring is the time left, the hand sweeps once a minute. */}
+              <span className="test-watch" aria-hidden="true">
+                <svg viewBox="0 0 56 56">
+                  <rect x="24" y="1.5" width="8" height="5" rx="1.5" className="crown" />
+                  <rect x="40.5" y="7" width="5" height="4" rx="1" transform="rotate(45 43 9)" className="crown" />
+                  <circle cx="28" cy="31" r="22" className="face" />
+                  <circle cx="28" cy="31" r="22" className="track" />
+                  <circle cx="28" cy="31" r="22" className="value" transform="rotate(-90 28 31)" style={{ strokeDashoffset: `${138.2 * (1 - timeShare)}` }} />
+                  {Array.from({ length: 12 }, (_, i) => <line key={i} x1="28" y1="14" x2="28" y2={i % 3 ? 16 : 17.5} transform={`rotate(${i * 30} 28 31)`} className="mark" />)}
+                  <line x1="28" y1="31" x2="28" y2="17" className="hand" style={{ transform: `rotate(${(totalSeconds - remaining) * 6}deg)` }} />
+                  <circle cx="28" cy="31" r="2.6" className="pin" />
+                </svg>
               </span>
-              <div><small>{remaining <= 30 ? "Hurry up" : "Time left"}</small><strong>{formatTime(remaining)}</strong></div>
+              <div className="test-clock-read">
+                <small>{remaining <= 30 ? "Hurry up!" : "Time left"}</small>
+                <strong>{formatTime(remaining)}</strong>
+                <span className="test-clock-bar"><i style={{ width: `${timeShare * 100}%` }} /></span>
+              </div>
             </div>
             <button type="button" className={`test-sound ${soundEnabled ? "is-on" : ""}`} title={soundEnabled ? "Turn the clock sound off" : "Turn the clock sound on"} aria-label={soundEnabled ? "Turn the clock sound off" : "Turn the clock sound on"} aria-pressed={soundEnabled} onClick={toggleSound}>
               {soundEnabled ? <Volume2 size={19} /> : <VolumeX size={19} />}
@@ -462,6 +510,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           {actionError && <p role="alert" className="learning-alert">{actionError}</p>}
           <p role="note" className="test-leave-note"><AlertTriangle size={16} aria-hidden="true" />Stay on this page. Leaving or switching away submits your saved answers automatically.</p>
           {remaining <= 30 && <p role="status" className="test-urgent-note">{remaining === 0 ? "Time is up. Submitting your saved answers." : "30 seconds or less left. Check any unanswered questions."}</p>}
+
+          <p className="test-cheer" key={milestoneFor(progress)}><Sparkles size={15} aria-hidden="true" />{milestoneFor(progress)}</p>
 
           <div key={currentIndex} className="test-question-enter">
             <div className="test-question-meta">
@@ -553,6 +603,11 @@ const AssessmentPlayer = ({ chapter, topic }) => {
             <li><i className="is-done" />Answered</li><li><i className="is-flag" />Flagged</li><li><i className="is-skipped" />Skipped</li><li><i />Not visited</li>
           </ul>
           <button type="button" onClick={() => setShowSubmitConfirm(true)} disabled={submitting} className="test-submit is-wide"><Send size={17} /> Submit test</button>
+          <figure className="test-quote" aria-live="off">
+            <Quote size={22} aria-hidden="true" className="test-quote-mark" />
+            <blockquote key={quoteIndex}>{QUOTES[quoteIndex]}</blockquote>
+            <figcaption>Thought for you · IlmiDunya</figcaption>
+          </figure>
         </aside>
       </section>
       <ConfirmModal
