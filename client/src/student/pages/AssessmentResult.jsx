@@ -2,7 +2,7 @@ import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
 import "../../urdu-font.css";
-import { ArrowLeft, ArrowRight, BookOpenCheck, Check, CheckCircle2, CircleDashed, Clock3, Crosshair, Gauge, Lightbulb, ListChecks, PartyPopper, RotateCcw, Sparkles, Target, Timer, Trophy, X, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenCheck, Check, CheckCircle2, CircleDashed, Clock3, Crosshair, Gauge, Lightbulb, ListChecks, PartyPopper, RotateCcw, Sparkles, Target, Timer, Trophy, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import { formatDuration, formatScore } from "../utils/resultFormat";
@@ -34,7 +34,7 @@ const retakeLink = (assessment) => {
 const ScoreRing = ({ percent, grade }) => (
   <div className="rs-ring" role="img" aria-label={`${percent.toFixed(1)} percent, grade ${grade}`}>
     <svg viewBox="0 0 120 120" aria-hidden="true">
-      <defs><linearGradient id="rs-ring-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffd25e" /><stop offset="1" stopColor="#22d3a6" /></linearGradient></defs>
+      <defs><linearGradient id="rs-ring-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8b6cf6" /><stop offset="1" stopColor="#4c2fc0" /></linearGradient></defs>
       <circle cx="60" cy="60" r="52" className="rs-ring-track" />
       <circle cx="60" cy="60" r="52" className="rs-ring-value" style={{ "--offset": 326.7 * (1 - percent / 100) }} />
     </svg>
@@ -79,21 +79,23 @@ const AssessmentResult = () => {
     <main className="rs-page">
       <div className="rs-wrap">
         <Breadcrumbs className="rs-crumbs" items={[{ label: "Tests", to: "/tests" }, { label: "Result" }]} />
-        <header className="rs-hero tone-good">
+        <header className="rs-hero">
           <div className="rs-hero-copy">
             <span className="rs-eyebrow"><CheckCircle2 size={15} /> Test submitted</span>
             <h1>Well done for finishing!</h1>
             <p className="rs-test-title">{title}</p>
             <p className="rs-lead">Your answers are saved safely. Your score will appear here as soon as your teacher releases the results, and released results count on the leaderboard.</p>
             <div className="rs-actions">
-              <Link className="rs-button is-light" to="/tests">Take another test <ArrowRight size={16} /></Link>
-              <Link className="rs-button is-ghost" to="/dashboard">Back to dashboard</Link>
+              <Link className="rs-button is-primary" to="/tests">Take another test <ArrowRight size={16} /></Link>
+              <Link className="rs-button is-outline" to="/dashboard">Back to dashboard</Link>
             </div>
           </div>
         </header>
-        <section className="rs-stats" aria-label="Submission summary">
-          <div className="rs-stat"><span className="rs-stat-icon is-green"><ListChecks /></span><div><small>Answered</small><strong>{answered}<em> / {answers.length}</em></strong></div></div>
-          <div className="rs-stat"><span className="rs-stat-icon is-blue"><Clock3 /></span><div><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div></div>
+        <section className="rs-panel" aria-label="Submission summary">
+          <div className="rs-stats is-two">
+            <div className="rs-stat"><span className="rs-stat-icon"><ListChecks /></span><small>Answered</small><strong>{answered}<em> / {answers.length}</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon"><Clock3 /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div>
+          </div>
         </section>
       </div>
     </main>
@@ -122,54 +124,56 @@ const AssessmentResult = () => {
         <Breadcrumbs className="rs-crumbs" items={[{ label: "Tests", to: "/tests" }, { label: "Result" }]} />
         <Link to="/dashboard" className="rs-back"><ArrowLeft size={15} /> Back to dashboard</Link>
 
-        <header className={`rs-hero tone-${band.tone}`}>
+        <header className="rs-hero">
           {band.tone === "top" && <div className="rs-confetti" aria-hidden="true">{Array.from({ length: 18 }, (_, i) => <i key={i} style={{ "--i": i }} />)}</div>}
-          <div className="rs-hero-copy">
-            <span className="rs-eyebrow"><BandIcon size={15} /> Test complete</span>
-            <h1>{pick(band.title, attempt._id)}</h1>
-            <p className="rs-test-title">{title}</p>
-            <p className="rs-lead">{pick(band.body, `${attempt._id}b`)}</p>
-            <div className="rs-actions">
-              <Link className="rs-button is-light" to={retakeLink(attempt.assessment)}><RotateCcw size={16} /> Try again</Link>
-              <Link className="rs-button is-ghost" to="/tests">Next test <ArrowRight size={16} /></Link>
-            </div>
-          </div>
           <div className="rs-hero-score">
             <ScoreRing percent={percent} grade={grade} />
             <span className={`rs-pass ${passed ? "is-pass" : "is-fail"}`}>{passed ? <><Check size={14} strokeWidth={3} /> Passed</> : <><Target size={14} /> Keep practising</>}</span>
           </div>
+          <div className="rs-hero-copy">
+            <span className="rs-eyebrow"><BandIcon size={15} /> Test complete</span>
+            <h1>{pick(band.title, attempt._id)}</h1>
+            <p className="rs-test-title"><BookOpenCheck size={16} /> {title}</p>
+            <p className="rs-lead">{pick(band.body, `${attempt._id}b`)}</p>
+            <div className="rs-actions">
+              <Link className="rs-button is-primary" to={retakeLink(attempt.assessment)}><RotateCcw size={16} /> Try again</Link>
+              <Link className="rs-button is-outline" to="/tests">Next test <ArrowRight size={16} /></Link>
+            </div>
+          </div>
+
         </header>
 
-        <section className="rs-stats" aria-label="Result summary">
-          <div className="rs-stat"><span className="rs-stat-icon is-purple"><Target /></span><div><small>Marks</small><strong>{formatScore(attempt.score)}<em> / {formatScore(attempt.totalMarks)}</em></strong></div></div>
-          <div className="rs-stat"><span className="rs-stat-icon is-green"><Crosshair /></span><div><small>Accuracy</small><strong>{accuracy}<em>%</em></strong></div></div>
-          <div className="rs-stat"><span className="rs-stat-icon is-blue"><Timer /></span><div><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong><span className="rs-stat-note">{formatDuration(perQuestion)} per question</span></div></div>
-          <div className="rs-stat"><span className="rs-stat-icon is-gold"><Trophy /></span><div><small>Ranking score</small><strong>{formatScore(attempt.points || 0)}</strong></div></div>
-        </section>
-
-        <section className="rs-breakdown" aria-label="Answer breakdown">
-          <div className="rs-breakdown-bar" aria-hidden="true">
-            <i className="is-correct" style={{ width: share(correct) }} /><i className="is-wrong" style={{ width: share(wrong) }} /><i className="is-skip" style={{ width: share(unanswered) }} />
+        <section className="rs-panel rs-summary" aria-label="Result summary">
+          <div className="rs-stats">
+            <div className="rs-stat"><span className="rs-stat-icon"><Target /></span><small>Marks</small><strong>{formatScore(attempt.score)}<em> / {formatScore(attempt.totalMarks)}</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon"><Crosshair /></span><small>Accuracy</small><strong>{accuracy}<em>%</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon"><Timer /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong><span className="rs-stat-note">{formatDuration(perQuestion)} per question</span></div>
+            <div className="rs-stat"><span className="rs-stat-icon"><Trophy /></span><small>Ranking score</small><strong>{formatScore(attempt.points || 0)}</strong></div>
           </div>
-          <ul>
-            <li className="is-correct"><CheckCircle2 size={17} /><strong>{correct}</strong> Correct</li>
-            <li className="is-wrong"><XCircle size={17} /><strong>{wrong}</strong> Incorrect</li>
-            <li className="is-skip"><CircleDashed size={17} /><strong>{unanswered}</strong> Unanswered</li>
-          </ul>
-          {attempt.status === "timed_out" && <p className="rs-breakdown-note"><Clock3 size={14} /> Submitted automatically when time ran out.</p>}
+          <div className="rs-breakdown" aria-label="Answer breakdown">
+            <div className="rs-breakdown-bar" aria-hidden="true">
+              <i className="is-correct" style={{ width: share(correct) }} /><i className="is-wrong" style={{ width: share(wrong) }} /><i className="is-skip" style={{ width: share(unanswered) }} />
+            </div>
+            <ul>
+              <li className="is-correct"><i /><strong>{correct}</strong> Correct</li>
+              <li className="is-wrong"><i /><strong>{wrong}</strong> Incorrect</li>
+              <li className="is-skip"><i /><strong>{unanswered}</strong> Unanswered</li>
+              {attempt.status === "timed_out" && <li className="is-note"><Clock3 size={14} /> Submitted when time ran out</li>}
+            </ul>
+          </div>
         </section>
 
         <div className="rs-notes">
-          <p className="rs-note is-next"><Lightbulb size={18} /><span><strong>Your next step</strong>{nextStep}</span></p>
-          <p className="rs-note is-rank" role="status"><Gauge size={18} /><span><strong>Leaderboard</strong>{attempt.ranking?.reason || (attempt.ranking?.eligible ? "This attempt counts toward your leaderboard position." : "This test is for practice and does not count for ranking.")}</span></p>
+          <p className="rs-note"><span className="rs-note-icon"><Lightbulb size={18} /></span><span><strong>Your next step</strong>{nextStep}</span></p>
+          <p className="rs-note" role="status"><span className="rs-note-icon"><Gauge size={18} /></span><span><strong>Leaderboard</strong>{attempt.ranking?.reason || (attempt.ranking?.eligible ? "This attempt counts toward your leaderboard position." : "This test is for practice and does not count for ranking.")}</span></p>
         </div>
 
         <section className="rs-review" aria-labelledby="rs-review-title">
           <div className="rs-review-head">
             <div><span className="rs-kicker">Review</span><h2 id="rs-review-title">Learn from every answer</h2></div>
             <div className="rs-filters" role="group" aria-label="Filter answers">
-              {[["all", "All", answers.length], ["wrong", "Incorrect", wrong], ["unanswered", "Unanswered", unanswered], ["correct", "Correct", correct]].map(([value, label, count]) => (
-                <button key={value} type="button" aria-pressed={filter === value} className={`is-${value}`} onClick={() => setFilter(value)}>{label}<span>{count}</span></button>
+              {[["all", "All", answers.length], ["wrong", "Incorrect", wrong], ["unanswered", "Unanswered", unanswered, "Skipped"], ["correct", "Correct", correct]].map(([value, label, count, short]) => (
+                <button key={value} type="button" aria-pressed={filter === value} className={`is-${value}`} onClick={() => setFilter(value)}>{short ? <><b className="rs-long">{label}</b><b className="rs-short" aria-hidden="true">{short}</b></> : label}<span>{count}</span></button>
               ))}
             </div>
           </div>
@@ -183,7 +187,7 @@ const AssessmentResult = () => {
             return (
               <article key={question?._id || index} dir={urdu ? "rtl" : "ltr"} lang={urdu ? "ur" : "en"} className={`rs-question is-${state} ${urdu ? "urdu-content is-urdu" : ""}`}>
                 <div className="rs-question-head">
-                  <span className="rs-qnum">Q{index + 1}</span>
+                  <span className="rs-qnum">Question {index + 1}</span>
                   <span className={`rs-chip is-${state}`}>{state === "correct" ? <><Check size={13} strokeWidth={3} /> Correct</> : state === "wrong" ? <><X size={13} strokeWidth={3} /> Incorrect</> : <><CircleDashed size={13} /> Not answered</>}</span>
                   <span className="rs-marks">+{formatScore(answer.marksAwarded)} {Number(answer.marksAwarded) === 1 ? "mark" : "marks"}</span>
                 </div>
@@ -213,9 +217,9 @@ const AssessmentResult = () => {
         <section className="rs-cta">
           <div><h2>Ready for your next challenge?</h2><p>Small, steady practice every day is how toppers are made.</p></div>
           <div className="rs-actions">
-            <Link className="rs-button is-light" to={retakeLink(attempt.assessment)}><RotateCcw size={16} /> Try again</Link>
-            <Link className="rs-button is-ghost" to="/leaderboard"><Trophy size={16} /> Leaderboard</Link>
-            <Link className="rs-button is-ghost" to="/dashboard">My progress <ArrowRight size={16} /></Link>
+            <Link className="rs-button is-primary" to={retakeLink(attempt.assessment)}><RotateCcw size={16} /> Try again</Link>
+            <Link className="rs-button is-outline" to="/leaderboard"><Trophy size={16} /> Leaderboard</Link>
+            <Link className="rs-button is-outline" to="/dashboard">My progress <ArrowRight size={16} /></Link>
           </div>
         </section>
       </div>
