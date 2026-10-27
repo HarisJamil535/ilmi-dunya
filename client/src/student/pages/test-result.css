@@ -202,3 +202,60 @@ html.dark .rs-question-image { background: #fff; }
   .rs-confetti { display: none; }
   .rs-button, .rs-filters button { transition: none; }
 }
+
+/* Colour layer: a purple gradient hero and closing band, with soft colour on the pieces between. */
+.rs-hero, .rs-cta { border: 0; color: #fff; background: radial-gradient(420px 260px at 100% 0%, rgba(255,180,200,.32), transparent 65%), radial-gradient(520px 300px at 0% 100%, rgba(124,92,240,.55), transparent 70%), linear-gradient(130deg, #2b1572 0%, #4a2bb8 45%, #6d4ae8 80%, #8b6cf6 100%); box-shadow: 0 22px 50px rgba(74,43,184,.32); }
+.rs-hero::before { background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.14) 1px, transparent 0) 0 0 / 22px 22px; -webkit-mask-image: linear-gradient(110deg, #000 0%, transparent 55%); mask-image: linear-gradient(110deg, #000 0%, transparent 55%); }
+.rs-hero::after { content: ""; position: absolute; right: -60px; bottom: -90px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(255,224,138,.28), transparent 70%); pointer-events: none; }
+.rs-hero h1 { color: #fff; text-shadow: 0 2px 18px rgba(20,8,70,.35); }
+.rs-hero .rs-eyebrow { background: rgba(255,255,255,.16); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
+.rs-hero .rs-eyebrow svg { color: #ffe08a; }
+.rs-test-title { color: #ede8ff; }
+.rs-hero .rs-test-title svg { color: #ffe08a; }
+.rs-lead { color: rgba(255,255,255,.82); }
+.rs-ring-track { stroke: rgba(255,255,255,.16); }
+.rs-ring svg { filter: drop-shadow(0 8px 18px rgba(20,8,70,.35)); }
+.rs-ring strong { color: #fff; }
+.rs-ring strong small { color: rgba(255,255,255,.75); }
+.rs-ring span { background: rgba(255,255,255,.18); color: #fff; }
+.rs-hero .rs-pass.is-pass { background: #d9f7ea; color: #0b7a52; }
+.rs-hero .rs-pass.is-fail { background: rgba(255,255,255,.95); color: #b26b00; }
+.rs-hero .rs-button.is-primary, .rs-cta .rs-button.is-primary { background: #fff; color: #4a2bb8; box-shadow: 0 10px 24px rgba(20,8,70,.28); }
+.rs-hero .rs-button.is-primary:hover, .rs-cta .rs-button.is-primary:hover { background: #f6f2ff; }
+.rs-hero .rs-button.is-outline, .rs-cta .rs-button.is-outline { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.1); color: #fff; }
+.rs-hero .rs-button.is-outline:hover, .rs-cta .rs-button.is-outline:hover { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.2); color: #fff; }
+.rs-cta h2 { color: #fff; }
+.rs-cta p { color: rgba(255,255,255,.78); }
+.rs-confetti i { background: #ffe08a; }
+.rs-confetti i:nth-child(3n) { background: #ffb4c8; }
+.rs-confetti i:nth-child(3n + 1) { background: #a7f3d0; }
+
+/* Each figure has its own soft colour. */
+.rs-stat-icon { color: #fff; box-shadow: 0 6px 14px rgba(30,27,58,.12); }
+.rs-stat-icon.is-purple { background: linear-gradient(135deg, #8b6cf6, #5b3fd9); }
+.rs-stat-icon.is-green { background: linear-gradient(135deg, #34d399, #0f9f6e); }
+.rs-stat-icon.is-blue { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+.rs-stat-icon.is-gold { background: linear-gradient(135deg, #fbbf24, #e08a00); }
+.rs-breakdown-bar .is-correct { background: linear-gradient(90deg, #10b981, #34d399); }
+.rs-breakdown-bar .is-wrong { background: linear-gradient(90deg, #e0445f, #fb7185); }
+.rs-breakdown-bar .is-skip { background: linear-gradient(90deg, #e59a12, #fbbf24); }
+
+/* Tip cards with tinted backgrounds. */
+.rs-note.is-tip { border-color: #f6dfa6; background: linear-gradient(135deg, #fffaf0, #fff1d6); }
+.rs-note.is-tip .rs-note-icon { background: linear-gradient(135deg, #fbbf24, #e08a00); color: #fff; }
+.rs-note.is-rank { border-color: #ddd5fb; background: linear-gradient(135deg, #faf8ff, #efe9ff); }
+.rs-note.is-rank .rs-note-icon { background: linear-gradient(135deg, #8b6cf6, #5b3fd9); color: #fff; }
+
+/* Review: purple filter, numbered badges and a richer explanation panel. */
+.rs-filters button[aria-pressed="true"] { background: linear-gradient(135deg, #7c5cf0, #4a2bb8); }
+.rs-qnum { display: grid; min-width: 40px; height: 28px; place-items: center; border-radius: 9px; background: linear-gradient(135deg, #7c5cf0, #4a2bb8); color: #fff; font-size: 12.5px; letter-spacing: .02em; box-shadow: 0 4px 10px rgba(74,43,184,.25); }
+.rs-question { border-top: 3px solid transparent; }
+.rs-question.is-correct { border-top-color: #34d399; }
+.rs-question.is-wrong { border-top-color: #fb7185; }
+.rs-question.is-unanswered { border-top-color: #fbbf24; }
+.rs-explain { border-color: #d9cffc; background: linear-gradient(135deg, #f6f2ff 0%, #ede6ff 100%); }
+.rs-explain-icon { background: linear-gradient(135deg, #8b6cf6, #4a2bb8); box-shadow: 0 6px 14px rgba(74,43,184,.3); }
+
+html.dark .rs-note.is-tip { border-color: #5b4512; background: linear-gradient(135deg, #2b2312, #33270f); }
+html.dark .rs-note.is-rank { border-color: #3c3370; background: linear-gradient(135deg, #221d3f, #2a2350); }
+html.dark .rs-explain { border-color: #3c3370; background: linear-gradient(135deg, #231e44, #2b2454); }

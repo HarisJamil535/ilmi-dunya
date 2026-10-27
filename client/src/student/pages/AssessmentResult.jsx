@@ -34,7 +34,7 @@ const retakeLink = (assessment) => {
 const ScoreRing = ({ percent, grade }) => (
   <div className="rs-ring" role="img" aria-label={`${percent.toFixed(1)} percent, grade ${grade}`}>
     <svg viewBox="0 0 120 120" aria-hidden="true">
-      <defs><linearGradient id="rs-ring-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8b6cf6" /><stop offset="1" stopColor="#4c2fc0" /></linearGradient></defs>
+      <defs><linearGradient id="rs-ring-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe08a" /><stop offset=".55" stopColor="#ffb4c8" /><stop offset="1" stopColor="#ffffff" /></linearGradient></defs>
       <circle cx="60" cy="60" r="52" className="rs-ring-track" />
       <circle cx="60" cy="60" r="52" className="rs-ring-value" style={{ "--offset": 326.7 * (1 - percent / 100) }} />
     </svg>
@@ -93,8 +93,8 @@ const AssessmentResult = () => {
         </header>
         <section className="rs-panel" aria-label="Submission summary">
           <div className="rs-stats is-two">
-            <div className="rs-stat"><span className="rs-stat-icon"><ListChecks /></span><small>Answered</small><strong>{answered}<em> / {answers.length}</em></strong></div>
-            <div className="rs-stat"><span className="rs-stat-icon"><Clock3 /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-green"><ListChecks /></span><small>Answered</small><strong>{answered}<em> / {answers.length}</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-blue"><Clock3 /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong></div>
           </div>
         </section>
       </div>
@@ -145,10 +145,10 @@ const AssessmentResult = () => {
 
         <section className="rs-panel rs-summary" aria-label="Result summary">
           <div className="rs-stats">
-            <div className="rs-stat"><span className="rs-stat-icon"><Target /></span><small>Marks</small><strong>{formatScore(attempt.score)}<em> / {formatScore(attempt.totalMarks)}</em></strong></div>
-            <div className="rs-stat"><span className="rs-stat-icon"><Crosshair /></span><small>Accuracy</small><strong>{accuracy}<em>%</em></strong></div>
-            <div className="rs-stat"><span className="rs-stat-icon"><Timer /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong><span className="rs-stat-note">{formatDuration(perQuestion)} per question</span></div>
-            <div className="rs-stat"><span className="rs-stat-icon"><Trophy /></span><small>Ranking score</small><strong>{formatScore(attempt.points || 0)}</strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-purple"><Target /></span><small>Marks</small><strong>{formatScore(attempt.score)}<em> / {formatScore(attempt.totalMarks)}</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-green"><Crosshair /></span><small>Accuracy</small><strong>{accuracy}<em>%</em></strong></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-blue"><Timer /></span><small>Time taken</small><strong>{formatDuration(attempt.timeTakenSeconds)}</strong><span className="rs-stat-note">{formatDuration(perQuestion)} per question</span></div>
+            <div className="rs-stat"><span className="rs-stat-icon is-gold"><Trophy /></span><small>Ranking score</small><strong>{formatScore(attempt.points || 0)}</strong></div>
           </div>
           <div className="rs-breakdown" aria-label="Answer breakdown">
             <div className="rs-breakdown-bar" aria-hidden="true">
@@ -164,8 +164,8 @@ const AssessmentResult = () => {
         </section>
 
         <div className="rs-notes">
-          <p className="rs-note"><span className="rs-note-icon"><Lightbulb size={18} /></span><span><strong>Your next step</strong>{nextStep}</span></p>
-          <p className="rs-note" role="status"><span className="rs-note-icon"><Gauge size={18} /></span><span><strong>Leaderboard</strong>{attempt.ranking?.reason || (attempt.ranking?.eligible ? "This attempt counts toward your leaderboard position." : "This test is for practice and does not count for ranking.")}</span></p>
+          <p className="rs-note is-tip"><span className="rs-note-icon"><Lightbulb size={18} /></span><span><strong>Your next step</strong>{nextStep}</span></p>
+          <p className="rs-note is-rank" role="status"><span className="rs-note-icon"><Gauge size={18} /></span><span><strong>Leaderboard</strong>{attempt.ranking?.reason || (attempt.ranking?.eligible ? "This attempt counts toward your leaderboard position." : "This test is for practice and does not count for ranking.")}</span></p>
         </div>
 
         <section className="rs-review" aria-labelledby="rs-review-title">
@@ -187,7 +187,7 @@ const AssessmentResult = () => {
             return (
               <article key={question?._id || index} dir={urdu ? "rtl" : "ltr"} lang={urdu ? "ur" : "en"} className={`rs-question is-${state} ${urdu ? "urdu-content is-urdu" : ""}`}>
                 <div className="rs-question-head">
-                  <span className="rs-qnum">Question {index + 1}</span>
+                  <span className="rs-qnum">Q{index + 1}</span>
                   <span className={`rs-chip is-${state}`}>{state === "correct" ? <><Check size={13} strokeWidth={3} /> Correct</> : state === "wrong" ? <><X size={13} strokeWidth={3} /> Incorrect</> : <><CircleDashed size={13} /> Not answered</>}</span>
                   <span className="rs-marks">+{formatScore(answer.marksAwarded)} {Number(answer.marksAwarded) === 1 ? "mark" : "marks"}</span>
                 </div>
