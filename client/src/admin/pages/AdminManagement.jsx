@@ -21,6 +21,7 @@ const permissionLabels = {
   news: "Education News",
   analytics: "Analytics",
   schools: "Schools & School Results",
+  papers: "Paper Maker (teachers)",
 };
 const sortAdmins = (items) => [...items].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
 const sortPermissions = (items) => [...items].sort((a, b) => (permissionLabels[a] || a).localeCompare(permissionLabels[b] || b, undefined, { numeric: true, sensitivity: "base" }));

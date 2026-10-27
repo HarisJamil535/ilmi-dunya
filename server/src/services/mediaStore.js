@@ -30,4 +30,13 @@ async function serveImage(req, res, next) {
     } catch (error) { next(error); }
 }
 
-module.exports = { storeImage, serveImage, mediaPath };
+// An uploaded image's bytes, for printing it on documents.
+async function readImage(path) {
+    const id = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(path || "")?.[1];
+    if (!id) return null;
+    const chunks = [];
+    for await (const chunk of bucket().openDownloadStream(new mongoose.Types.ObjectId(id))) chunks.push(chunk);
+    return Buffer.concat(chunks);
+}
+
+module.exports = { storeImage, serveImage, readImage, mediaPath };

@@ -8,6 +8,7 @@ const adminPermissions = [
     "news",
     "analytics",
     "schools",
+    "papers",
 ];
 
 const adminSchema = new mongoose.Schema(

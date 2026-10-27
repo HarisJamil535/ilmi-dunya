@@ -134,6 +134,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/schools", schoolRoutes);
+app.use("/api/papers", require("./src/routes/paperRoutes"));
 app.get("/api/verify/:reference", limits.reportVerifyLimiter, require("./src/controllers/schoolResultsController").verifyReport);
 
 app.use(publicRoutes());

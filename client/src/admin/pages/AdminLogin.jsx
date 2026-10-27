@@ -5,6 +5,9 @@ import axiosInstance from '../../api/axios';
 import { useNavigate } from "react-router-dom";
 import ThemeToggle from '../../shared/ThemeToggle';
 
+// Teachers only have the Paper Maker, so they skip the dashboard.
+const landing = (admin) => (admin?.role !== 'super_admin' && admin?.permissions?.length === 1 && admin.permissions[0] === 'papers' ? '/admin/papers' : '/admin/dashboard');
+
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +34,7 @@ export default function AdminLogin() {
         const response = await axiosInstance.get('/admin/me');
         if (response.data?.admin?.id) {
           localStorage.setItem('adminUser', JSON.stringify(response.data.admin));
-          navigate('/admin/dashboard', { replace: true });
+          navigate(landing(response.data.admin), { replace: true });
           return;
         }
         localStorage.removeItem('adminToken');
@@ -63,7 +66,7 @@ export default function AdminLogin() {
       localStorage.setItem('adminUser', JSON.stringify(response.data.admin));
 
      
-      navigate('/admin/dashboard', { replace: true });
+      navigate(landing(response.data.admin), { replace: true });
       
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Invalid email or password.");

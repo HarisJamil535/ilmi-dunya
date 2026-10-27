@@ -1,0 +1,274 @@
+// Question-paper engine: validates a pattern, picks questions, makes shuffled versions, and builds the paper and answer key.
+// Everything here is pure (no database), so it is easy to test; the controller supplies the question bank.
+const mongoose = require("mongoose");
+const { fail } = require("./publishing");
+
+const KINDS = ["mcq", "short", "long"];
+const VERSION_LETTERS = ["A", "B", "C", "D"];
+const MAX_SECTIONS = 8;
+const MAX_QUESTIONS = 100;
+const text = (value, max) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+const clean = (value, max) => String(value ?? "").replace(/\r/g, "").trim().slice(0, max);
+const idOf = value => String(value?._id || value || "");
+const validId = value => mongoose.isValidObjectId(value);
+const round = value => Math.round(value * 100) / 100;
+
+// Seeded random numbers, so the same paper and version always come out the same.
+function hashSeed(value) {
+    let hash = 2166136261;
+    for (const char of String(value)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return hash >>> 0;
+}
+function rng(seed) {
+    let state = hashSeed(seed) || 1;
+    return () => {
+        state += 0x6D2B79F5;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+function shuffled(list, random) {
+    const items = [...list];
+    for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+}
+
+// Formulas are written with $...$ in the bank; a paper prints them as readable plain text.
+function plainMath(value) {
+    return String(value ?? "")
+        .replace(/\$\$([\s\S]+?)\$\$/g, "$1").replace(/\$([^$\n]+?)\$/g, "$1")
+        .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "($1)/($2)").replace(/\\sqrt\s*\{([^{}]*)\}/g, "√($1)")
+        .replace(/\\times/g, "×").replace(/\\div/g, "÷").replace(/\\cdot/g, "·").replace(/\\pm/g, "±").replace(/\\pi/g, "π").replace(/\\theta/g, "θ")
+        .replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\lambda/g, "λ").replace(/\\mu/g, "μ").replace(/\\Delta/g, "Δ").replace(/\\omega/g, "ω")
+        .replace(/\\leq?/g, "≤").replace(/\\geq?/g, "≥").replace(/\\neq/g, "≠").replace(/\\approx/g, "≈").replace(/\\infty/g, "∞").replace(/\\circ/g, "°")
+        .replace(/\\rightarrow|\\to/g, "→").replace(/\\left|\\right/g, "").replace(/\\,|\\;|\\ /g, " ")
+        .replace(/\^\{([^{}]*)\}/g, "^($1)").replace(/_\{([^{}]*)\}/g, "_($1)").replace(/\\([a-zA-Z]+)/g, "$1");
+}
+
+// Checks a pattern and returns a clean copy. Throws a 400 with a clear message when something is wrong.
+function normalizeConfig(input = {}) {
+    const header = input.header || {};
+    const sectionsIn = Array.isArray(input.sections) ? input.sections : [];
+    if (!sectionsIn.length) fail("Add at least one section to the paper.");
+    if (sectionsIn.length > MAX_SECTIONS) fail(`A paper can have at most ${MAX_SECTIONS} sections.`);
+    const sections = sectionsIn.map((section, index) => {
+        const kind = KINDS.includes(section.kind) ? section.kind : fail(`Choose MCQ, short or long for section ${index + 1}.`);
+        const total = Number(section.total);
+        if (!Number.isInteger(total) || total < 1 || total > MAX_QUESTIONS) fail(`Section ${index + 1}: use 1 to ${MAX_QUESTIONS} questions.`);
+        const choice = kind !== "mcq" && Boolean(section.choice);
+        let attempt = total;
+        if (kind !== "mcq" && section.attempt !== undefined && section.attempt !== "") {
+            attempt = Number(section.attempt);
+            if (!Number.isInteger(attempt) || attempt < 1 || attempt > total) fail(`Section ${index + 1}: "attempt" must be between 1 and ${total}.`);
+        }
+        const marksEach = Number(section.marksEach);
+        if (!(marksEach > 0) || marksEach > 100 || Math.round(marksEach * 2) !== marksEach * 2) fail(`Section ${index + 1}: marks per question must be a number like 0.5, 1, 2 or 5.`);
+        return {
+            id: text(section.id, 12) || `S${index + 1}`, kind,
+            name: text(section.name, 40) || `Section ${String.fromCharCode(65 + index)}`,
+            heading: text(section.heading, 80) || { mcq: "Multiple Choice Questions", short: "Short Questions", long: "Long Questions" }[kind],
+            instructions: clean(section.instructions, 400), total, attempt, marksEach, choice,
+        };
+    });
+    if (new Set(sections.map(section => section.id)).size !== sections.length) fail("Each section needs its own id.");
+    const scope = input.scope || {};
+    if (!validId(scope.subject) || !validId(scope.board) || !validId(scope.class)) fail("Choose the board, class and subject.");
+    const chapters = (Array.isArray(scope.chapters) ? scope.chapters : []).slice(0, 80).map(item => {
+        if (!validId(item.chapter)) fail("A chosen chapter is not valid.");
+        const weight = Number(item.weight ?? 1);
+        return { chapter: idOf(item.chapter), weight: weight > 0 && weight <= 100 ? weight : 1, topics: (Array.isArray(item.topics) ? item.topics : []).filter(validId).map(idOf).slice(0, 200) };
+    });
+    if (!chapters.length) fail("Choose at least one chapter to take questions from.");
+    const versions = [...new Set((Array.isArray(input.versions) ? input.versions : ["A"]).map(letter => String(letter).toUpperCase()).filter(letter => VERSION_LETTERS.includes(letter)))];
+    const instructions = (Array.isArray(header.instructions) ? header.instructions : String(header.instructions || "").split("\n")).map(line => text(line, 300)).filter(Boolean).slice(0, 10);
+    return {
+        header: {
+            schoolName: text(header.schoolName, 120), logoUrl: /^\/api\/media\/images\/[a-f\d]{24}$/.test(header.logoUrl || "") ? header.logoUrl : "",
+            examName: text(header.examName, 120), subjectTitle: text(header.subjectTitle, 100), className: text(header.className, 60), date: text(header.date, 40),
+            timeAllowed: text(header.timeAllowed, 40), paperCode: text(header.paperCode, 40), schemeNote: text(header.schemeNote, 120),
+            instructions, showRollBoxes: header.showRollBoxes !== false, rollBoxCount: Math.min(Math.max(Number(header.rollBoxCount) || 7, 4), 12),
+            showSignatures: header.showSignatures !== false, footerNote: text(header.footerNote, 120),
+        },
+        scope: { board: idOf(scope.board), class: idOf(scope.class), group: validId(scope.group) ? idOf(scope.group) : "", subject: idOf(scope.subject), chapters },
+        sections,
+        versions: versions.length ? versions.sort() : ["A"],
+        options: { importantFirst: input.options?.importantFirst !== false, avoidRepeats: Boolean(input.options?.avoidRepeats) },
+    };
+}
+
+const sectionMarks = section => round(section.attempt * section.marksEach);
+const totalMarks = config => round(config.sections.reduce((sum, section) => sum + sectionMarks(section), 0));
+
+// Shares `total` between groups by weight, never above what each group has (a group's `cap`); leftovers go to groups with room.
+function allocate(total, groups) {
+    const result = new Map(groups.map(group => [group.key, 0]));
+    let left = total;
+    let open = groups.filter(group => group.cap > 0);
+    while (left > 0 && open.length) {
+        const weight = open.reduce((sum, group) => sum + group.weight, 0);
+        const shares = open.map(group => ({ group, exact: left * group.weight / weight }));
+        let given = 0;
+        for (const { group, exact } of shares) {
+            const room = group.cap - result.get(group.key);
+            const take = Math.min(Math.floor(exact), room);
+            result.set(group.key, result.get(group.key) + take);
+            given += take;
+        }
+        let remainder = left - given;
+        // Largest fractional parts get the last few.
+        for (const { group, exact } of [...shares].sort((a, b) => (b.exact % 1) - (a.exact % 1) || b.group.weight - a.group.weight)) {
+            if (remainder <= 0) break;
+            if (result.get(group.key) < group.cap) { result.set(group.key, result.get(group.key) + 1); remainder -= 1; given += 1; }
+        }
+        left -= given;
+        open = open.filter(group => result.get(group.key) < group.cap);
+        if (!given) break;
+    }
+    return result;
+}
+
+// Picks questions for every section. `bank` holds the questions the teacher may use (already limited to the chosen scope).
+// Returns { selection, warnings }; selection[sectionId] is a list of slots.
+function generateSelection(config, bank, { seed = "paper", exclude = new Set(), keep = {} } = {}) {
+    const random = rng(seed);
+    const used = new Set(exclude);
+    const selection = {};
+    const warnings = [];
+    const chapterInfo = new Map(config.scope.chapters.map(item => [item.chapter, item]));
+    const inScope = question => {
+        const info = chapterInfo.get(idOf(question.chapter));
+        return Boolean(info) && (!info.topics.length || info.topics.includes(idOf(question.topic)));
+    };
+    const pool = bank.filter(inScope);
+    const order = list => (config.options.importantFirst ? [...shuffled(list.filter(q => q.isImportant), random), ...shuffled(list.filter(q => !q.isImportant), random)] : shuffled(list, random));
+
+    for (const section of config.sections) {
+        // Slots the teacher chose by hand stay; the rest are filled automatically.
+        const kept = (keep[section.id] || []).filter(slot => slot?.questions?.length);
+        kept.forEach(slot => slot.questions.forEach(id => used.add(idOf(id))));
+        if (section.kind === "mcq") {
+            const slots = [...kept];
+            let have = kept.reduce((sum, slot) => sum + slot.questions.length, 0);
+            const candidates = pool.filter(q => q.contentType === "mcq" && !used.has(idOf(q)));
+            // A scenario and its questions are one unit and are never split.
+            const units = new Map();
+            for (const q of candidates) {
+                const key = q.scenario ? `s:${idOf(q.scenario)}` : `q:${idOf(q)}`;
+                if (!units.has(key)) units.set(key, { key, chapter: idOf(q.chapter), scenario: q.scenario ? idOf(q.scenario) : "", questions: [] });
+                units.get(key).questions.push(q);
+            }
+            const byChapter = new Map();
+            for (const unit of units.values()) byChapter.set(unit.chapter, [...(byChapter.get(unit.chapter) || []), unit]);
+            const need = section.total - have;
+            const quota = allocate(need, [...chapterInfo.values()].map(info => ({ key: info.chapter, weight: info.weight, cap: (byChapter.get(info.chapter) || []).reduce((sum, unit) => sum + unit.questions.length, 0) })));
+            const take = (unit, limit) => {
+                const questions = unit.scenario ? [...unit.questions].sort((a, b) => idOf(a).localeCompare(idOf(b))) : unit.questions;
+                if (questions.length > limit) return false;
+                slots.push({ scenario: unit.scenario || "", questions: questions.map(idOf) });
+                questions.forEach(q => used.add(idOf(q)));
+                have += questions.length;
+                return true;
+            };
+            for (const info of chapterInfo.values()) {
+                let target = quota.get(info.chapter) || 0;
+                for (const unit of order(byChapter.get(info.chapter) || []).map(unit => unit)) {
+                    if (target <= 0) break;
+                    if (units.get(unit.key).taken) continue;
+                    if (take(unit, target)) { units.get(unit.key).taken = true; target -= unit.questions.length; }
+                }
+            }
+            // Chapters that could not give their share are topped up from the rest.
+            if (have < section.total) {
+                for (const unit of order([...units.values()].filter(unit => !unit.taken))) {
+                    if (have >= section.total) break;
+                    if (take(unit, section.total - have)) unit.taken = true;
+                }
+            }
+            if (have < section.total) warnings.push({ sectionId: section.id, message: `${section.name}: only ${have} of ${section.total} MCQs are available in the chosen chapters. Add more chapters or lower the number.` });
+            selection[section.id] = slots;
+        } else {
+            const wantType = section.kind === "short" ? "short_question" : "long_question";
+            const per = section.choice ? 2 : 1;
+            const slots = [...kept];
+            const candidates = pool.filter(q => q.contentType === wantType && !used.has(idOf(q)));
+            const byChapter = new Map();
+            for (const q of candidates) byChapter.set(idOf(q.chapter), [...(byChapter.get(idOf(q.chapter)) || []), q]);
+            const need = section.total - slots.length;
+            const quota = allocate(need, [...chapterInfo.values()].map(info => ({ key: info.chapter, weight: info.weight, cap: Math.floor((byChapter.get(info.chapter) || []).length / per) })));
+            const picked = [];
+            for (const info of chapterInfo.values()) {
+                const list = order(byChapter.get(info.chapter) || []);
+                for (let n = 0; n < (quota.get(info.chapter) || 0); n++) { picked.push(list.splice(0, per)); }
+                byChapter.set(info.chapter, list);
+            }
+            // Top up from whatever is left, pairs staying within one chapter when they can.
+            let missing = need - picked.length;
+            for (const info of chapterInfo.values()) {
+                const list = byChapter.get(info.chapter) || [];
+                while (missing > 0 && list.length >= per) { picked.push(list.splice(0, per)); missing -= 1; }
+            }
+            if (missing > 0) {
+                const rest = order(Object.values(Object.fromEntries(byChapter)).flat());
+                while (missing > 0 && rest.length >= per) { picked.push(rest.splice(0, per)); missing -= 1; }
+            }
+            for (const group of shuffled(picked, random)) { slots.push({ questions: group.map(idOf) }); group.forEach(q => used.add(idOf(q))); }
+            if (slots.length < section.total) warnings.push({ sectionId: section.id, message: `${section.name}: only ${slots.length} of ${section.total} ${section.kind} questions${section.choice ? " (with choices)" : ""} are available in the chosen chapters.` });
+            selection[section.id] = slots;
+        }
+    }
+    return { selection, warnings };
+}
+
+const keepsOrder = option => /(all|none|both|neither)\s+of\s+(the\s+)?(above|these)|^(all|none)\b|both\s+[a-d]\s+and\s+[a-d]/i.test(option?.text || "");
+
+// The paper as it will be printed: numbered questions, marks lines and (for MCQs) the answer key.
+// The first version keeps the picked order; later versions shuffle MCQ order and options.
+function buildPaper(config, selection, questions, letter = "A", { seed = "paper", scenarios = {} } = {}) {
+    const byId = new Map(questions.map(q => [idOf(q), q]));
+    const random = rng(`${seed}:${letter}`);
+    const shuffle = letter !== (config.versions[0] || "A");
+    const key = [];
+    let missing = 0;
+    const sections = config.sections.map(section => {
+        const slots = (selection[section.id] || []).map(slot => ({ ...slot, questions: slot.questions.filter(id => byId.has(id)) })).filter(slot => slot.questions.length);
+        missing += (selection[section.id] || []).reduce((sum, slot) => sum + slot.questions.length, 0) - slots.reduce((sum, slot) => sum + slot.questions.length, 0);
+        const items = [];
+        if (section.kind === "mcq") {
+            let ordered = slots.map(slot => ({ ...slot, questions: shuffle ? shuffled(slot.questions, random) : slot.questions }));
+            if (shuffle) ordered = shuffled(ordered, random);
+            let number = 0;
+            for (const slot of ordered) {
+                if (slot.scenario && slots.length) {
+                    const scenario = scenarios[slot.scenario];
+                    items.push({ type: "scenario", title: plainMath(scenario?.title || "Scenario"), text: plainMath(scenario?.scenarioText || ""), from: number + 1, to: number + slot.questions.length });
+                }
+                for (const id of slot.questions) {
+                    const q = byId.get(id);
+                    number += 1;
+                    let options = (q.options || []).map(option => ({ key: option.key, text: plainMath(option.text), correct: option.key === q.correctOption }));
+                    if (shuffle && !options.some(keepsOrder)) options = shuffled(options, random);
+                    // Options are relabelled A, B, C, D in print order.
+                    options = options.map((option, index) => ({ ...option, key: String.fromCharCode(65 + index) }));
+                    const answer = options.find(option => option.correct)?.key || "";
+                    key.push({ no: number, answer });
+                    items.push({ type: "mcq", no: number, text: plainMath(q.questionText), options: options.map(({ key: k, text: t }) => ({ key: k, text: t })), answer, image: q.imageUrls?.[0] || "", important: Boolean(q.isImportant) });
+                }
+            }
+            return { ...section, marks: sectionMarks(section), attemptLine: `Each question carries ${section.marksEach} ${section.marksEach === 1 ? "mark" : "marks"}. (${section.total} × ${section.marksEach} = ${round(section.total * section.marksEach)})`, items };
+        }
+        slots.forEach((slot, index) => items.push({ type: "written", no: index + 1, marks: section.marksEach, alternatives: slot.questions.map(id => ({ text: plainMath(byId.get(id).questionText), important: Boolean(byId.get(id).isImportant) })) }));
+        const noun = section.kind === "short" ? "short questions" : "long questions";
+        const attemptLine = section.attempt === section.total
+            ? `Attempt all ${section.total} ${noun}${section.choice ? ", choosing one from each pair" : ""}. Each question carries ${section.marksEach} marks. (${section.total} × ${section.marksEach} = ${round(section.total * section.marksEach)})`
+            : `Attempt any ${section.attempt} of the following ${section.total} ${noun}${section.choice ? ", choosing one from each pair" : ""}. Each question carries ${section.marksEach} marks. (${section.attempt} × ${section.marksEach} = ${round(section.attempt * section.marksEach)})`;
+        return { ...section, marks: sectionMarks(section), attemptLine, items };
+    });
+    return { version: letter, header: config.header, totalMarks: totalMarks(config), sections, key, missing };
+}
+
+module.exports = { normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };

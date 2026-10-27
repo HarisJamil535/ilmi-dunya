@@ -42,6 +42,7 @@ const standardSidebarItems = [
   { id: 18, label: "Education News", icon: HiOutlineNewspaper, path:'home-content/news', permission: "news" },
   { id: 21, label: "Schools", icon: HiOutlineOfficeBuilding, path:'schools', permission: "schools" },
   { id: 22, label: "School Results", icon: HiOutlineDocumentReport, path:'school-results', permission: "schools" },
+  { id: 25, label: "Paper Maker", icon: HiOutlineDocumentText, path:'papers', permission: "papers" },
   { id: 19, label: "Students", icon: HiOutlineUserGroup, path:'students', superAdminOnly: true },
 ];
 
