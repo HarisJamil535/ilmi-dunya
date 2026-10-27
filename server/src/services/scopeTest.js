@@ -3,6 +3,7 @@ const Chapter = require("../models/Chapter");
 const Topic = require("../models/Topic");
 const Assessment = require("../models/Assessment");
 const { openNow } = require("./testPublishing");
+const { timingOf, attemptSeconds, sameTiming } = require("./testTiming");
 const mcqFilter = { contentType: { $nin: ["long_question", "short_question"] }, type: { $in: ["standard_mcq", "scenario_mcq"] }, status: { $ne: "archived" } };
 
 async function resolveScope(chapterId, topicId) {
@@ -67,13 +68,13 @@ async function createScopeTest(chapterId, topicId) {
     if (!questions.length) throw Object.assign(new Error(topic ? "No topic test has been published here yet." : "No chapter or topic tests have been published here yet."), { status: 404 });
 
     const totalMarks = questions.reduce((sum, item) => sum + Number(item.marks || 1), 0);
-    const durationMinutes = Math.max(1, orderedTopicTests.reduce((sum, test) => sum + Number(test.durationMinutes || 0), 0));
+    const timing = scopeTiming(topic ? null : chapter.testTiming, orderedTopicTests);
     const content = {
         title: topic ? `${topic.name} Topic Test` : `${chapter.name} Complete Chapter Test`,
         description: topic ? "All published MCQs for this topic." : "A complete chapter test assembled from all published topic tests.",
         ...generatedKey,
         questions,
-        durationMinutes,
+        ...timing,
         totalMarks,
         passingMarks: Math.ceil(totalMarks * 0.4),
         status: "published",
@@ -91,12 +92,23 @@ async function createScopeTest(chapterId, topicId) {
     }
 }
 
+// The generated test's time: the chapter's own setting, else one shared per-question time, else the sum of the topic tests.
+function scopeTiming(chapterTiming, tests) {
+    if (chapterTiming?.mode === "per_question" && chapterTiming.secondsPerQuestion) return { timingMode: "per_question", secondsPerQuestion: chapterTiming.secondsPerQuestion, ...minutesFor(chapterTiming, tests) };
+    if (chapterTiming?.mode === "total" && chapterTiming.minutes) return { timingMode: "total", secondsPerQuestion: null, durationMinutes: chapterTiming.minutes };
+    const timings = tests.map(timingOf);
+    if (timings.every(item => item.mode === "per_question" && sameTiming(item, timings[0]))) return { timingMode: "per_question", secondsPerQuestion: timings[0].secondsPerQuestion, ...minutesFor(timings[0], tests) };
+    const seconds = tests.reduce((sum, test) => sum + attemptSeconds(test, test.questions?.length || 0), 0);
+    return { timingMode: "total", secondsPerQuestion: null, durationMinutes: Math.max(1, Math.ceil(seconds / 60)) };
+}
+const minutesFor = (timing, tests) => ({ durationMinutes: Math.max(1, Math.ceil(tests.reduce((sum, test) => sum + (test.questions?.length || 0), 0) * timing.secondsPerQuestion / 60)) });
+
 const questionSignature = questions => JSON.stringify((questions || []).map(item => [String(item.question), Number(item.marks || 1), Number(item.order || 0), item.required !== false]));
 
 function sameGeneratedContent(current, content) {
-    return ["title", "description", "durationMinutes", "totalMarks", "passingMarks", "status"].every(key => current[key] === content[key])
+    return ["title", "description", "durationMinutes", "timingMode", "secondsPerQuestion", "totalMarks", "passingMarks", "status"].every(key => (current[key] ?? null) === (content[key] ?? null))
         && String(current.createdBy) === String(content.createdBy)
         && questionSignature(current.questions) === questionSignature(content.questions);
 }
 
-module.exports = { resolveScope, createScopeTest, mcqFilter };
+module.exports = { resolveScope, createScopeTest, scopeTiming, mcqFilter };

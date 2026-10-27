@@ -1,5 +1,4 @@
 import { pdfLinks } from "../../shared/pdfLinks";
-import PdfPreview from "../../shared/PdfPreview";
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useState } from "react";
@@ -100,7 +99,6 @@ const ChapterNotes = () => {
                     <button disabled className="w-full rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">Coming Soon</button>
                   )}
                 </div>
-                <PdfPreview url={note?.pdfUrl} title={note?.title || label} />
               </article>
             ))}
           </div>

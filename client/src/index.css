@@ -831,3 +831,11 @@ html.dark .learning-tabs button[aria-pressed="true"] { background: #6944c6; colo
 html.dark .home-button:hover, html.dark .not-found-primary:hover { background: #5835b2; }
 html.dark .home-eyebrow, html.dark .home-hero-links a,
 html.dark .home-text-link, html.dark .chapter-context span,
+
+/* Admin tables: serial numbers and striped rows. Rows with their own tone (blocked, selected) keep it. */
+.admin-table tbody > tr:nth-child(even):not([data-tone]) > td { background-color: #f8f6fe; }
+.admin-table tbody > tr:not([data-tone]):hover > td { background-color: #f0ebfd; }
+.admin-table .admin-sno { width: 3.5rem; white-space: nowrap; font-weight: 900; font-variant-numeric: tabular-nums; color: #8b84a8; }
+html.dark .admin-table tbody > tr:nth-child(even):not([data-tone]) > td { background-color: rgba(255, 255, 255, 0.035); }
+html.dark .admin-table tbody > tr:not([data-tone]):hover > td { background-color: rgba(139, 108, 240, 0.12); }
+html.dark .admin-table .admin-sno { color: #9a93b8; }

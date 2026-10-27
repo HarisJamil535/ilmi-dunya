@@ -12,6 +12,7 @@ const mongoose = require("mongoose");
 const { supportsSelection, resolveQuestionCount, selectQuestions, shuffled } = require("../services/attemptSelection");
 const { withLock } = require("../services/keyedLock");
 const { startBlocker, attemptExpiry, orderOptions, resultsWithheld, withholdScores } = require("../services/attemptRules");
+const { timingOf, attemptSeconds } = require("../services/testTiming");
 
 const attemptQuestionSelect = "type questionText contentLanguage options imageUrls imageAlt difficulty marks estimatedTimeSeconds scenario";
 
@@ -43,7 +44,9 @@ const previewAttempt = async (req, res) => {
         questionCount: existing ? existing.answers.length : assessment.questions.length,
         availableQuestions: assessment.questions.length,
         canChooseCount: supportsSelection(assessment) && !existing,
-        durationMinutes: existing ? Math.ceil((new Date(existing.expiresAt) - new Date(existing.startedAt)) / 60000) : supportsSelection(assessment) ? assessment.questions.length : assessment.durationMinutes,
+        durationMinutes: existing ? Math.ceil((new Date(existing.expiresAt) - new Date(existing.startedAt)) / 60000) : Math.ceil(attemptSeconds(assessment, assessment.questions.length) / 60),
+        // Lets the page show the time for any number of MCQs the student picks.
+        timing: timingOf(assessment),
         totalMarks: existing ? existing.totalMarks : assessment.totalMarks,
         instructions: assessment.instructions,
         ranked: assessment.type !== "custom_practice" && !existing?.isPartialPractice && !resultsWithheld(assessment),
@@ -102,8 +105,7 @@ const beginAttempt = async (req, res) => {
     let selected = selectQuestions(assessment.questions, count, previous?.answers.map(item => item.question) || []);
     if (assessment.shuffleQuestions) selected = shuffled(selected).map((item, index) => ({ ...item, order: index + 1 }));
     const now = new Date();
-    const durationMinutes = supportsSelection(assessment) ? count : assessment.durationMinutes;
-    const expiresAt = attemptExpiry(assessment, now, durationMinutes);
+    const expiresAt = attemptExpiry(assessment, now, attemptSeconds(assessment, count, assessment.questions.length));
     const questionDocs = await Question.find({ _id: { $in: selected.map(item => item.question) }, status: { $ne: "archived" } }).select(`_id type scenario correctOption marks${assessment.shuffleOptions ? " options.key" : ""}`).lean();
     const keys = new Map(questionDocs.map((question) => [String(question._id), question]));
     if (selected.some((item) => !keys.has(String(item.question)))) return res.status(400).json({ message: "This test has unavailable questions. Please contact support." });

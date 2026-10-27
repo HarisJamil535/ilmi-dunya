@@ -15,6 +15,7 @@ const podiumStyles = {
   2: "border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 shadow-slate-100",
   3: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-orange-100",
 };
+const PLACE = { 1: ["gold", "Champion"], 2: ["silver", "Runner-up"], 3: ["bronze", "Third place"] };
 
 const rankIcon = (rank) => {
   if (rank === 1) return <Crown className="h-7 w-7 text-amber-500" />;
@@ -176,12 +177,18 @@ const Leaderboard = () => {
                 <article
                   key={leader.studentId}
                   style={{ animationDelay: `${index * 90}ms` }}
+                  data-tier={(PLACE[leader.rank] || PLACE[3])[0]}
                   className={`leaderboard-podium learning-enter relative border p-6 transition duration-300 motion-safe:hover:-translate-y-1 ${podiumStyles[leader.rank] || podiumStyles[3]}`}
                 >
-                  <div className="podium-rank-watermark">#{leader.rank}</div>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="podium-medal">
-                      {rankIcon(leader.rank)}
+                    <div className="podium-place">
+                      <div className="podium-medal">
+                        {rankIcon(leader.rank)}
+                      </div>
+                      <div className="podium-rank" aria-label={`Rank ${leader.rank}`}>
+                        <strong>#{leader.rank}</strong>
+                        <small>{(PLACE[leader.rank] || PLACE[3])[1]}</small>
+                      </div>
                     </div>
                     <span className="podium-points">{formatScore(leader.points)} <small>SCORE</small></span>
                   </div>

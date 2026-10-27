@@ -179,3 +179,7 @@ Admin → School Results downloads three files for a school, class or section, o
 - **Excel workbook**: unchanged, now also honours the subject filter.
 
 PDFs are built on a worker thread (`services/schoolReportPdf.js`, data from `services/schoolReportData.js`), limited to 800 students and 6,000 attempts per file. Every PDF is recorded in `IssuedReport`; anyone can check a reference at `/verify/<reference>` (API `GET /api/verify/:reference`, rate limited, no contact details shown). Set `SITE_URL=https://www.ilmidunya.org` so QR codes point to the live site, and run `npm --prefix server run indexes` after deploying for the new `IssuedReport` indexes.
+
+## Test time per question or total
+
+Admin → Publish Tests has a timer button on every topic and chapter (before or after publishing). A test gets either seconds per MCQ (10–600) or a total time (1–1440 minutes); a total time is shared out when a student picks fewer MCQs. A chapter's time sets its complete chapter test, and a per-question time can also be applied to every topic test of the chapter. The MCQ Tests builder offers the same choice. Tests never changed keep their old behaviour (chapter and topic tests one minute per MCQ). Attempts already running keep the time they started with. Rules: `server/src/services/testTiming.js`.

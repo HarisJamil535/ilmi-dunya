@@ -86,8 +86,8 @@ test("topic test appends published batches without duplicates and keeps a stable
 test("unchanged generated tests are reused without a database write", async () => {
     const creator = id();
     const question = id();
-    const batches = [{ topic: topic._id, createdBy: creator, durationMinutes: 3, questions: [{ question, order: 1, marks: 2 }] }];
-    const generated = { _id: id(), title: "Periodic motion Topic Test", description: "All published MCQs for this topic.", durationMinutes: 3, totalMarks: 2, passingMarks: 1, status: "published", createdBy: creator, questions: [{ question, marks: 2, order: 1, required: true }] };
+    const batches = [{ type: "topic_test", topic: topic._id, createdBy: creator, durationMinutes: 3, questions: [{ question, order: 1, marks: 2 }] }];
+    const generated = { _id: id(), title: "Periodic motion Topic Test", description: "All published MCQs for this topic.", timingMode: "per_question", secondsPerQuestion: 60, durationMinutes: 1, totalMarks: 2, passingMarks: 1, status: "published", createdBy: creator, questions: [{ question, marks: 2, order: 1, required: true }] };
     parents(generated);
     mock.method(Assessment, "find", () => query(batches));
     mock.method(Assessment, "findOneAndUpdate", () => { throw new Error("Unchanged content must not be rewritten"); });

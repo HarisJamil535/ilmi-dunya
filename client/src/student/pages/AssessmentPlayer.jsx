@@ -2,13 +2,14 @@ import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../urdu-font.css";
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CloudOff, Flag, ListChecks, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, CloudOff, Flag, Keyboard, ListChecks, Loader2, Send, SkipForward, Trophy, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
 import ConfirmModal from "../../shared/ConfirmModal";
 import MathText from "../../shared/MathText";
 import "./learning-experience.css";
 import "./test-introduction.css";
+import "./test-player.css";
 
 // Answers not yet confirmed by the server survive a reload or a dropped connection.
 const unsavedKey = (attemptId) => `ilmi-unsaved-answers-${attemptId}`;
@@ -51,7 +52,8 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const serverOffset = useRef(0);
   const audioContext = useRef(null);
   const retryAfter = useRef(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  // The ticking clock is on by default; a student who mutes it keeps that choice on this device.
+  const [soundEnabled, setSoundEnabled] = useState(() => { try { return localStorage.getItem("ilmi-test-sound") !== "off"; } catch { return true; } });
   const [actionError, setActionError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,19 +100,40 @@ const AssessmentPlayer = ({ chapter, topic }) => {
 
   useEffect(() => () => { audioContext.current?.close().catch(() => {}); audioContext.current = null; }, []);
 
+  const toggleSound = () => {
+    setSoundEnabled((value) => {
+      const next = !value;
+      try { localStorage.setItem("ilmi-test-sound", next ? "on" : "off"); } catch { /* storage blocked */ }
+      return next;
+    });
+  };
+
+  // A soft tick-tock every second, like a wall clock; the last 10 seconds switch to a clear, brighter beep.
   useEffect(() => {
     const context = audioContext.current;
-    if (!soundEnabled || remaining > 30 || remaining <= 0 || submitting || context?.state !== "running") return;
+    if (!soundEnabled || remaining <= 0 || submitting || context?.state !== "running") return;
+    const now = context.currentTime;
+    const urgent = remaining <= 10;
     const oscillator = context.createOscillator();
+    const filter = context.createBiquadFilter();
     const gain = context.createGain();
-    oscillator.frequency.value = 850;
-    gain.gain.setValueAtTime(0.045, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.065);
-    oscillator.connect(gain);
+    oscillator.type = urgent ? "sine" : "triangle";
+    const pitch = urgent ? 988 : remaining % 2 ? 1560 : 1180;
+    oscillator.frequency.setValueAtTime(pitch, now);
+    if (!urgent) oscillator.frequency.exponentialRampToValueAtTime(pitch * 0.55, now + 0.035);
+    filter.type = "highpass";
+    filter.frequency.value = urgent ? 300 : 700;
+    const peak = urgent ? 0.11 : remaining <= 30 ? 0.075 : 0.05;
+    const length = urgent ? 0.14 : 0.06;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(peak, now + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + length);
+    oscillator.connect(filter);
+    filter.connect(gain);
     gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.07);
-    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    oscillator.start(now);
+    oscillator.stop(now + length + 0.01);
+    oscillator.onended = () => { oscillator.disconnect(); filter.disconnect(); gain.disconnect(); };
   }, [remaining, soundEnabled, submitting]);
 
   const updateSync = useCallback((extra = {}) => {
@@ -170,6 +193,10 @@ const AssessmentPlayer = ({ chapter, topic }) => {
     window.addEventListener("online", online);
     return () => { window.removeEventListener("online", online); clearTimeout(retryTimer.current); };
   }, [flushAnswers]);
+
+  // The Start button sits at the foot of a long page; the test opens at its first question.
+  const attemptId = attempt?._id;
+  useEffect(() => { if (attemptId) window.scrollTo({ top: 0 }); }, [attemptId]);
 
   useEffect(() => {
     if (!attempt || attempt.status !== "in_progress") return undefined;
@@ -302,8 +329,42 @@ const AssessmentPlayer = ({ chapter, topic }) => {
   const chosenCount = countMode === "all" ? preview?.questionCount : Number(customCount);
   const countValid = countMode === "all" || (Number.isInteger(chosenCount) && chosenCount >= 5 && chosenCount <= preview?.availableQuestions);
   const partial = preview?.canChooseCount && countMode !== "all" && chosenCount < preview.availableQuestions;
+  // Mirrors the server (services/testTiming.js): the time for the number of MCQs chosen.
+  const timing = preview?.timing;
+  const timeFor = (count) => {
+    if (!timing || !count) return 0;
+    const seconds = timing.mode === "per_question" ? count * timing.secondsPerQuestion : count >= preview.availableQuestions ? timing.minutes * 60 : Math.ceil(timing.minutes * 60 * count / Math.max(preview.availableQuestions, 1));
+    return Math.max(30, seconds);
+  };
+  const minutesLabel = (seconds) => (seconds % 60 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : String(seconds / 60));
+  const timingNote = !timing ? "" : timing.mode === "per_question"
+    ? (timing.secondsPerQuestion % 60 === 0 ? `${timing.secondsPerQuestion / 60 === 1 ? "One minute" : `${timing.secondsPerQuestion / 60} minutes`} per MCQ.` : `${timing.secondsPerQuestion} seconds per MCQ.`)
+    : `${timing.minutes} minutes for all ${preview.availableQuestions} MCQs; a shorter set gets a matching share.`;
   // Mirrors the server: a shorter chosen set counts for ranking from 10 questions.
   const ranked = preview?.ranked && (!partial || chosenCount >= 10);
+
+  const answerCount = answers.length;
+  // Keyboard: A-D or 1-4 choose an option, the arrow keys move between questions.
+  const keyHandler = useRef(null);
+  keyHandler.current = (event) => {
+    if (!attempt || event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.("input, textarea, select, [role=dialog]")) return;
+    const key = event.key.toLowerCase();
+    if (key === "arrowright" && currentIndex < answerCount - 1) setCurrentIndex(currentIndex + 1);
+    else if (key === "arrowleft" && currentIndex > 0) setCurrentIndex(currentIndex - 1);
+    else {
+      const options = question?.options || [];
+      const index = /^[1-9]$/.test(key) ? Number(key) - 1 : /^[a-h]$/.test(key) ? key.charCodeAt(0) - 97 : -1;
+      if (options[index]) saveAnswer({ selectedOption: options[index].key, skipped: false });
+      else return;
+    }
+    event.preventDefault();
+  };
+  useEffect(() => {
+    if (!attempt) return undefined;
+    const onKey = (event) => keyHandler.current?.(event);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [attempt]);
 
   if (error) return <main className="mx-auto max-w-2xl p-8 text-center"><p role="alert">{error}</p><button className="mt-4 rounded-lg bg-primary px-4 py-2 text-white" onClick={() => navigate(-1)}>Back to study</button></main>;
 
@@ -319,7 +380,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
           <h1 id="test-introduction-title">{preview?.title}</h1>
           <dl className="test-introduction-stats" aria-label="Test overview">
             <div><ListChecks size={20} aria-hidden="true" /><dt>Questions</dt><dd>{countValid ? chosenCount : "—"}</dd></div>
-            <div><Clock3 size={20} aria-hidden="true" /><dt>Minutes</dt><dd>{preview?.canChooseCount ? (countValid ? chosenCount : "—") : preview?.durationMinutes}</dd></div>
+            <div><Clock3 size={20} aria-hidden="true" /><dt>Minutes</dt><dd>{preview?.canChooseCount ? (countValid ? minutesLabel(timeFor(chosenCount)) : "—") : preview?.durationMinutes}</dd></div>
             {!partial && <div><Trophy size={20} aria-hidden="true" /><dt>Marks</dt><dd>{preview?.totalMarks}</dd></div>}
           </dl>
         </header>
@@ -333,7 +394,7 @@ const AssessmentPlayer = ({ chapter, topic }) => {
                 <input type="number" min="5" max={preview.availableQuestions} step="1" value={customCount} onChange={event => setCustomCount(event.target.value)} aria-describedby="test-count-help" aria-invalid={!countValid} />
               </label>}
             </>}
-            <p id="test-count-help">One minute per MCQ.{countMode === "custom" ? ` Choose 5–${preview.availableQuestions}. A fresh random set is selected for each attempt.` : preview.availableQuestions < 5 ? " This topic has fewer than five MCQs, so all are included." : " All questions are selected by default."}</p>
+            <p id="test-count-help">{timingNote}{countMode === "custom" ? ` Choose 5–${preview.availableQuestions}. A fresh random set is selected for each attempt.` : preview.availableQuestions < 5 ? " This topic has fewer than five MCQs, so all are included." : " All questions are selected by default."}</p>
             {!countValid && <p role="alert">Enter a whole number between 5 and {preview.availableQuestions}.</p>}
           </fieldset>}
           <h2>Test rules</h2>
@@ -353,139 +414,145 @@ const AssessmentPlayer = ({ chapter, topic }) => {
         </div>
         <footer className="test-introduction-actions">
           <Link to="/tests" className="test-introduction-back"><ArrowLeft size={18} aria-hidden="true" /> Back to tests</Link>
-          <button type="button" disabled={!countValid} onClick={() => { setConfirmed(true); setLoading(true); }} className="test-introduction-start">{preview?.resume ? "Continue test" : "Start test"}<ArrowRight size={18} aria-hidden="true" /></button>
+          <button type="button" disabled={!countValid} onClick={() => { enableAudio(); setConfirmed(true); setLoading(true); }} className="test-introduction-start">{preview?.resume ? "Continue test" : "Start test"}<ArrowRight size={18} aria-hidden="true" /></button>
         </footer>
       </section>
     </main>
   );
 
+  const totalSeconds = Math.max(1, Math.round((new Date(attempt.expiresAt) - new Date(attempt.startedAt)) / 1000));
+  const timeShare = Math.min(1, remaining / totalSeconds);
+  const timeTone = remaining <= 30 ? "danger" : timeShare <= 0.25 ? "warn" : "ok";
+  const flaggedCount = answers.filter((answer) => answer.flaggedForReview).length;
+  const isUrdu = question?.contentLanguage === "ur";
+  const lastQuestion = currentIndex === answers.length - 1;
+
   return (
-    <main className="min-h-screen bg-slate-100" onPointerDown={enableAudio} onKeyDown={enableAudio}>
-      <header className="sticky top-16 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wider text-primary">MCQ Test</p>
-            <h1 className="text-lg font-black text-slate-950">{attempt.assessment.title}</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className={`test-timer ${remaining <= 30 && remaining > 0 ? "urgent" : ""}`} role="timer" aria-label={`Time remaining ${formatTime(remaining)}`}>
-              <Clock3 className="h-6 w-6" />
-              <div><small>{remaining <= 30 ? "Finishing soon" : "Time remaining"}</small><strong>{formatTime(remaining)}</strong></div>
+    <main className="test-player" onPointerDown={enableAudio} onKeyDown={enableAudio}>
+      <header className="test-player-bar">
+        <div className="test-player-bar-inner">
+          <div className="test-player-title">
+            <span className="test-player-badge"><ListChecks size={20} aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <p>MCQ Test · {answers.length} questions</p>
+              <h1 title={attempt.assessment.title}>{attempt.assessment.title}</h1>
             </div>
-            <button type="button" title={soundEnabled ? "Mute countdown sound" : "Enable countdown sound"} aria-label={soundEnabled ? "Mute countdown sound" : "Enable countdown sound"} aria-pressed={soundEnabled} onClick={() => setSoundEnabled((value) => !value)} className="rounded-lg border border-slate-200 p-3">
-              {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+          </div>
+          <div className="test-player-controls">
+            <div className={`test-clock is-${timeTone}`} role="timer" aria-label={`Time remaining ${formatTime(remaining)}`}>
+              <span className="test-clock-ring" aria-hidden="true">
+                <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" className="track" /><circle cx="22" cy="22" r="19" className="value" style={{ strokeDashoffset: `${119.4 * (1 - timeShare)}` }} /></svg>
+                <Clock3 size={17} className="test-clock-icon" />
+              </span>
+              <div><small>{remaining <= 30 ? "Hurry up" : "Time left"}</small><strong>{formatTime(remaining)}</strong></div>
+            </div>
+            <button type="button" className={`test-sound ${soundEnabled ? "is-on" : ""}`} title={soundEnabled ? "Turn the clock sound off" : "Turn the clock sound on"} aria-label={soundEnabled ? "Turn the clock sound off" : "Turn the clock sound on"} aria-pressed={soundEnabled} onClick={toggleSound}>
+              {soundEnabled ? <Volume2 size={19} /> : <VolumeX size={19} />}
             </button>
-            <button disabled={submitting} onClick={() => setShowSubmitConfirm(true)} className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50">
-              {submitting ? "Submitting..." : "Submit"}
+            <button type="button" disabled={submitting} onClick={() => setShowSubmitConfirm(true)} className="test-submit">
+              {submitting ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}<span>{submitting ? "Submitting" : "Submit"}</span>
             </button>
           </div>
         </div>
+        <div className="test-player-progress" aria-hidden="true"><div style={{ width: `${progress}%` }} /></div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="test-player-body">
+        <div className="test-question-card">
           {actionError && <p role="alert" className="learning-alert">{actionError}</p>}
-          <p role="note" className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-5 text-amber-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            Leaving or switching away from this test page will submit your saved answers automatically.
-          </p>
-          {remaining <= 30 && <p role="status" className="mb-4 text-sm font-bold text-rose-700">{remaining === 0 ? "Time is up. Submitting your saved answers." : "30 seconds or less remaining. Check any unanswered questions."}</p>}
-          <div className="mb-6 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-          </div>
+          <p role="note" className="test-leave-note"><AlertTriangle size={16} aria-hidden="true" />Stay on this page. Leaving or switching away submits your saved answers automatically.</p>
+          {remaining <= 30 && <p role="status" className="test-urgent-note">{remaining === 0 ? "Time is up. Submitting your saved answers." : "30 seconds or less left. Check any unanswered questions."}</p>}
 
-          {scenario && (
-            <div dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question?.contentLanguage === "ur" ? "ur" : "en"} className={`mb-6 rounded-2xl border border-primary-soft bg-primary-soft p-4 ${question?.contentLanguage === "ur" ? "urdu-content" : ""}`}>
-              <p className="mb-2 text-sm font-bold text-primary-dark">Read this scenario and answer {scenarioIndices.length === 1 ? "the following question" : `the following ${scenarioIndices.length} questions`}.</p>
-              <h2 className="font-black text-primary-dark">{scenario.title}</h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-primary-dark"><MathText text={scenario.scenarioText} /></p>
-              <p className="mt-3 text-xs font-semibold text-primary-dark">Scenario question {scenarioPosition} of {scenarioIndices.length}</p>
+          <div key={currentIndex} className="test-question-enter">
+            <div className="test-question-meta">
+              <span className="test-question-number">Question <strong>{currentIndex + 1}</strong> of {answers.length}</span>
+              {current?.flaggedForReview && <span className="test-chip is-flag"><Flag size={13} aria-hidden="true" />Flagged for review</span>}
+              {selectedOption && <span className="test-chip is-done"><Check size={13} aria-hidden="true" />Answered</span>}
             </div>
-          )}
 
-          <p className="text-sm font-black text-primary">Question {currentIndex + 1} of {answers.length}</p>
-          <h2 dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"} lang={question?.contentLanguage === "ur" ? "ur" : "en"} className={`mt-3 whitespace-pre-wrap text-xl font-black leading-8 text-slate-950 ${question?.contentLanguage === "ur" ? "urdu-content text-2xl" : ""}`}><MathText text={question?.questionText} /></h2>
-          {question?.imageUrls?.[0] && <img src={question.imageUrls[0]} alt={question.imageAlt || "Question diagram"} className="mt-4 max-h-80 max-w-full rounded-xl border border-slate-200 bg-white object-contain" loading="lazy" />}
+            {scenario && (
+              <div dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`test-scenario ${isUrdu ? "urdu-content" : ""}`}>
+                <p className="test-scenario-lead">Read this scenario and answer {scenarioIndices.length === 1 ? "the following question" : `the following ${scenarioIndices.length} questions`}.</p>
+                <h2>{scenario.title}</h2>
+                <p className="test-scenario-text"><MathText text={scenario.scenarioText} /></p>
+                <p className="test-scenario-count">Scenario question {scenarioPosition} of {scenarioIndices.length}</p>
+              </div>
+            )}
 
-          <div className="mt-6 grid gap-3">
-            {question?.options?.map((option) => {
-              const active = selectedOption === option.key;
-              return (
-                <button
-                  key={option.key}
-                  disabled={submitting || remaining <= 0}
-                  aria-pressed={active}
-                  onClick={() => saveAnswer({ selectedOption: option.key, skipped: false })}
-                  dir={question?.contentLanguage === "ur" ? "rtl" : "ltr"}
-                  lang={question?.contentLanguage === "ur" ? "ur" : "en"}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 transition ${question?.contentLanguage === "ur" ? "urdu-content text-right" : "text-left"} ${
-                    active ? "border-primary-muted bg-primary-soft text-primary-dark" : "border-slate-200 bg-white hover:border-primary-muted hover:bg-slate-50"
-                  }`}
-                >
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black ${active ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{option.label || option.key}</span>
-                  <span className="min-w-0 whitespace-pre-wrap text-sm font-bold leading-6"><MathText text={option.text} /></span>
-                </button>
-              );
-            })}
-          </div>
+            <h2 dir={isUrdu ? "rtl" : "ltr"} lang={isUrdu ? "ur" : "en"} className={`test-question-text ${isUrdu ? "urdu-content is-urdu" : ""}`}><MathText text={question?.questionText} /></h2>
+            {question?.imageUrls?.[0] && <img src={question.imageUrls[0]} alt={question.imageAlt || "Question diagram"} className="test-question-image" loading="lazy" />}
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex gap-2">
-              <button onClick={() => saveAnswer({ skipped: true, selectedOption: "" })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
-                <SkipForward className="h-4 w-4" /> Skip
-              </button>
-              <button onClick={() => saveAnswer({ flaggedForReview: !current.flaggedForReview })} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 px-4 py-2 text-sm font-bold text-amber-700">
-                <Flag className="h-4 w-4" /> {current.flaggedForReview ? "Unflag" : "Flag"}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => value - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 disabled:opacity-40">Previous</button>
-              <button disabled={currentIndex === answers.length - 1} onClick={() => setCurrentIndex((value) => value + 1)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Next</button>
+            <div className="test-options" role="group" aria-label="Answer options">
+              {question?.options?.map((option, index) => {
+                const active = selectedOption === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    disabled={submitting || remaining <= 0}
+                    aria-pressed={active}
+                    onClick={() => saveAnswer({ selectedOption: option.key, skipped: false })}
+                    dir={isUrdu ? "rtl" : "ltr"}
+                    lang={isUrdu ? "ur" : "en"}
+                    style={{ animationDelay: `${index * 45}ms` }}
+                    className={`test-option ${active ? "is-active" : ""} ${isUrdu ? "urdu-content is-urdu" : ""}`}
+                  >
+                    <span className="test-option-key">{option.label || option.key}</span>
+                    <span className="test-option-text"><MathText text={option.text} /></span>
+                    <span className="test-option-check" aria-hidden="true"><Check size={15} strokeWidth={3} /></span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <p role="status" aria-live="polite" className={`mt-4 inline-flex items-center gap-1.5 text-xs font-bold ${sync.offline ? "text-amber-700" : "text-slate-400"}`}>
-            {sync.offline
-              ? <><CloudOff className="h-3.5 w-3.5" />Connection lost. Keep answering: {sync.unsaved} {sync.unsaved === 1 ? "answer is" : "answers are"} kept on this device and will be sent automatically.</>
-              : sync.unsaved || sync.sending
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving...</>
-                : answeredCount > 0 && <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />All answers saved</>}
-          </p>
+
+          <div className="test-actions">
+            <div className="test-actions-group">
+              <button type="button" onClick={() => saveAnswer({ skipped: true, selectedOption: "" })} className="test-ghost"><SkipForward size={16} /> Skip</button>
+              <button type="button" onClick={() => saveAnswer({ flaggedForReview: !current.flaggedForReview })} className={`test-ghost is-flag ${current?.flaggedForReview ? "is-on" : ""}`}><Flag size={16} /> {current?.flaggedForReview ? "Unflag" : "Flag"}</button>
+            </div>
+            <div className="test-actions-group">
+              <button type="button" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => value - 1)} className="test-ghost"><ChevronLeft size={17} /> Previous</button>
+              {lastQuestion
+                ? <button type="button" onClick={() => setShowSubmitConfirm(true)} disabled={submitting} className="test-next is-finish">Review &amp; submit <Send size={16} /></button>
+                : <button type="button" onClick={() => setCurrentIndex((value) => value + 1)} className="test-next">Next <ChevronRight size={17} /></button>}
+            </div>
+          </div>
+          <div className="test-footnote">
+            <p role="status" aria-live="polite" className={`test-sync ${sync.offline ? "is-offline" : ""}`}>
+              {sync.offline
+                ? <><CloudOff size={14} />Connection lost. Keep answering: {sync.unsaved} {sync.unsaved === 1 ? "answer is" : "answers are"} kept on this device and will be sent automatically.</>
+                : sync.unsaved || sync.sending
+                  ? <><Loader2 size={14} className="animate-spin" />Saving...</>
+                  : answeredCount > 0 && <><CheckCircle2 size={14} className="text-emerald-600" />All answers saved</>}
+            </p>
+            <p className="test-keys"><Keyboard size={14} aria-hidden="true" />Press A–D to answer, ← → to move</p>
+          </div>
         </div>
 
-        <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-36 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-700">Navigator</h2>
-            <span className="text-xs font-black text-primary">{progress}%</span>
+        <aside className="test-navigator" aria-label="Question navigator">
+          <div className="test-navigator-head">
+            <div className="test-ring" style={{ "--value": `${progress * 3.6}deg` }}><strong>{progress}%</strong></div>
+            <div>
+              <h2>Your progress</h2>
+              <p>{answeredCount} of {answers.length} answered</p>
+            </div>
           </div>
-          <div className="grid grid-cols-5 gap-2">
-            {answers.map((answer, index) => (
-              <button
-                key={answer.question._id}
-                onClick={() => setCurrentIndex(index)}
-                className={`h-10 rounded-xl text-sm font-black ${
-                  index === currentIndex
-                    ? "bg-primary text-white"
-                    : answer.flaggedForReview
-                      ? "bg-amber-100 text-amber-700"
-                      : answer.selectedOption
-                        ? "bg-emerald-100 text-emerald-700"
-                        : answer.skipped
-                          ? "bg-slate-200 text-slate-500"
-                          : "bg-slate-50 text-slate-500"
-                }`}
-              >
-                {index + 1}
-              </button>
-            ))}
+          <dl className="test-counts">
+            <div className="is-done"><dt>Answered</dt><dd>{answeredCount}</dd></div>
+            <div className="is-flag"><dt>Flagged</dt><dd>{flaggedCount}</dd></div>
+            <div className="is-left"><dt>Left</dt><dd>{unanswered}</dd></div>
+          </dl>
+          <div className="test-bubbles">
+            {answers.map((answer, index) => {
+              const state = index === currentIndex ? "is-current" : answer.flaggedForReview ? "is-flag" : answer.selectedOption ? "is-done" : answer.skipped ? "is-skipped" : "";
+              return <button key={answer.question._id} type="button" onClick={() => setCurrentIndex(index)} aria-label={`Question ${index + 1}${answer.selectedOption ? ", answered" : ""}${answer.flaggedForReview ? ", flagged" : ""}`} aria-current={index === currentIndex ? "step" : undefined} className={`test-bubble ${state}`}>{index + 1}</button>;
+            })}
           </div>
-          <div className="mt-5 space-y-2 text-xs font-bold text-slate-500">
-            <p><CheckCircle2 className="mr-1 inline h-3.5 w-3.5 text-emerald-600" /> Answered: {answeredCount}</p>
-            <p><AlertTriangle className="mr-1 inline h-3.5 w-3.5 text-amber-600" /> Unanswered: {unanswered}</p>
-          </div>
-          <button onClick={() => setShowSubmitConfirm(true)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white">
-            <Send className="h-4 w-4" />
-            Submit Test
-          </button>
+          <ul className="test-legend">
+            <li><i className="is-done" />Answered</li><li><i className="is-flag" />Flagged</li><li><i className="is-skipped" />Skipped</li><li><i />Not visited</li>
+          </ul>
+          <button type="button" onClick={() => setShowSubmitConfirm(true)} disabled={submitting} className="test-submit is-wide"><Send size={17} /> Submit test</button>
         </aside>
       </section>
       <ConfirmModal

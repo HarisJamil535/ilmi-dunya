@@ -69,9 +69,10 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
 
             {/* Striped Table */}
             <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left text-sm border-collapse">
+                <table className="admin-table w-full text-left text-sm border-collapse">
                     <thead>
                         <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 uppercase text-xs tracking-wider">
+                            <th className="admin-sno px-6 py-4">#</th>
                             <th className="px-6 py-4 font-bold w-24">Ch #</th>
                             <th className="px-6 py-4 font-bold">Chapter Details & Academic Context</th>
                             <th className="px-6 py-4 font-bold text-right">Actions</th>
@@ -80,7 +81,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                     <tbody className="divide-y divide-slate-200/60">
                         {paginatedChapters.length === 0 ? (
                             <tr>
-                                <td colSpan="3" className="px-6 py-16 text-center text-slate-400 text-sm bg-white">
+                                <td colSpan="4" className="px-6 py-16 text-center text-slate-400 text-sm bg-white">
                                     <div className="flex flex-col items-center justify-center space-y-2">
                                         <Filter className="w-8 h-8 text-slate-300 mb-1" />
                                         <p className="font-semibold text-slate-600">No chapters found</p>
@@ -92,10 +93,9 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                             paginatedChapters.map((chapter, index) => (
                                 <tr 
                                     key={chapter._id} 
-                                    className={`transition-colors group ${
-                                        index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'
-                                    } hover:bg-primary-soft/40`}
+                                    className="transition-colors group"
                                 >
+                                    <td className="admin-sno px-6 py-4 align-middle">{startIndex + index}</td>
                                     <td className="px-6 py-4 align-middle">
                                         <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-soft text-primary font-extrabold font-mono text-md border border-primary-soft shadow-2xs">
                                             {chapter.chapterNumber || 1}

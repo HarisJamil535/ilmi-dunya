@@ -31,6 +31,12 @@ const chapterSchema = new mongoose.Schema(
             ref: "Subject",
             required: [true, "Subject ID is required"],
         },
+        // Time for the complete chapter test, when an admin sets one; otherwise it follows the topic tests.
+        testTiming: {
+            mode: { type: String, enum: ["per_question", "total"] },
+            secondsPerQuestion: Number,
+            minutes: Number,
+        },
     },
     { timestamps: true }
 );

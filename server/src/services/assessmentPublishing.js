@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const { publication, fail } = require('./publishing');
-const editable = ['title', 'description', 'type', 'board', 'class', 'group', 'subject', 'chapter', 'topic', 'questions', 'durationMinutes', 'passingMarks', 'instructions', 'shuffleQuestions', 'shuffleOptions', 'allowResume', 'showResultImmediately', 'showCorrectAnswers', 'maxAttempts', 'startsAt', 'endsAt', 'status'];
+const editable = ['title', 'description', 'type', 'board', 'class', 'group', 'subject', 'chapter', 'topic', 'questions', 'durationMinutes', 'timingMode', 'secondsPerQuestion', 'passingMarks', 'instructions', 'shuffleQuestions', 'shuffleOptions', 'allowResume', 'showResultImmediately', 'showCorrectAnswers', 'maxAttempts', 'startsAt', 'endsAt', 'status'];
 
 function assessmentPayload(body, existing = {}) {
     const payload = Object.fromEntries(editable.filter(key => body[key] !== undefined).map(key => [key, body[key]]));
@@ -27,6 +27,12 @@ function assessmentPayload(body, existing = {}) {
     if (merged.questions && (!Array.isArray(merged.questions) || merged.questions.length > 500)) fail('Select at most 500 MCQs per test.');
     if (merged.status === 'published' && !merged.questions?.length) fail('Add MCQs before publishing a test.');
     if (merged.durationMinutes !== undefined && (!Number.isFinite(Number(merged.durationMinutes)) || Number(merged.durationMinutes) < 1 || Number(merged.durationMinutes) > 1440)) fail('Use a test duration between 1 and 1440 minutes.');
+    if (payload.timingMode !== undefined && !['per_question', 'total'].includes(payload.timingMode)) fail('Choose time per question or total time.');
+    if (merged.timingMode === 'per_question') {
+        const seconds = Number(merged.secondsPerQuestion ?? 60);
+        if (!Number.isInteger(seconds) || seconds < 10 || seconds > 600) fail('Choose 10 to 600 seconds for each MCQ.');
+        payload.secondsPerQuestion = seconds;
+    }
     if (merged.passingMarks !== undefined && (!Number.isFinite(Number(merged.passingMarks)) || Number(merged.passingMarks) < 0)) fail('Passing marks must be a non-negative number.');
     if (merged.startsAt && merged.endsAt && new Date(merged.endsAt) <= new Date(merged.startsAt)) fail('The closing date must follow the opening date.');
     return payload;

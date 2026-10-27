@@ -122,3 +122,20 @@ html.dark .leaderboard-how { border-color: #2f2a4f; background: #1b1830; }
 html.dark .leaderboard-how summary { color: #d9d3ff; }
 html.dark .leaderboard-how li { background: #231f3c; }
 @media (max-width: 640px) { .leaderboard-periods { display: flex; } .leaderboard-periods button { flex: 1; padding: 0 8px; } .leaderboard-mine { flex-wrap: wrap; } .leaderboard-mine-link { width: 100%; text-align: center; } }
+
+/* Podium: a clear medal-coloured rank badge instead of a faint watermark. */
+.leaderboard-podium[data-tier="gold"] { --tier-a: #f6b81b; --tier-b: #b7791f; --tier-ink: #8a5a06; --tier-glow: rgba(246,184,27,.28); }
+.leaderboard-podium[data-tier="silver"] { --tier-a: #a3b1c6; --tier-b: #5b6b82; --tier-ink: #44536a; --tier-glow: rgba(120,138,163,.25); }
+.leaderboard-podium[data-tier="bronze"] { --tier-a: #f0954a; --tier-b: #a4511b; --tier-ink: #8a4314; --tier-glow: rgba(224,121,52,.25); }
+.leaderboard-page .leaderboard-podium::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--tier-a), var(--tier-b)); }
+.podium-place { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.leaderboard-page .podium-medal { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--tier-a), 0 10px 22px var(--tier-glow); }
+.podium-rank { display: flex; flex-direction: column; line-height: 1; }
+.podium-rank strong { background: linear-gradient(135deg, var(--tier-a), var(--tier-b)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 38px; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; filter: drop-shadow(0 2px 3px var(--tier-glow)); }
+.podium-rank small { margin-top: 5px; color: var(--tier-ink); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.leaderboard-page .leaderboard-podium:hover { box-shadow: 0 18px 36px var(--tier-glow); }
+.leaderboard-rank { font-variant-numeric: tabular-nums; font-size: 13px; }
+html.dark .leaderboard-page .podium-medal { box-shadow: 0 0 0 3px #1c1a2e, 0 0 0 5px var(--tier-a), 0 10px 22px var(--tier-glow); }
+html.dark .leaderboard-podium[data-tier="gold"] { --tier-a: #ffd25e; --tier-b: #f0a92a; --tier-ink: #f5c95a; }
+html.dark .leaderboard-podium[data-tier="silver"] { --tier-a: #dfe6f0; --tier-b: #9fb0c6; --tier-ink: #c9d3e1; }
+html.dark .leaderboard-podium[data-tier="bronze"] { --tier-a: #ffb27a; --tier-b: #e07a3a; --tier-ink: #f3a56e; }

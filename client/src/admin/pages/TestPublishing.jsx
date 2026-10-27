@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ChevronDown, CircleDot, Clock3, FilePlus2, ListChecks, Plus, Radio, Upload, X } from "lucide-react";
+import { CalendarClock, ChevronDown, CircleDot, Clock3, FilePlus2, Hourglass, ListChecks, Plus, Radio, Timer, Upload, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../components/CustomSelect";
@@ -36,6 +36,72 @@ const StateBadge = ({ item }) => {
   return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ring-1 ring-inset ${meta.className}`}>
     <Icon className="h-3.5 w-3.5" aria-hidden="true" />{item.state === "scheduled" && item.opensAt ? `Opens ${opensLabel(item.opensAt)}` : meta.label}
   </span>;
+};
+
+// "45s per MCQ", "25 min total", or how the chapter test is timed.
+const timingLabel = (timing, isChapter) => {
+  if (!timing) return isChapter ? "Time from topics" : "";
+  if (timing.mode === "mixed") return "Mixed times";
+  if (timing.mode === "per_question") return timing.secondsPerQuestion % 60 === 0 ? `${timing.secondsPerQuestion / 60} min / MCQ` : `${timing.secondsPerQuestion}s / MCQ`;
+  return `${timing.minutes} min total`;
+};
+const clock = (seconds) => {
+  const total = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(total / 60);
+  return `${minutes ? `${minutes}m` : ""}${total % 60 ? `${minutes ? " " : ""}${total % 60}s` : minutes ? "" : "0s"}`;
+};
+
+const TimingDialog = ({ target, current, mcqCount, onClose, onConfirm, busy }) => {
+  const start = current && current.mode !== "mixed" ? current : { mode: "per_question", secondsPerQuestion: 60 };
+  const [mode, setMode] = useState(start.mode);
+  const [seconds, setSeconds] = useState(String(start.secondsPerQuestion || 60));
+  const [minutes, setMinutes] = useState(String(start.minutes || Math.max(1, Math.ceil(mcqCount || 30))));
+  const [applyToTopics, setApplyToTopics] = useState(true);
+  const value = Number(mode === "per_question" ? seconds : minutes);
+  const valid = Number.isInteger(value) && (mode === "per_question" ? value >= 10 && value <= 600 : value >= 1 && value <= 1440);
+  const sample = Math.min(mcqCount || 20, 20) || 20;
+  const sampleTime = mode === "per_question" ? sample * value : mcqCount ? value * 60 * sample / mcqCount : value * 60;
+  const tab = (key, label, icon) => <button type="button" role="radio" aria-checked={mode === key} onClick={() => setMode(key)}
+    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition ${mode === key ? "bg-white text-primary shadow-sm dark:bg-slate-800" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"}`}>{icon}{label}</button>;
+  const chips = mode === "per_question" ? [[30, "30s"], [45, "45s"], [60, "1 min"], [90, "1.5 min"], [120, "2 min"]] : [[10, "10 min"], [20, "20 min"], [30, "30 min"], [45, "45 min"], [60, "1 hour"]];
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="timing-title" onKeyDown={(event) => event.key === "Escape" && onClose()}>
+    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="timing-title" className="text-lg font-black text-slate-950 dark:text-white">Test time</h2>
+          <p className="mt-1 text-sm text-slate-500">How long students get for {target.label}. You can change it before or after publishing.</p>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><X className="h-5 w-5" /></button>
+      </div>
+      <div role="radiogroup" aria-label="Timing type" className="mt-5 flex gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/5">
+        {tab("per_question", "Per question", <Timer className="h-4 w-4" />)}
+        {tab("total", "Total time", <Hourglass className="h-4 w-4" />)}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {chips.map(([amount, label]) => <button key={amount} type="button" onClick={() => (mode === "per_question" ? setSeconds(String(amount)) : setMinutes(String(amount)))}
+          className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${value === amount ? "border-primary bg-primary text-white" : "border-slate-200 text-slate-600 hover:border-primary hover:text-primary dark:border-white/10 dark:text-slate-300"}`}>{label}</button>)}
+      </div>
+      <label className="mt-4 block">
+        <span className="mb-2 block text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">{mode === "per_question" ? "Seconds for each MCQ" : "Minutes for the whole test"}</span>
+        <input type="number" inputMode="numeric" min={mode === "per_question" ? 10 : 1} max={mode === "per_question" ? 600 : 1440} step="1" value={mode === "per_question" ? seconds : minutes}
+          onChange={(event) => (mode === "per_question" ? setSeconds(event.target.value) : setMinutes(event.target.value))}
+          className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-primary dark:border-white/10 dark:bg-slate-950 dark:text-white" />
+      </label>
+      {!valid && <p role="alert" className="mt-2 text-xs font-bold text-rose-600">{mode === "per_question" ? "Use 10 to 600 seconds." : "Use 1 to 1440 minutes."}</p>}
+      {valid && <p className="mt-3 rounded-xl bg-primary-soft/60 px-3 py-2 text-xs font-bold text-primary-dark dark:bg-primary/10 dark:text-violet-200">
+        {mode === "per_question" ? `A ${sample}-MCQ test gets ${clock(sampleTime)}.` : `The full ${mcqCount || ""} MCQ test gets ${value} min${mcqCount ? `; a ${sample}-MCQ set gets ${clock(sampleTime)}` : ""}.`}
+      </p>}
+      {target.kind === "chapter" && mode === "per_question" && <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+        <input type="checkbox" checked={applyToTopics} onChange={(event) => setApplyToTopics(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" />
+        <span className="text-sm"><span className="block font-black text-slate-800 dark:text-white">Use this for every topic test too</span><span className="text-xs text-slate-500">Otherwise only the complete chapter test changes.</span></span>
+      </label>}
+      <p className="mt-3 text-xs text-slate-500">Students already taking the test keep the time they started with.</p>
+      <div className="mt-6 flex justify-end gap-2">
+        <AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton>
+        <AdminActionButton icon={Timer} loading={busy} disabled={!valid || busy} onClick={() => onConfirm({ mode, ...(mode === "per_question" ? { secondsPerQuestion: value } : { minutes: value }) }, applyToTopics)}>Save time</AdminActionButton>
+      </div>
+    </div>
+  </div>;
 };
 
 // The on/off switch. "Scheduled" counts as on, so switching it off cancels the schedule.
@@ -85,6 +151,7 @@ const TestPublishing = () => {
   const [open, setOpen] = useState(() => new Set());
   const [pending, setPending] = useState("");
   const [schedule, setSchedule] = useState(null);
+  const [timing, setTiming] = useState(null);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
@@ -117,20 +184,22 @@ const TestPublishing = () => {
     setNotice(null);
   };
 
-  const act = async (target, action, startsAt) => {
+  const act = async (target, action, startsAt, extra = {}) => {
     setPending(target.key);
     setNotice(null);
     try {
-      const { data } = await axiosInstance.post("/assessments/publishing", { [target.kind]: target.id, action, startsAt });
+      const { data } = await axiosInstance.post("/assessments/publishing", { [target.kind]: target.id, action, startsAt, ...extra });
       const created = data.created ? ` ${data.created} new ${data.created === 1 ? "test was" : "tests were"} created from the saved MCQs.` : "";
       const text = {
         publish: `${target.label} is now live for students.${created}`,
         unpublish: `${target.label} is now hidden from students.`,
         schedule: `${target.label} will go live on ${startsAt && opensLabel(startsAt)}.${created}`,
         addNew: `${data.added} new ${data.added === 1 ? "MCQ was" : "MCQs were"} added to the test for ${target.label}.`,
+        timing: `${target.label} now gives ${timingLabel(extra.timing)}${extra.applyToTopics && target.kind === "chapter" && extra.timing?.mode === "per_question" ? ", in every topic test too" : ""}. New attempts use this time.${created}`,
       }[action];
       setNotice({ type: "success", text });
       setSchedule(null);
+      setTiming(null);
       await load(true);
     } catch (err) {
       setNotice({ type: "error", text: err.response?.data?.message || "That change could not be saved. Please try again." });
@@ -151,7 +220,11 @@ const TestPublishing = () => {
   const Controls = ({ target, item }) => {
     const on = item.state === "live" || item.state === "scheduled";
     const busy = pending === target.key;
+    const label = timingLabel(item.timing, target.kind === "chapter");
     return <div className="flex items-center gap-2">
+      {item.state !== "empty" && <button type="button" onClick={() => setTiming({ target, current: item.timing, mcqCount: item.mcqCount })} disabled={busy} title={`Set the time for ${target.label}`} aria-label={`Set the time for ${target.label}${label ? ` (now ${label})` : ""}`}
+        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 text-xs font-black text-slate-600 transition hover:border-primary hover:bg-primary-soft/50 hover:text-primary disabled:opacity-40 dark:border-white/10 dark:text-slate-300">
+        <Timer className="h-4 w-4" /><span className="hidden whitespace-nowrap sm:inline">{label || "Set time"}</span></button>}
       {item.state !== "empty" && <button type="button" onClick={() => setSchedule(target)} disabled={busy} title={`Schedule ${target.label}`} aria-label={`Schedule ${target.label}`}
         className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 transition hover:bg-sky-50 hover:text-sky-700 disabled:opacity-40 dark:hover:bg-sky-500/10"><CalendarClock className="h-[18px] w-[18px]" /></button>}
       <Switch on={on} busy={busy} disabled={item.state === "empty"} label={`${on ? "Unpublish" : "Publish"} ${target.label}`} onChange={(value) => act(target, value ? "publish" : "unpublish")} />
@@ -229,9 +302,10 @@ const TestPublishing = () => {
           </article>;
         })}
       </div>
-      <p className="text-xs leading-5 text-slate-500">Times are Pakistan time. A scheduled test goes live by itself at its time; switching it off cancels the schedule. Unpublishing never deletes a test, its MCQs or student results. To change which MCQs are in a test, use <Link to="/admin/assessments/builder" className="font-bold text-primary underline">MCQ Tests</Link>.</p>
+      <p className="text-xs leading-5 text-slate-500">Times are Pakistan time. A scheduled test goes live by itself at its time; switching it off cancels the schedule. Unpublishing never deletes a test, its MCQs or student results. Use the timer button to give each MCQ a set time or the whole test a total time; a total time is shared out when a student picks fewer MCQs. To change which MCQs are in a test, use <Link to="/admin/assessments/builder" className="font-bold text-primary underline">MCQ Tests</Link>.</p>
     </>}
 
+    {timing && <TimingDialog target={timing.target} current={timing.current} mcqCount={timing.mcqCount} busy={pending === timing.target.key} onClose={() => setTiming(null)} onConfirm={(value, applyToTopics) => act(timing.target, "timing", undefined, { timing: value, applyToTopics })} />}
     {schedule && <ScheduleDialog target={schedule} busy={pending === schedule.key} onClose={() => setSchedule(null)} onConfirm={(startsAt) => act(schedule, "schedule", startsAt)} />}
   </div>;
 };

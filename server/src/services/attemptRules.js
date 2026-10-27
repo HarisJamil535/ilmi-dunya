@@ -15,8 +15,8 @@ async function startBlocker(assessment, studentId, now = new Date()) {
 }
 
 // The attempt cannot run past the test's closing time.
-const attemptExpiry = (assessment, now, durationMinutes) => {
-    const expiresAt = now.getTime() + durationMinutes * 60 * 1000;
+const attemptExpiry = (assessment, now, seconds) => {
+    const expiresAt = now.getTime() + seconds * 1000;
     const closesAt = assessment.endsAt ? new Date(assessment.endsAt).getTime() : Infinity;
     return new Date(Math.min(expiresAt, closesAt));
 };

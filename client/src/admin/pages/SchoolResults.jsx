@@ -171,10 +171,11 @@ const SchoolResults = () => {
       <div className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-opacity ${loading ? "opacity-60" : ""}`}>
         {report.rows.length ? <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{["Student", "Class", "Test", "Date", "Time", "Duration", "Score", "Result"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
+            <table className="admin-table w-full min-w-[940px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="admin-sno px-4 py-3">#</th>{["Student", "Class", "Test", "Date", "Time", "Duration", "Score", "Result"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {report.rows.map((row) => <tr key={row._id} className="align-top hover:bg-slate-50/70">
+                {report.rows.map((row, index) => <tr key={row._id} className="align-top hover:bg-slate-50/70">
+                  <td className="admin-sno px-4 py-3">{(report.pagination.page - 1) * PAGE_SIZE + index + 1}</td>
                   <td className="px-4 py-3 font-black text-slate-900">{row.student.name}</td>
                   <td className="whitespace-nowrap px-4 py-3">{[row.student.class, row.student.section].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="px-4 py-3"><p className="font-bold text-slate-800">{row.test.title}</p><p className="text-xs text-slate-500">{[row.test.subject, row.test.type, row.isPartialPractice ? "Practice set" : ""].filter(Boolean).join(" · ")}</p></td>

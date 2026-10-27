@@ -206,9 +206,10 @@ const EntityManager = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="admin-table w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-bold uppercase text-slate-400">
+                    <th className="admin-sno py-3 px-6">#</th>
                     <th className="py-3 px-6">Name</th>
                     <th className="py-3 px-6">Date Created</th>
                     <th className="py-3 px-6 text-right">Actions</th>
@@ -220,7 +221,8 @@ const EntityManager = ({
                     const name = getItemName(item);
                     return (
                       <tr key={id} className="hover:bg-slate-50/40 transition-colors">
-                        <td className="py-3.5 px-6 font-semibold text-slate-800"><span className="mr-3 text-xs font-black text-slate-400">{index + 1}.</span>{name}</td>
+                        <td className="admin-sno py-3.5 px-6">{index + 1}</td>
+                        <td className="py-3.5 px-6 font-semibold text-slate-800">{name}</td>
                         <td className="py-3.5 px-6 text-slate-400">
                           {item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "N/A"}
                         </td>

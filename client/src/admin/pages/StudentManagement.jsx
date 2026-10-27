@@ -143,10 +143,11 @@ const StudentManagement = () => {
         </div>
         {loading ? <div className="p-5"><AdminLoader label="Loading student records..." /></div> : students.length ? <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{["Student", "Contact", "Gender", "City", "School / candidate", "Study profile", "Sign in", "Account", "Joined", "Last active", "Actions"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
+            <table className="admin-table w-full min-w-[1300px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="admin-sno px-4 py-3">#</th>{["Student", "Contact", "Gender", "City", "School / candidate", "Study profile", "Sign in", "Account", "Joined", "Last active", "Actions"].map((label) => <th key={label} className="px-4 py-3 font-black">{label}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {students.map((student) => <tr key={student._id} className={`align-top hover:bg-slate-50/70 ${student.status === "blocked" ? "bg-rose-50/40" : ""}`}>
+                {students.map((student, index) => <tr key={student._id} data-tone={student.status === "blocked" ? "blocked" : undefined} className={`align-top hover:bg-slate-50/70 ${student.status === "blocked" ? "bg-rose-50/40" : ""}`}>
+                  <td className="admin-sno px-4 py-4">{(page - 1) * 25 + index + 1}</td>
                   <td className="px-4 py-4"><p className="font-black text-slate-900">{student.name}</p><p className="mt-1 text-xs text-slate-500">{student.email}</p></td>
                   <td className="px-4 py-4">{student.phone || "—"}</td>
                   <td className="px-4 py-4">{titleCase(student.gender)}</td>

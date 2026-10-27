@@ -42,6 +42,9 @@ const assessmentSchema = new mongoose.Schema(
             hard: Number,
         },
         durationMinutes: { type: Number, default: 30, min: 1 },
+        // "per_question" uses secondsPerQuestion; "total" uses durationMinutes. Unset keeps the old default (see services/testTiming.js).
+        timingMode: { type: String, enum: ["per_question", "total"] },
+        secondsPerQuestion: { type: Number, min: 10, max: 600 },
         totalMarks: { type: Number, default: 0 },
         passingMarks: { type: Number, default: 0 },
         instructions: [{ type: String, trim: true }],

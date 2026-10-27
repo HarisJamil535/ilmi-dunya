@@ -34,8 +34,8 @@ test("tests cannot start before opening, after closing, or beyond the allowed at
 
 test("an attempt never runs past the test's closing time", () => {
     const now = new Date("2026-05-01T10:00:00Z");
-    assert.equal(attemptExpiry({}, now, 30).toISOString(), "2026-05-01T10:30:00.000Z");
-    assert.equal(attemptExpiry({ endsAt: "2026-05-01T10:10:00Z" }, now, 30).toISOString(), "2026-05-01T10:10:00.000Z");
+    assert.equal(attemptExpiry({}, now, 1800).toISOString(), "2026-05-01T10:30:00.000Z");
+    assert.equal(attemptExpiry({ endsAt: "2026-05-01T10:10:00Z" }, now, 1800).toISOString(), "2026-05-01T10:10:00.000Z");
 });
 
 test("test settings are validated before saving", () => {

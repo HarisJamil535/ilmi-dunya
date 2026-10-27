@@ -914,7 +914,7 @@ const QuestionBankManagement = () => {
           ) : questions.length ? (
             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="admin-table w-full min-w-[900px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="w-12 px-4 py-3"><input type="checkbox" aria-label="Select all questions on this page" checked={allPageSelected} onChange={togglePageSelection} className="h-5 w-5 cursor-pointer rounded accent-[var(--color-primary)]" /></th>
@@ -927,7 +927,7 @@ const QuestionBankManagement = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {questions.map((question, index) => (
-                      <tr key={question._id} className={`align-top transition hover:bg-slate-50/80 ${selectedQuestionIds.includes(question._id) ? "bg-primary-soft/50" : ""}`}>
+                      <tr key={question._id} data-tone={selectedQuestionIds.includes(question._id) ? "selected" : undefined} className={`align-top transition hover:bg-slate-50/80 ${selectedQuestionIds.includes(question._id) ? "bg-primary-soft/50" : ""}`}>
                         <td className="px-4 py-4"><input type="checkbox" aria-label={`Select question ${((page - 1) * PAGE_SIZE) + index + 1}`} checked={selectedQuestionIds.includes(question._id)} onChange={() => toggleQuestionSelection(question._id)} className="h-5 w-5 cursor-pointer rounded accent-[var(--color-primary)]" /></td>
                         <td className="px-3 py-4 font-black text-slate-500">{((page - 1) * PAGE_SIZE) + index + 1}</td>
                         <td className="max-w-xl px-3 py-4">

@@ -61,6 +61,8 @@ const AssessmentBuilder = () => {
     chapter: "",
     topic: "",
     durationMinutes: 30,
+    timingMode: "",
+    secondsPerQuestion: 60,
     status: "draft",
     ...defaultSettings,
   });
@@ -175,6 +177,8 @@ const AssessmentBuilder = () => {
     () => selected.reduce((sum, id) => sum + (questionCache[id]?.marks || 1), 0),
     [selected, questionCache]
   );
+  // Chapter and topic tests saved before timing existed run at one minute per MCQ.
+  const timingMode = form.timingMode || (["topic_test", "chapter_test"].includes(form.type) ? "per_question" : "total");
 
   const submit = async (event) => {
     event.preventDefault();
@@ -183,6 +187,10 @@ const AssessmentBuilder = () => {
     try {
       const payload = {
         ...form,
+        timingMode,
+        ...(timingMode === "per_question"
+          ? { secondsPerQuestion: Number(form.secondsPerQuestion) || 60, durationMinutes: Math.max(1, Math.ceil(selected.length * (Number(form.secondsPerQuestion) || 60) / 60)) }
+          : { secondsPerQuestion: undefined }),
         status: form.status,
         questions: selected.map((id, index) => ({ question: id, order: index + 1 })),
         passingMarks: Math.ceil(totalMarks * 0.4),
@@ -258,6 +266,8 @@ const AssessmentBuilder = () => {
         chapter: String(draft.chapter?._id || draft.chapter || ""),
         topic: String(draft.topic?._id || draft.topic || ""),
         durationMinutes: draft.durationMinutes || 30,
+        timingMode: draft.timingMode || "",
+        secondsPerQuestion: draft.secondsPerQuestion || 60,
         status: draft.status,
         allowResume: draft.allowResume ?? true,
         showCorrectAnswers: draft.showCorrectAnswers ?? true,
@@ -367,8 +377,13 @@ const AssessmentBuilder = () => {
               <span className="rounded-2xl bg-slate-50 p-4 text-sm font-black">{totalMarks}<br /><small>Marks</small></span>
             </div>
             <div className="mt-4">
-              <Field label="Duration" helper="Total test time in minutes.">
-                <input type="number" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })} />
+              <Field label="Test time" helper={timingMode === "per_question" ? `Each MCQ gets this many seconds (${selected.length} MCQs = ${Math.ceil(selected.length * (Number(form.secondsPerQuestion) || 0) / 60)} min).` : "Total time for the whole test, in minutes. Shorter sets students pick get a matching share."}>
+                <div className="mb-2 flex gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Timing type">
+                  {[["per_question", "Per question"], ["total", "Total time"]].map(([value, label]) => <button key={value} type="button" role="radio" aria-checked={timingMode === value} onClick={() => setForm({ ...form, timingMode: value })} className={`flex-1 rounded-lg px-2 py-2 text-xs font-black transition ${timingMode === value ? "bg-white text-primary shadow-sm" : "text-slate-500"}`}>{label}</button>)}
+                </div>
+                {timingMode === "per_question"
+                  ? <input type="number" min="10" max="600" aria-label="Seconds per MCQ" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.secondsPerQuestion} onChange={(e) => setForm({ ...form, secondsPerQuestion: Number(e.target.value) })} />
+                  : <input type="number" min="1" max="1440" aria-label="Total minutes" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })} />}
               </Field>
             </div>
             <details className="mt-3 rounded-2xl border border-slate-200 p-3">
