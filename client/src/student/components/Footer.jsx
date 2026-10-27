@@ -31,8 +31,11 @@ const socialLinks = [
 ];
 
 const Footer = () => {
-  const { boards: availableBoards } = useContext(AppContext);
-  const boards = availableBoards.slice(0, 6).map(board => ({ label: board.name, to: studyPath("board", board) }));
+  const { boards: availableBoards, hubs = [] } = useContext(AppContext);
+  // Every board and class page is linked from every page, so search engines can reach all of them.
+  const boards = hubs.length
+    ? hubs.slice(0, 16).map(hub => ({ label: `${hub.board} ${hub.class}`, to: hub.href }))
+    : availableBoards.slice(0, 6).map(board => ({ label: board.name, to: studyPath("board", board) }));
   const email = import.meta.env.VITE_CONTACT_EMAIL;
   const legalLinks = [[import.meta.env.VITE_PRIVACY_URL, "Privacy Policy"], [import.meta.env.VITE_TERMS_URL, "Terms of Service"]].filter(([url]) => /^https:\/\//.test(url || ""));
   return (
@@ -108,10 +111,10 @@ const Footer = () => {
           </nav>
 
           {/* Boards */}
-          <nav aria-label="Education Boards">
+          <nav aria-label="Study by board and class">
 
             <h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
-              Boards
+              Study by class
             </h2>
 
             <ul className="space-y-3">

@@ -39,6 +39,8 @@ const StudentRoutes = ({ initialData, initialView }) => {
         <Route element={<StudentLayout />}>
           <Route path="/" element={<HomeView initialData={initialData?.type === 'home' ? initialData : undefined} />} />
           <Route path="/learn/*" element={<StudyView initialData={initialData?.type === 'study' ? initialData : undefined} />} />
+          {/* Readable study addresses such as /federal-board/class-9/physics; unknown ones show the page's own "not found". */}
+          <Route path="/:board/*" element={<StudyView initialData={initialData?.type === 'study' ? initialData : undefined} />} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/videos" element={<Videos />} />
           <Route path="/topics" element={<Videos />} />

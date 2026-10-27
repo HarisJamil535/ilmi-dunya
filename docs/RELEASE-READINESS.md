@@ -183,3 +183,26 @@ PDFs are built on a worker thread (`services/schoolReportPdf.js`, data from `ser
 ## Test time per question or total
 
 Admin → Publish Tests has a timer button on every topic and chapter (before or after publishing). A test gets either seconds per MCQ (10–600) or a total time (1–1440 minutes); a total time is shared out when a student picks fewer MCQs. A chapter's time sets its complete chapter test, and a per-question time can also be applied to every topic test of the chapter. The MCQ Tests builder offers the same choice. Tests never changed keep their old behaviour (chapter and topic tests one minute per MCQ). Attempts already running keep the time they started with. Rules: `server/src/services/testTiming.js`.
+
+## Search-friendly study pages (SEO)
+
+Study pages now live at readable addresses that match how students search, built only from published content (`server/src/services/seoPages.js`):
+
+| Address | Example title |
+| --- | --- |
+| `/federal-board` | Federal Board (FBISE) Notes, MCQs & Past Papers – 9th Class, 10th Class… |
+| `/federal-board/class-9` | Federal Board Class 9 (9th Class) Notes, MCQs & Past Papers – All Subjects |
+| `/federal-board/class-9/computer-science` | Class 9 Computer Science Notes, MCQs & Past Papers – Federal Board (FBISE) |
+| `…/computer-science/mcqs` and `…/notes` | Class 9 Computer Science MCQs with Answers Chapter Wise / Notes – All Chapters |
+| `…/chapter-3-programming-fundamentals` | Class 9 Computer Science Chapter 3: Programming Fundamentals – Notes & MCQs |
+| `…/chapter-3-…/mcqs` | Class 9 Computer Science Chapter 3 MCQs with Answers – FBISE |
+| `…/chapter-3-…/notes` | Class 9 Computer Science Chapter 3 Notes & Exercise Solutions – FBISE |
+| `…/chapter-3-…/3-1-topic-name` | 3.1 Topic Name – Class 9 Computer Science Chapter 3 |
+
+- Chapter MCQ pages show up to 30 MCQs (topics 15) from tests that are live for students, with answers and explanations, and Quiz structured data. Change `PUBLIC_MCQS` to show more or fewer; the full set stays in the timed tests.
+- Old `/learn/board|subject|chapter|topic|notes` addresses and chapter/topic test pages redirect permanently (301). Renamed chapters/topics redirect from the old wording by number; capitals and trailing slashes redirect to the canonical form.
+- The sitemap index adds `/sitemaps/study/N.xml` with every readable page that has content. Books, past papers, other tests and news keep their sitemaps.
+- Every page links its parents (breadcrumbs), siblings (previous/next chapter or topic) and related MCQ/notes pages; the footer links every board and class hub on every page.
+- The home page has a keyword title and WebSite/Organization data; `og:site_name` and `og:locale` are on every page.
+
+After deploying: set `SITE_URL=https://www.ilmidunya.org` (one host only; redirect the other host to it), verify the site in Google Search Console and Bing Webmaster Tools, submit `https://www.ilmidunya.org/sitemap.xml`, and use URL Inspection on a few chapter MCQ pages. Write a short original summary for each subject and chapter in the admin; it appears on the page and strengthens it.

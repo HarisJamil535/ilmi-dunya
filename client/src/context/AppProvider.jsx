@@ -8,6 +8,7 @@ const AppProvider = ({ children, initialData }) => {
     const [boards, setBoards] = useState(initialData?.boards || []);
     const [classes, setClasses] = useState(initialData?.classes || []);
     const [groups, setGroups] = useState(initialData?.groups || []);
+    const [hubs, setHubs] = useState(initialData?.hubs || []);
     const [subjects, setSubjects] = useState([]);
 
     const [selectedBoard, setSelectedBoard] = useState("");
@@ -23,6 +24,7 @@ const AppProvider = ({ children, initialData }) => {
             setBoards(sortByName(data.boards || []));
             setClasses(sortByName(data.classes || []));
             setGroups(sortByName(data.groups || []));
+            setHubs(data.hubs || []);
         } catch {
             // Keep the last usable choices during a temporary connection failure.
         } finally {
@@ -31,7 +33,8 @@ const AppProvider = ({ children, initialData }) => {
     }, []);
 
     useEffect(() => {
-        if (!initialData) fetchGlobalData();
+        // Study pages arrive with boards and classes but not the class hubs, so those are fetched once.
+        if (!initialData || !initialData.hubs) fetchGlobalData();
     }, [fetchGlobalData, initialData]);
 
     useEffect(() => {
@@ -66,6 +69,7 @@ const AppProvider = ({ children, initialData }) => {
         <AppContext.Provider
             value={{
                 boards,
+                hubs,
                 classes,
                 groups,
                 subjects,

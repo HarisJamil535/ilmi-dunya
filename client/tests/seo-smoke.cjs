@@ -26,6 +26,7 @@ for (const [name, rows] of Object.entries(fixtures)) {
   Model.findById = value => query(rows.filter(row => row._id === String(value)), true);
   Model.countDocuments = async (filter = {}) => rows.filter(row => matches(row, filter)).length;
   Model.distinct = async () => [];
+  Model.aggregate = async () => [];
 }
 
 (async () => {
@@ -37,7 +38,7 @@ for (const [name, rows] of Object.entries(fixtures)) {
   let browser;
   const results = [];
   try {
-    for (const route of ['/', '/learn', '/news', '/news/physics-guide-1', `/learn/board/${board._id}/fbise`]) {
+    for (const route of ['/', '/learn', '/news', '/news/physics-guide-1', `/learn/board/${board._id}/fbise`, '/fbise', '/fbise/class-10', '/fbise/class-10/physics']) {
       const started = performance.now();
       const response = await fetch(origin + route);
       const html = await response.text();
@@ -52,6 +53,9 @@ for (const [name, rows] of Object.entries(fixtures)) {
     results.push({ route: '/ (warm)', serverMs: Math.round(performance.now() - warmStart) });
     const wrongSlug = await fetch(origin + `/learn/board/${board._id}/old-name`, { redirect: 'manual' });
     assert.equal(wrongSlug.status, 301);
+    assert.equal(new URL(wrongSlug.headers.get('location'), origin).pathname, '/fbise', 'old study links move to the readable address');
+    const studyMap = await (await fetch(origin + '/sitemaps/study/1.xml')).text();
+    assert.match(studyMap, /\/fbise\/class-10<\/loc>/);
     assert.equal((await fetch(origin + '/missing-page')).status, 404);
     assert.equal((await fetch(origin + '/news/not-published')).status, 404);
     assert.match(await (await fetch(origin + '/dashboard')).text(), /noindex, follow/);

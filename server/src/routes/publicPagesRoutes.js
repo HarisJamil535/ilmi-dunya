@@ -14,6 +14,11 @@ const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
 const { robotsText } = require('../services/robots');
+const { seoPage, isSeoPath, seoSitemapEntries, hubLinks, clearCatalog } = require('../services/seoPages');
+// These pages moved to readable addresses (the "study" sitemap); their old /learn addresses redirect.
+const MOVED_KINDS = new Set(['board', 'subject', 'chapter', 'topic', 'notes']);
+// A readable study address; its own redirect is followed, never rendered.
+const redirectTo = location => Object.assign(new Error('Moved'), { redirect: location });
 let templateFile;
 let renderingFiles;
 async function frontendTemplate() {
@@ -39,11 +44,12 @@ async function cached(key, load, ttl = 30000) {
     cache.set(key, { value, expires: Date.now() + ttl });
     try { return await value; } catch (error) { if (cache.get(key)?.value === value) cache.delete(key); throw error; }
 }
-const invalidatePublicPages = () => cache.clear();
+const invalidatePublicPages = () => { cache.clear(); clearCatalog(); };
 async function dataFor(req) {
     const requestPath = req.path + (new URL(req.originalUrl, "http://local").search);
-    if (req.path.startsWith("/learn")) {
-        const study = await publicPage(req.path, req.query);
+    if (req.path.startsWith("/learn") || await isSeoPath(req.path)) {
+        const study = req.path.startsWith("/learn") ? await publicPage(req.path, req.query) : await seoPage(req.path, siteOrigin());
+        if (study.redirect) throw redirectTo(study.redirect);
         return { type: "study", requestPath, study, meta: study.meta, ...(study.studyOptions ? { context: study.studyOptions } : {}) };
     }
     if (req.path === "/news") {
@@ -64,32 +70,40 @@ async function dataFor(req) {
     }
     const [boards, classes, groups, testimonials, stats, visitMetric, news] = await Promise.all([Board.find().sort({name:1}).lean(), ClassModel.find().sort({name:1}).lean(), Group.find().sort({name:1}).lean(), Testimonial.find({ isActive: true }).sort({ displayOrder: 1 }).limit(12).lean(), HomeStat.find({isActive:true}).sort({displayOrder:1}).limit(4).lean(), SiteMetric.findOne({ key: "site-visits" }).lean(), NewsArticle.find({isPublished:true,isFeatured:true}).sort({publishedAt:-1}).limit(5).select("title slug excerpt coverImage imageAlt category publishedAt").lean()]);
     const publicStats = [{ label: "Site visits", value: Number(visitMetric?.total || 0).toLocaleString("en-US"), description: "Learning visits to IlmiDunya", isLive: true }, ...stats].slice(0, 4);
-    return { type: "home", requestPath, context: { boards, classes, groups }, home: { testimonials, stats: publicStats }, news, meta: meta("IlmiDunya - Notes, Books, Past Papers and MCQ Practice", "Prepare for Pakistani board exams with class-wise notes, textbooks, past papers, video lessons and chapter and topic MCQ practice.", "/") };
+    const boardNames = boards.map(board => board.name).slice(0, 2).join(" & ") || "Pakistani Board";
+    const classRange = classes.map(cls => Number((cls.name.match(/\d+/) || [])[0])).filter(Boolean).sort((a, b) => a - b);
+    const range = classRange.length ? `Class ${classRange[0]}${classRange.length > 1 ? `–${classRange[classRange.length - 1]}` : ""}` : "All Classes";
+    return { type: "home", requestPath, context: { boards, classes, groups, hubs: await hubLinks() }, home: { testimonials, stats: publicStats }, news, meta: { ...meta(`${boardNames} Notes, MCQs with Answers & Past Papers – ${range}`, `Free ${boardNames} notes, chapter-wise MCQs with answers, exercise solutions, short and long questions, textbooks and past papers for ${range}. Practise with online MCQ tests on IlmiDunya.`, "/"), title: `IlmiDunya – ${boardNames} Notes, MCQs & Past Papers (${range})` } };
 }
 
 function publicRoutes() {
     const router = express.Router();
     router.get('/api/study-options', async (req, res) => {
         const options = await cached('study-options', async () => {
-            const [boards, classes, groups] = await Promise.all([
+            const [boards, classes, groups, hubs] = await Promise.all([
                 Board.find().sort({ name: 1 }).lean(),
                 ClassModel.find().sort({ name: 1 }).lean(),
                 Group.find().sort({ name: 1 }).lean(),
+                hubLinks(),
             ]);
-            return { boards, classes, groups };
+            return { boards, classes, groups, hubs };
         }, 60000);
         res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=30').json(options);
     });
     router.get('/api/public-page', async (req, res) => {
         const resourcePath = typeof req.query.path === 'string' ? req.query.path : '';
-        const study = await cached(`study:${resourcePath}:${pageNumber(req.query.page)}`, () => publicPage(resourcePath, req.query));
+        const study = await cached(`study:${resourcePath}:${pageNumber(req.query.page)}`, async () => (resourcePath.startsWith('/learn') ? publicPage(resourcePath, req.query) : await isSeoPath(resourcePath) ? seoPage(resourcePath, siteOrigin()) : publicPage(resourcePath, req.query)));
+        if (study.redirect) return res.set('Cache-Control', 'public, max-age=0, must-revalidate').json({ redirect: study.redirect });
         res.set('Cache-Control', 'public, max-age=0, must-revalidate').json({ study });
     });
     router.get('/robots.txt', (req, res) => res.type('text/plain').send(robotsText(siteOrigin())));
     router.get('/sitemap.xml', async (req, res) => {
         const xml = await cached('sitemap-index', async () => {
             const entries = [`${siteOrigin()}/sitemaps/core/1.xml`];
+            const studyPages = (await seoSitemapEntries()).length;
+            for (let p = 1; p <= Math.ceil(studyPages / 1000); p++) entries.push(`${siteOrigin()}/sitemaps/study/${p}.xml`);
             for (const [kind, Model] of Object.entries(sitemapModels)) {
+                if (MOVED_KINDS.has(kind)) continue;
                 const filter = await sitemapCriteria(kind);
                 if (!filter) continue;
                 const total = await Model.countDocuments(filter);
@@ -102,11 +116,15 @@ function publicRoutes() {
     router.get('/sitemaps/:kind/:page.xml', async (req, res) => {
         const { kind } = req.params;
         const p = Number(req.params.page);
-        if (!Number.isInteger(p) || p < 1 || p > 10000 || (kind !== 'core' && !sitemapModels[kind])) return res.sendStatus(404);
+        if (!Number.isInteger(p) || p < 1 || p > 10000 || MOVED_KINDS.has(kind) || (!['core', 'study'].includes(kind) && !sitemapModels[kind])) return res.sendStatus(404);
         const xml = await cached(`sitemap:${kind}:${p}`, async () => {
             if (kind === 'core') {
                 if (p !== 1) return null;
                 return sitemapXml([{path:'/'},{path:'/learn'},{path:'/news'}]);
+            }
+            if (kind === 'study') {
+                const pages = (await seoSitemapEntries()).slice((p - 1) * 1000, p * 1000);
+                return pages.length ? sitemapXml(pages) : null;
             }
             const filter = await sitemapCriteria(kind);
             if (!filter) return null;
@@ -132,12 +150,21 @@ function frontendRoutes() {
         let template;
         try { template = await frontendTemplate(); } catch { return next(); }
         try {
-            if (req.path === '/' || req.path === '/news' || req.path.startsWith('/news/') || req.path === '/learn' || req.path.startsWith('/learn/')) {
-                const data = await cached(`page:${req.originalUrl}`, () => dataFor(req));
+            const studyAddress = await isSeoPath(req.path);
+            if (req.path === '/' || req.path === '/news' || req.path.startsWith('/news/') || req.path === '/learn' || req.path.startsWith('/learn/') || studyAddress) {
+                let data;
+                try {
+                    data = await cached(`page:${req.originalUrl}`, () => dataFor(req));
+                } catch (error) {
+                    if (error.redirect) return res.redirect(301, error.redirect);
+                    throw error;
+                }
                 if (req.path === '/learn' || req.path.startsWith('/learn/') || req.path === '/news' || req.path.startsWith('/news/')) {
                     const requested = new URL(req.originalUrl, siteOrigin());
                     if (requested.pathname + requested.search !== data.meta.path) return res.redirect(301, data.meta.path);
                 }
+                // One address per page: a trailing slash or capital letters lead to the canonical form.
+                if (studyAddress && req.path !== data.meta.path) return res.redirect(301, data.meta.path + (new URL(req.originalUrl, 'http://local').search));
                 const { manifest, render } = await frontendRendering();
                 const html = await cached(`html:${req.originalUrl}`, () => {
                     const styles = new Set();

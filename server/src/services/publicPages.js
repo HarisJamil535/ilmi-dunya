@@ -45,7 +45,9 @@ async function publicPage(path, query = {}) {
     const size = 30;
     if (path === "/learn") {
         const [boards, classes, groups] = await Promise.all([Board.find().sort({ name: 1 }).select('name slug').lean(), ClassModel.find().sort({ name: 1 }).select('name slug classNumber').lean(), Group.find().sort({ name: 1 }).select('name').lean()]);
-        return { kind: "directory", title: "Study resources for Pakistani board students", summary: "Choose your board, class and group to find your subjects. Explore books, chapter notes, topic questions, MCQ tests and past papers for your syllabus.", studyOptions: { boards, classes, groups }, sections: [{ title: "Education boards", links: boards.map(doc => link("board", doc)) }, { title: "Classes", links: classes.map(doc => link("class", doc)) }], breadcrumbs: [{ title: "Home", href: "/" }], meta: meta("Pakistani Boards and Class Study Resources", "Browse board and class study resources, chapters, topic questions, notes, textbooks and past papers for Pakistani students.", path) };
+        const hubs = await require("./seoPages").hubLinks();
+        const boardLinks = [...new Map(hubs.map(hub => [hub.boardHref, { title: hub.board, href: hub.boardHref, summary: "" }])).values()];
+        return { kind: "directory", title: "Study resources for Pakistani board students", summary: "Choose your board, class and group to find your subjects. Explore books, chapter notes, topic questions, MCQ tests and past papers for your syllabus.", studyOptions: { boards, classes, groups }, sections: [{ title: "Education boards", links: boardLinks }, { title: "Classes by board", links: hubs.map(hub => ({ title: `${hub.board} ${hub.class}`, href: hub.href, summary: "" })) }, { title: "Classes", links: classes.map(doc => link("class", doc)) }], breadcrumbs: [{ title: "Home", href: "/" }], meta: meta("Pakistani Boards and Class Study Resources", "Browse board and class study resources, chapters, topic questions, notes, textbooks and past papers for Pakistani students.", path) };
     }
     const match = path.match(/^\/learn\/([a-z-]+)\/([a-f0-9]{24})(?:\/([^/]+))?\/?$/i);
     if (!match || !models[match[1]]) fail("Study page not found.", 404);
@@ -57,6 +59,11 @@ async function publicPage(path, query = {}) {
     if (kind === 'mcqs') request = request.populate('chapter topic');
     const doc = await request.lean();
     if (!doc || (kind === "mcqs" && doc.status !== "published")) fail("Study page not found.", 404);
+    // Boards, subjects, chapters, topics and notes now live at readable addresses; old links move there.
+    if (["board", "subject", "chapter", "topic", "notes", "mcqs"].includes(kind)) {
+        const address = await require("./seoPages").legacyAddress(kind, doc);
+        if (address) return { redirect: address };
+    }
     if (!hasAcademicContext(kind, doc)) fail("This resource's academic context is unavailable.", 404);
     if (kind === "topic") Object.assign(doc, { board: doc.boardId, class: doc.classId, group: doc.groupId, subject: doc.subjectId });
     if (["subject", "chapter", "topic", "book", "notes", "past-paper", "mcqs"].includes(kind) && (!name(doc.board) || !name(doc.class) || (kind !== "subject" && !name(doc.subject)))) fail("This resource's academic context is unavailable.", 404);
@@ -75,7 +82,9 @@ async function publicPage(path, query = {}) {
     if (["board", "class"].includes(kind)) {
         const subjects = await Subject.find({ [kind]: doc._id }).populate("board class group").sort({ name: 1, _id: 1 }).skip((page - 1) * size).limit(size + 1).lean();
         hasNext = subjects.length > size;
-        sections.push({ title: "Available subjects", links: subjects.slice(0, size).map(item => ({ ...link("subject", item), summary: context(item) })) });
+        const { subjectUrl } = require("./seoPages");
+        const subjectLinks = await Promise.all(subjects.slice(0, size).map(async item => ({ ...link("subject", item), href: await subjectUrl(item._id) || pagePath("subject", item), summary: context(item) })));
+        sections.push({ title: "Available subjects", links: subjectLinks });
     } else if (kind === "subject") {
         const [chapters, books, papers] = await Promise.all([
             Chapter.find({ subject: doc._id }).sort({ chapterNumber: 1 }).lean(),
@@ -136,7 +145,8 @@ const resourceReady = { summary: { $regex: /[\s\S]{80}/ } };
 const sitemapModels = { ...models, news: NewsArticle };
 function sitemapFilter(kind) {
     if (kind === "news") return { isPublished: true, excerpt: { $regex: /[\s\S]{60}/ }, content: { $regex: /[\s\S]{160}/ } };
-    if (kind === "mcqs") return { status: "published", $or: [resourceReady, { description: { $regex: /[\s\S]{80}/ } }] };
+    // Chapter and topic tests are covered by the readable chapter and topic pages.
+    if (kind === "mcqs") return { status: "published", type: { $nin: ["topic_test", "chapter_test"] }, $or: [resourceReady, { description: { $regex: /[\s\S]{80}/ } }] };
     // Curated descriptions avoid indexing empty academic shells and thin legacy resources.
     if (["board", "class"].includes(kind)) return {};
     return resourceReady;

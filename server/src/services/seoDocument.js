@@ -25,6 +25,8 @@ function renderDocument(template, data, body = "", styles = [], modules = []) {
 <meta property="og:description" content="${escapeHtml(meta.description)}">
 <meta property="og:url" content="${escapeHtml(canonical)}">
 <meta property="og:type" content="${meta.article ? 'article' : 'website'}">
+<meta property="og:site_name" content="IlmiDunya">
+<meta property="og:locale" content="en_PK">
 <meta property="og:image" content="${escapeHtml(image)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(meta.title)}">
@@ -33,8 +35,10 @@ function renderDocument(template, data, body = "", styles = [], modules = []) {
     const schemas = [];
     const learningSchemaTag = data.study?.structuredData?.length ? `<script id="study-resource-schema" type="application/ld+json">${safeJson(data.study.structuredData)}</script>` : '';
     if (meta.indexable && data.study?.breadcrumbs?.length) schemas.push({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [...data.study.breadcrumbs, { title: data.study.title, href: meta.path }].map((item, i) => ({ '@type': 'ListItem', position: i + 1, name: item.title, item: new URL(item.href, origin).href })) });
+    // The home page tells search engines the site's name and who runs it.
+    if (data.type === 'home') schemas.push({ '@context': 'https://schema.org', '@type': 'WebSite', '@id': `${origin}/#website`, url: `${origin}/`, name: 'IlmiDunya', alternateName: 'Ilmi Dunya', description: meta.description, inLanguage: 'en' }, { '@context': 'https://schema.org', '@type': 'EducationalOrganization', '@id': `${origin}/#organization`, name: 'IlmiDunya', url: `${origin}/`, logo: new URL('/logo.png', origin).href });
     if (data.article && meta.indexable) schemas.push({ '@context': 'https://schema.org', '@type': 'NewsArticle', headline: data.article.title, description: data.article.excerpt, datePublished: data.article.publishedAt, dateModified: data.article.updatedAt, author: { '@type': 'Organization', name: data.article.author || 'IlmiDunya Editorial' }, image: data.article.coverImage ? [image] : undefined, mainEntityOfPage: canonical });
-    const schemaTag = schemas.length ? `<script id="${data.article ? 'news-article-schema' : 'public-page-schema'}" type="application/ld+json">${safeJson(schemas)}</script>` : '';
+    const schemaTag = schemas.length ? `<script id="${data.article ? 'news-article-schema' : data.type === 'home' ? 'site-schema' : 'public-page-schema'}" type="application/ld+json">${safeJson(schemas)}</script>` : '';
     html = html.replace('</head>', `${tags}${schemaTag}${learningSchemaTag}${styles.map(href => `<link rel="stylesheet" href="${escapeHtml(href)}">`).join('')}${modules.map(href => `<link rel="modulepreload" crossorigin href="${escapeHtml(href)}">`).join('')}</head>`);
     return html.replace('<div id="root"></div>', `<div id="root">${body}</div><script id="public-page-data" type="application/json">${safeJson(data)}</script>`);
 }
