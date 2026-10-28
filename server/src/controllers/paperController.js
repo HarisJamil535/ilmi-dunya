@@ -12,7 +12,7 @@ const QuestionPaper = require("../models/QuestionPaper");
 const mediaStore = require("../services/mediaStore");
 const { fail } = require("../services/publishing");
 const engine = require("../services/paperEngine");
-const { renderPaperPdf, renderKeyPdf, hasNonLatin } = require("../services/paperPdf");
+const { renderPaperPdf, renderKeyPdf, measureLayout, hasNonLatin } = require("../services/paperPdf");
 const { renderPaperDocx, renderKeyDocx } = require("../services/paperDocx");
 const { createConcurrencyLimit } = require("../services/concurrencyLimit");
 
@@ -165,7 +165,9 @@ const preview = async (req, res) => {
     const config = engine.normalizeConfig(req.body.config);
     const seed = String(req.body.seed || "paper").slice(0, 40);
     const { papers } = await paperFor(config, req.body.selection || {}, seed);
-    res.json({ success: true, papers, totalMarks: engine.totalMarks(config) });
+    const logo = config.header.logoUrl ? await mediaStore.readImage(config.header.logoUrl).catch(() => null) : null;
+    const filled = papers.some(paper => paper.sections.some(section => section.items.length));
+    res.json({ success: true, papers, totalMarks: engine.totalMarks(config), layout: filled ? await measureLayout(papers, { logo }) : null });
 };
 
 const fields = body => {
@@ -223,6 +225,7 @@ const duplicate = async (req, res) => {
     res.status(201).json({ success: true, paper: { _id: copy._id } });
 };
 
+const tearName = (config, paper) => (config.layout.mode === "tear" ? "Groups-A-and-B" : `Version-${paper.version}`);
 const safeName = value => String(value || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
 const MIME = { pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
 
@@ -239,11 +242,17 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
         const wantKey = req.query.key === "1";
         const letter = String(req.query.version || config.versions[0]).toUpperCase();
         const paper = papers.find(item => item.version === letter) || papers[0];
+        const tear = config.layout.mode === "tear";
         let buffer;
         if (wantKey) buffer = format === "docx" ? await renderKeyDocx(papers, { logo }) : await renderKeyPdf(papers, { title: stored.title, logo });
-        else buffer = format === "docx" ? await renderPaperDocx(paper, { logo }) : await renderPaperPdf(paper, { logo, title: stored.title });
+        else {
+            const sheet = tear ? papers : [paper];
+            const fit = await measureLayout(sheet, { logo, title: stored.title });
+            if (!fit.fits && tear) fail("This paper is too long to fit half a sheet. Remove a few questions or choose the single-paper layout.");
+            buffer = format === "docx" ? await renderPaperDocx(sheet, { logo, scale: fit.scale }) : (await renderPaperPdf(sheet, { logo, title: stored.title })).buffer;
+        }
         await QuestionPaper.updateOne({ _id: stored._id }, { $inc: { exports: 1 } });
-        const name = [safeName(config.header.subjectTitle || stored.title), safeName(config.header.examName), wantKey ? "Answer-Key" : `Version-${paper.version}`].filter(Boolean).join("_");
+        const name = [safeName(config.header.subjectTitle || stored.title), safeName(config.header.examName), wantKey ? "Answer-Key" : tearName(config, paper)].filter(Boolean).join("_");
         res.set({ "Content-Type": MIME[format], "Content-Disposition": `attachment; filename="${name}.${format}"`, "Content-Length": String(buffer.length), "Cache-Control": "private, no-store" }).send(buffer);
     } catch (error) { next(error); }
 });

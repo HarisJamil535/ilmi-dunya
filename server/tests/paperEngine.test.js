@@ -83,8 +83,10 @@ test("the printed paper has numbered questions, marks lines and an answer key; v
     const a = buildPaper(config, selection, questions, "A", { seed: "p" });
     const b = buildPaper(config, selection, questions, "B", { seed: "p" });
     assert.equal(a.totalMarks, 5 + 6 + 16);
-    assert.equal(a.sections[1].attemptLine.startsWith("Attempt any 3 of the following 5 short questions."), true);
-    assert.match(a.sections[2].attemptLine, /choosing one from each pair/);
+    assert.equal(a.sections[1].prompt, "Q2. Answer any Three of the following questions.");
+    assert.equal(a.sections[1].title, "Section B (Marks 2 x 3 = 6)");
+    assert.equal(a.sections[1].items[0].label, "i");
+    assert.equal(a.sections[2].items[0].alternatives.length, 2);
     assert.equal(a.sections[2].items[0].alternatives.length, 2);
     assert.deepEqual(a.sections[0].items.map(item => item.no), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     assert.equal(a.key.length, 10);
@@ -102,4 +104,52 @@ test("the printed paper has numbered questions, marks lines and an answer key; v
 test("formulas print as readable text", () => {
     assert.equal(plainMath("Find $x^{2}$ if $\\frac{a}{b}=2$"), "Find x^(2) if (a)/(b)=2");
     assert.equal(plainMath("$\\theta \\times 5 \\leq \\pi$"), "θ × 5 ≤ π");
+});
+
+test("layout options are validated, and two groups on a sheet always mean versions A and B", () => {
+    const single = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { pages: 9, paper: "Legal", font: "comic" }, versions: ["A", "C"] }));
+    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "sans", bubbles: true, cutLine: "back" });
+    assert.deepEqual(single.versions, ["A", "C"]);
+    const tear = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { mode: "tear", paper: "Letter", pages: 2, font: "serif", bubbles: false, cutLine: "both" }, versions: ["A"] }));
+    assert.equal(tear.layout.mode, "tear");
+    assert.deepEqual(tear.versions, ["A", "B"]);
+    assert.deepEqual([tear.layout.paper, tear.layout.font, tear.layout.bubbles, tear.layout.cutLine], ["Letter", "serif", false, "both"]);
+});
+
+test("a second group keeps the same written questions in a different order, with OR sides sometimes swapped", () => {
+    const config = normalizeConfig(base([{ kind: "mcq", total: 4, marksEach: 1 }, { kind: "short", total: 6, attempt: 6, marksEach: 3, choice: true }], { layout: { mode: "tear" } }));
+    const questions = bank();
+    const { selection } = generateSelection(config, questions, { seed: "t" });
+    const a = buildPaper(config, selection, questions, "A", { seed: "t" });
+    const b = buildPaper(config, selection, questions, "B", { seed: "t" });
+    const all = paper => paper.sections[1].items.flatMap(item => item.alternatives.map(alt => alt.text)).sort();
+    assert.deepEqual(all(a), all(b), "same questions in both groups");
+    assert.notDeepEqual(a.sections[1].items.map(item => item.alternatives[0].text), b.sections[1].items.map(item => item.alternatives[0].text));
+    assert.deepEqual(a.sections[1].items.map(item => item.label), ["i", "ii", "iii", "iv", "v", "vi"]);
+    assert.equal(a.sections[0].prompt, "Q1. Fill the relevant bubble against each question. Each part carries 1 mark.");
+});
+
+test("PDF and Word files are made for single and two-group layouts, and an overlong half sheet is reported", async () => {
+    const { renderPaperPdf, measureLayout } = require("../src/services/paperPdf");
+    const { renderPaperDocx } = require("../src/services/paperDocx");
+    const questions = bank();
+    const make = (sections, layout) => {
+        const config = normalizeConfig(base(sections, { layout }));
+        const { selection } = generateSelection(config, questions, { seed: "r" });
+        return config.versions.map(letter => buildPaper(config, selection, questions, letter, { seed: "r" }));
+    };
+    const small = make([{ kind: "mcq", total: 6, marksEach: 1 }, { kind: "short", total: 4, attempt: 4, marksEach: 3, choice: true }], { mode: "tear" });
+    const result = await renderPaperPdf(small);
+    assert.equal(result.buffer.subarray(0, 4).toString(), "%PDF");
+    assert.deepEqual([result.info.mode, result.info.pages, result.info.fits], ["tear", 2, true]);
+    assert.equal((await renderPaperDocx(small, { scale: result.info.scale })).subarray(0, 2).toString(), "PK");
+    const long = make([{ kind: "mcq", total: 30, marksEach: 1 }, { kind: "short", total: 10, attempt: 10, marksEach: 2, choice: true }], { mode: "tear" });
+    const tooLong = await measureLayout(long);
+    assert.equal(tooLong.fits, false, "30 MCQs cannot fit half a sheet");
+    assert.ok(tooLong.overflow > 0);
+    const wide = make([{ kind: "mcq", total: 30, marksEach: 1 }], { pages: 1 });
+    const fitted = await measureLayout(wide);
+    assert.ok(fitted.scale < 1 || fitted.pages > 1, "a 30-MCQ paper either shrinks or admits it needs more pages");
+    const roomy = make([{ kind: "mcq", total: 30, marksEach: 1 }], { pages: 4 });
+    assert.deepEqual([(await measureLayout(roomy)).fits, (await measureLayout(roomy)).scale], [true, 1]);
 });

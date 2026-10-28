@@ -1,42 +1,38 @@
-// Ready-made patterns and starting values for the Paper Maker.
+// Ready-made patterns and starting values for the Paper Maker. Every number can be changed by the teacher.
 export const TEMPLATES = [
-  { key: "board", title: "Board style", note: "12 MCQs, 10 short (attempt 7), 5 long (attempt 3)", sections: [
-    { kind: "mcq", name: "Section A", heading: "Multiple Choice Questions", total: 12, attempt: 12, marksEach: 1 },
-    { kind: "short", name: "Section B", heading: "Short Questions", total: 10, attempt: 7, marksEach: 2 },
-    { kind: "long", name: "Section C", heading: "Long Questions", total: 5, attempt: 3, marksEach: 8 },
+  { key: "full", title: "Full paper", note: "13 MCQs, 11 short and 4 long, each with OR. Fits 2 pages.", layout: { mode: "single", pages: 2 }, sections: [
+    { kind: "mcq", name: "Section A", total: 13, marksEach: 1 },
+    { kind: "short", name: "Section B", total: 11, attempt: 11, marksEach: 2, choice: true },
+    { kind: "long", name: "Section C", total: 4, attempt: 4, marksEach: 5, choice: true },
   ] },
-  { key: "choice", title: "With internal choice", note: "20 MCQs, 8 short (attempt 6), 3 long with either / or", sections: [
-    { kind: "mcq", name: "Section A", heading: "Multiple Choice Questions", total: 20, attempt: 20, marksEach: 1 },
-    { kind: "short", name: "Section B", heading: "Short Questions", total: 8, attempt: 6, marksEach: 2 },
-    { kind: "long", name: "Section C", heading: "Long Questions", total: 3, attempt: 3, marksEach: 8, choice: true },
+  { key: "tear", title: "Two groups, one sheet", note: "Groups A and B print on one sheet that tears in half.", layout: { mode: "tear", pages: 0 }, sections: [
+    { kind: "mcq", name: "Section A", total: 6, marksEach: 1 },
+    { kind: "short", name: "Section B", total: 4, attempt: 4, marksEach: 3, choice: true },
+    { kind: "long", name: "Section C", total: 2, attempt: 2, marksEach: 6, choice: true },
   ] },
-  { key: "half", title: "50% MCQs, 50% written", note: "30 MCQs at 0.5 marks, then short and long", sections: [
-    { kind: "mcq", name: "Section A", heading: "Multiple Choice Questions", total: 30, attempt: 30, marksEach: 0.5 },
-    { kind: "short", name: "Section B", heading: "Short Questions", total: 6, attempt: 5, marksEach: 3 },
-    { kind: "long", name: "Section C", heading: "Long Questions", total: 3, attempt: 2, marksEach: 5, choice: true },
+  { key: "board", title: "Attempt any", note: "30 MCQs, short (attempt 4 of 6) and long (attempt 2 of 3).", layout: { mode: "single", pages: 0 }, sections: [
+    { kind: "mcq", name: "Section A", total: 30, marksEach: 0.5 },
+    { kind: "short", name: "Section B", total: 6, attempt: 4, marksEach: 3 },
+    { kind: "long", name: "Section C", total: 3, attempt: 2, marksEach: 5 },
   ] },
-  { key: "test", title: "Class test", note: "10 MCQs and 5 short questions (attempt 4)", sections: [
-    { kind: "mcq", name: "Section A", heading: "Multiple Choice Questions", total: 10, attempt: 10, marksEach: 1 },
-    { kind: "short", name: "Section B", heading: "Short Questions", total: 5, attempt: 4, marksEach: 2 },
+  { key: "test", title: "Class test", note: "10 MCQs and 5 short questions (attempt 4).", layout: { mode: "single", pages: 1 }, sections: [
+    { kind: "mcq", name: "Section A", total: 10, marksEach: 1 },
+    { kind: "short", name: "Section B", total: 5, attempt: 4, marksEach: 2 },
   ] },
-  { key: "mcq", title: "MCQ paper", note: "40 MCQs only", sections: [
-    { kind: "mcq", name: "Section A", heading: "Multiple Choice Questions", total: 40, attempt: 40, marksEach: 1 },
+  { key: "mcq", title: "MCQ paper", note: "40 MCQs only.", layout: { mode: "single", pages: 0 }, sections: [
+    { kind: "mcq", name: "Section A", total: 40, marksEach: 1 },
   ] },
-];
-
-export const DEFAULT_INSTRUCTIONS = [
-  "All questions of Section A are compulsory.",
-  "Deleting or overwriting is not allowed. Do not use lead pencil.",
-  "No extra sheet will be given in any case.",
 ];
 
 const withIds = (sections) => sections.map((section, index) => ({ id: `S${index + 1}`, ...section, attempt: section.attempt || section.total }));
 export const sectionsFromTemplate = (key) => withIds((TEMPLATES.find((item) => item.key === key) || TEMPLATES[0]).sections);
+export const templateLayout = (key) => (TEMPLATES.find((item) => item.key === key) || TEMPLATES[0]).layout;
 
 export const newConfig = () => ({
-  header: { schoolName: "", logoUrl: "", examName: "", subjectTitle: "", className: "", date: "", timeAllowed: "", paperCode: "", schemeNote: "", instructions: [...DEFAULT_INSTRUCTIONS], showRollBoxes: true, rollBoxCount: 7, showSignatures: true, footerNote: "" },
+  header: { schoolName: "", logoUrl: "", examName: "", subjectTitle: "", className: "", date: "", timeAllowed: "", instructions: [] },
   scope: { board: "", class: "", group: "", subject: "", chapters: [] },
-  sections: sectionsFromTemplate("board"),
+  sections: sectionsFromTemplate("full"),
+  layout: { mode: "single", paper: "A4", pages: 2, font: "sans", bubbles: true, cutLine: "back" },
   versions: ["A"],
   options: { importantFirst: true, avoidRepeats: false },
 });

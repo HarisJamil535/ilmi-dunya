@@ -96,7 +96,15 @@ function normalizeConfig(input = {}) {
         },
         scope: { board: idOf(scope.board), class: idOf(scope.class), group: validId(scope.group) ? idOf(scope.group) : "", subject: idOf(scope.subject), chapters },
         sections,
-        versions: versions.length ? versions.sort() : ["A"],
+        layout: {
+            mode: input.layout?.mode === "tear" ? "tear" : "single",
+            paper: input.layout?.paper === "Letter" ? "Letter" : "A4",
+            pages: [0, 1, 2, 3, 4].includes(Number(input.layout?.pages)) ? Number(input.layout.pages) : 0,
+            font: input.layout?.font === "serif" ? "serif" : "sans",
+            bubbles: input.layout?.bubbles !== false,
+            cutLine: ["back", "both", "none"].includes(input.layout?.cutLine) ? input.layout.cutLine : "back",
+        },
+        versions: input.layout?.mode === "tear" ? ["A", "B"] : versions.length ? versions.sort() : ["A"],
         options: { importantFirst: input.options?.importantFirst !== false, avoidRepeats: Boolean(input.options?.avoidRepeats) },
     };
 }
@@ -224,6 +232,11 @@ function generateSelection(config, bank, { seed = "paper", exclude = new Set(), 
     return { selection, warnings };
 }
 
+const ROMAN = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"];
+const roman = number => ROMAN[number - 1] || String(number);
+const WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen"];
+const words = number => WORDS[number] || String(number);
+const titleOf = (section, count) => `${section.name} (Marks ${section.marksEach} x ${count} = ${round(section.marksEach * count)})`;
 const keepsOrder = option => /(all|none|both|neither)\s+of\s+(the\s+)?(above|these)|^(all|none)\b|both\s+[a-d]\s+and\s+[a-d]/i.test(option?.text || "");
 
 // The paper as it will be printed: numbered questions, marks lines and (for MCQs) the answer key.
@@ -259,16 +272,17 @@ function buildPaper(config, selection, questions, letter = "A", { seed = "paper"
                     items.push({ type: "mcq", no: number, text: plainMath(q.questionText), options: options.map(({ key: k, text: t }) => ({ key: k, text: t })), answer, image: q.imageUrls?.[0] || "", important: Boolean(q.isImportant) });
                 }
             }
-            return { ...section, marks: sectionMarks(section), attemptLine: `Each question carries ${section.marksEach} ${section.marksEach === 1 ? "mark" : "marks"}. (${section.total} × ${section.marksEach} = ${round(section.total * section.marksEach)})`, items };
+            const prompt = config.layout.bubbles ? `Fill the relevant bubble against each question. Each part carries ${section.marksEach} ${section.marksEach === 1 ? "mark" : "marks"}.` : `Choose the correct option for each question. Each part carries ${section.marksEach} ${section.marksEach === 1 ? "mark" : "marks"}.`;
+            return { ...section, marks: sectionMarks(section), title: titleOf(section, section.total), prompt, number: 0, items };
         }
-        slots.forEach((slot, index) => items.push({ type: "written", no: index + 1, marks: section.marksEach, alternatives: slot.questions.map(id => ({ text: plainMath(byId.get(id).questionText), important: Boolean(byId.get(id).isImportant) })) }));
-        const noun = section.kind === "short" ? "short questions" : "long questions";
-        const attemptLine = section.attempt === section.total
-            ? `Attempt all ${section.total} ${noun}${section.choice ? ", choosing one from each pair" : ""}. Each question carries ${section.marksEach} marks. (${section.total} × ${section.marksEach} = ${round(section.total * section.marksEach)})`
-            : `Attempt any ${section.attempt} of the following ${section.total} ${noun}${section.choice ? ", choosing one from each pair" : ""}. Each question carries ${section.marksEach} marks. (${section.attempt} × ${section.marksEach} = ${round(section.attempt * section.marksEach)})`;
-        return { ...section, marks: sectionMarks(section), attemptLine, items };
+        let writtenSlots = slots;
+        if (shuffle) writtenSlots = shuffled(slots, random).map(slot => ({ ...slot, questions: slot.questions.length > 1 && random() < 0.5 ? [...slot.questions].reverse() : slot.questions }));
+        writtenSlots.forEach((slot, index) => items.push({ type: "written", no: index + 1, label: section.kind === "short" ? roman(index + 1) : String(index + 1), marks: section.marksEach, alternatives: slot.questions.map(id => ({ text: plainMath(byId.get(id).questionText), important: Boolean(byId.get(id).isImportant) })) }));
+        const prompt = section.attempt === section.total ? "Answer all the following questions." : `Answer any ${words(section.attempt)} of the following questions.`;
+        return { ...section, marks: sectionMarks(section), title: titleOf(section, section.attempt), prompt, number: 0, items };
     });
-    return { version: letter, header: config.header, totalMarks: totalMarks(config), sections, key, missing };
+    sections.forEach((section, index) => { section.number = index + 1; section.prompt = `Q${index + 1}. ${section.prompt}`; if (section.instructions) section.prompt += ` ${section.instructions}`; });
+    return { version: letter, versionCount: config.versions.length, header: config.header, layout: config.layout, totalMarks: totalMarks(config), sections, key, missing };
 }
 
 module.exports = { normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };
