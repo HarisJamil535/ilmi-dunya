@@ -14,6 +14,7 @@ const { fail } = require("../services/publishing");
 const engine = require("../services/paperEngine");
 const { renderPaperPdf, renderKeyPdf, measureLayout, hasNonLatin } = require("../services/paperPdf");
 const { renderPaperDocx, renderKeyDocx } = require("../services/paperDocx");
+const { fadeImage } = require("../services/watermark");
 const { createConcurrencyLimit } = require("../services/concurrencyLimit");
 
 const id = value => String(value?._id || value || "");
@@ -140,6 +141,11 @@ function cleanCustom(list) {
     return out;
 }
 const customView = list => (list || []).map(q => ({ ...q, options: q.options || [], isImportant: false, topic: "", scenario: "" }));
+// The watermark picture, faded for printing; an image that cannot be read is simply left out.
+async function watermarkImage(mark) {
+    if (mark?.kind !== "image" || !mark.imageUrl) return null;
+    try { return fadeImage(await mediaStore.readImage(mark.imageUrl), mark.strength); } catch { return null; }
+}
 const newSeed = () => new mongoose.Types.ObjectId().toString();
 
 // Question text and scenarios for the picked questions, so the editor can show them.
@@ -267,6 +273,7 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
         const { papers } = await paperFor(config, stored.selection, stored.seed, stored.custom);
         if (!papers.some(paper => paper.sections.some(section => section.items.length))) fail("This paper has no questions yet. Pick the questions first.");
         const logo = config.header.logoUrl ? await mediaStore.readImage(config.header.logoUrl).catch(() => null) : null;
+        const mark = await watermarkImage(config.layout.watermark);
         const wantKey = req.query.key === "1";
         const letter = String(req.query.version || config.versions[0]).toUpperCase();
         const paper = papers.find(item => item.version === letter) || papers[0];
@@ -277,7 +284,7 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
             const sheet = tear ? papers : [paper];
             const fit = await measureLayout(sheet, { logo, title: stored.title });
             if (!fit.fits && tear) fail("This paper is too long to fit half a sheet. Remove a few questions or choose the single-paper layout.");
-            buffer = format === "docx" ? await renderPaperDocx(sheet, { logo, scale: fit.scale }) : (await renderPaperPdf(sheet, { logo, title: stored.title })).buffer;
+            buffer = format === "docx" ? await renderPaperDocx(sheet, { logo, mark, scale: fit.scale }) : (await renderPaperPdf(sheet, { logo, mark, title: stored.title })).buffer;
         }
         await QuestionPaper.updateOne({ _id: stored._id }, { $inc: { exports: 1 } });
         const name = [safeName(config.header.subjectTitle || stored.title), safeName(config.header.examName), wantKey ? "Answer-Key" : tearName(config, paper)].filter(Boolean).join("_");

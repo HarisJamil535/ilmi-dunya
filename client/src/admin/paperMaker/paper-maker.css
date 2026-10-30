@@ -1,10 +1,10 @@
 /* Paper Maker: the on-screen paper. Plain black on white, like the printed page. */
 .pp-stack { display: grid; gap: 18px; justify-items: center; }
-.pp-sheet { position: relative; width: 100%; max-width: 794px; border: 1px solid #cfcfcf; background: #fff; color: #000; padding: 30px 34px; font-size: 12px; line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+.pp-sheet { position: relative; isolation: isolate; width: 100%; max-width: 794px; border: 1px solid #cfcfcf; background: #fff; color: #000; padding: 30px 34px; font-size: calc(12px * var(--pp-size, 1)); line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
 .pp-sans { font-family: Arial, Helvetica, sans-serif; }
 .pp-serif { font-family: "Times New Roman", Times, serif; font-size: 13px; }
 .pp-tear { padding: 0; }
-.pp-half { padding: 16px 26px 12px; min-height: 420px; }
+.pp-half { position: relative; isolation: isolate; padding: 16px 26px 12px; min-height: 420px; }
 .pp-side { position: absolute; right: 8px; top: 4px; font: 700 10px Arial, sans-serif; color: #777; }
 .pp-cut { border-top: 1px dashed transparent; }
 .pp-cut.is-on { border-top-color: #000; }
@@ -42,3 +42,30 @@
 .pp-times { display: grid; }
 .pp-break { display: flex; align-items: center; gap: 10px; margin: 18px -34px 6px; color: #777; font: 700 10px Arial, sans-serif; text-transform: uppercase; letter-spacing: .08em; }
 .pp-break::before, .pp-break::after { content: ""; flex: 1; border-top: 1px dashed #999; }
+
+/* Fonts: the bundled open-licence fonts are served by the API, so the preview matches the PDF. */
+@font-face { font-family: "PM Garamond"; src: url(/api/paper-fonts/EBGaramond-Regular.ttf); font-weight: 400; font-display: swap; }
+@font-face { font-family: "PM Garamond"; src: url(/api/paper-fonts/EBGaramond-Bold.ttf); font-weight: 700; font-display: swap; }
+@font-face { font-family: "PM Carlito"; src: url(/api/paper-fonts/Carlito-Regular.ttf); font-weight: 400; font-display: swap; }
+@font-face { font-family: "PM Carlito"; src: url(/api/paper-fonts/Carlito-Bold.ttf); font-weight: 700; font-display: swap; }
+@font-face { font-family: "PM Caladea"; src: url(/api/paper-fonts/Caladea-Regular.ttf); font-weight: 400; font-display: swap; }
+@font-face { font-family: "PM Caladea"; src: url(/api/paper-fonts/Caladea-Bold.ttf); font-weight: 700; font-display: swap; }
+@font-face { font-family: "PM Poppins"; src: url(/api/paper-fonts/Poppins-Regular.ttf); font-weight: 400; font-display: swap; }
+@font-face { font-family: "PM Poppins"; src: url(/api/paper-fonts/Poppins-Bold.ttf); font-weight: 700; font-display: swap; }
+.pp-font-arial { font-family: Arial, Helvetica, sans-serif; }
+.pp-font-times { font-family: "Times New Roman", Times, serif; }
+.pp-font-garamond { font-family: "PM Garamond", Garamond, serif; }
+.pp-font-calibri { font-family: "PM Carlito", Calibri, sans-serif; }
+.pp-font-cambria { font-family: "PM Caladea", Cambria, serif; }
+.pp-font-poppins { font-family: "PM Poppins", Poppins, sans-serif; }
+.pp-space-compact .pp-table td, .pp-space-compact .pp-table th { padding-top: 1px; padding-bottom: 1px; }
+.pp-space-relaxed .pp-table td, .pp-space-relaxed .pp-table th { padding-top: 6px; padding-bottom: 6px; }
+.pp-space-relaxed .pp-lines-list li { margin-bottom: 10px; }
+.pp-titles-underline .pp-section h3 { text-decoration: underline; text-underline-offset: 3px; }
+.pp-titles-boxed .pp-section h3 { display: table; margin: 14px auto 6px; border: 1.5px solid #000; padding: 2px 14px; }
+.pp-watermark { position: absolute; inset: 0; z-index: -1; display: grid; place-items: center; overflow: hidden; pointer-events: none; }
+.pp-watermark span { font-weight: 800; font-size: 6.5em; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; color: #000; }
+.pp-tear .pp-watermark span { font-size: 4.2em; }
+.pp-watermark img { width: 58%; max-height: 70%; object-fit: contain; filter: grayscale(1); }
+.pp-made { margin: 14px 0 0; text-align: center; font-style: italic; font-size: 9px; color: #333; }
+.pp-sheet h3 { font-family: inherit; }

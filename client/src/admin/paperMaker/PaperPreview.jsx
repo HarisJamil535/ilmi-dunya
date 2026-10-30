@@ -28,27 +28,48 @@ const Section = ({ section, paper, showAnswers }) => <section className="pp-sect
   </tr>)}</tbody></table> : <ol className="pp-lines-list">{section.items.map((item) => <li key={item.no}><b>({item.label})</b><span>{item.alternatives[0].text}</span><b>[{item.marks}]</b></li>)}</ol>}
 </section>;
 
+const SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
+const MARK = { light: 0.06, medium: 0.1, strong: 0.15 };
+const fontKey = (value) => ({ sans: "arial", serif: "times" }[value] || value || "arial");
+const MADE = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+
+// The faint word or logo behind a page (or each half of a shared sheet), as it prints.
+const Mark = ({ layout, tilt = -35 }) => {
+  const mark = layout.watermark;
+  if (!mark || mark.kind === "none") return null;
+  const opacity = MARK[mark.strength] || MARK.light;
+  return <div className="pp-watermark" aria-hidden="true">
+    {mark.kind === "text" && mark.text && <span style={{ opacity, transform: `rotate(${tilt}deg)` }}>{mark.text}</span>}
+    {mark.kind === "image" && mark.imageUrl && <img src={mark.imageUrl} alt="" style={{ opacity: opacity * 1.8 }} />}
+  </div>;
+};
+
 export default function PaperPreview({ papers, version, showAnswers, logoUrl }) {
   const layout = papers[0].layout;
-  const font = layout.font === "serif" ? "pp-serif" : "pp-sans";
+  const look = `pp-font-${fontKey(layout.font)} pp-space-${layout.spacing || "normal"} pp-titles-${layout.titleStyle || "bold"}`;
+  const size = { "--pp-size": SIZE[layout.fontSize] || 1 };
   if (layout.mode === "tear" && papers.length > 1) {
-    return <div className={`pp-stack ${font}`}>{["front", "back"].map((side) => <article key={side} className="pp-sheet pp-tear" aria-label={`Sheet ${side}`}>
+    return <div className={`pp-stack ${look}`} style={size}>{["front", "back"].map((side) => <article key={side} className="pp-sheet pp-tear" aria-label={`Sheet ${side}`}>
       <span className="pp-side">{side === "front" ? "Front" : "Back"}</span>
       {papers.slice(0, 2).map((paper, index) => <Fragment key={paper.version}>
         {index === 1 && <div className={`pp-cut ${layout.cutLine === "both" || (layout.cutLine === "back" && side === "back") ? "is-on" : ""}`} />}
         <div className="pp-half">
+          <Mark layout={layout} tilt={-20} />
           {side === "front" ? <Head paper={paper} logoUrl={logoUrl} group={`Group ${paper.version}`} /> : <u className="pp-group pp-group-back">Group {paper.version}</u>}
           {paper.sections.filter((s) => (s.kind === "mcq") === (side === "front")).map((s) => <Section key={s.id} section={s} paper={paper} showAnswers={showAnswers} />)}
+          <p className="pp-made">{MADE}</p>
         </div>
       </Fragment>)}
     </article>)}</div>;
   }
   const paper = papers.find((p) => p.version === version) || papers[0];
-  return <div className={`pp-stack ${font}`}><article className="pp-sheet" aria-label={`Question paper ${paper.version}`}>
+  return <div className={`pp-stack ${look}`} style={size}><article className="pp-sheet" aria-label={`Question paper ${paper.version}`}>
+    <Mark layout={layout} />
     <Head paper={paper} logoUrl={logoUrl} />
     {paper.sections.map((s, i) => <Fragment key={s.id}>
       {layout.subjectiveNewPage && s.kind !== "mcq" && paper.sections.slice(0, i).every((p) => p.kind === "mcq") && i > 0 && <div className="pp-break" role="separator"><span>New page: subjective part</span></div>}
       <Section section={s} paper={paper} showAnswers={showAnswers} />
     </Fragment>)}
+    <p className="pp-made">{MADE}</p>
   </article></div>;
 }

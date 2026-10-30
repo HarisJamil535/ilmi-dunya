@@ -32,7 +32,7 @@ export const newConfig = () => ({
   header: { schoolName: "", logoUrl: "", examName: "", subjectTitle: "", className: "", date: "", timeAllowed: "", timeObjective: "", timeSubjective: "", instructions: [] },
   scope: { board: "", class: "", group: "", subject: "", chapters: [] },
   sections: sectionsFromTemplate("full"),
-  layout: { mode: "single", paper: "A4", pages: 2, font: "sans", bubbles: true, cutLine: "back", subjectiveNewPage: false },
+  layout: { mode: "single", paper: "A4", pages: 2, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, bubbles: true, cutLine: "back", subjectiveNewPage: false },
   versions: ["A"],
   options: { importantFirst: true, avoidRepeats: false, difficulty: "mixed" },
 });

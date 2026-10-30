@@ -108,12 +108,12 @@ test("formulas print as readable text", () => {
 
 test("layout options are validated, and two groups on a sheet always mean versions A and B", () => {
     const single = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { pages: 9, paper: "Legal", font: "comic" }, versions: ["A", "C"] }));
-    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "sans", bubbles: true, cutLine: "back", subjectiveNewPage: false });
+    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, bubbles: true, cutLine: "back", subjectiveNewPage: false });
     assert.deepEqual(single.versions, ["A", "C"]);
     const tear = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { mode: "tear", paper: "Letter", pages: 2, font: "serif", bubbles: false, cutLine: "both" }, versions: ["A"] }));
     assert.equal(tear.layout.mode, "tear");
     assert.deepEqual(tear.versions, ["A", "B"]);
-    assert.deepEqual([tear.layout.paper, tear.layout.font, tear.layout.bubbles, tear.layout.cutLine], ["Letter", "serif", false, "both"]);
+    assert.deepEqual([tear.layout.paper, tear.layout.font, tear.layout.bubbles, tear.layout.cutLine], ["Letter", "times", false, "both"]);
 });
 
 test("a second group keeps the same written questions in a different order, with OR sides sometimes swapped", () => {
@@ -199,4 +199,23 @@ test("a question the teacher wrote can sit in a paper next to bank questions", (
     assert.equal(paper.sections[0].items[0].text, "Which instrument measures pressure?");
     assert.equal(paper.key[0].answer, "A");
     assert.equal(paper.missing, 0);
+});
+
+test("watermarks, fonts and sizes are checked, and every font family renders", async () => {
+    const { renderPaperPdf } = require("../src/services/paperPdf");
+    const { renderPaperDocx } = require("../src/services/paperDocx");
+    const layoutOf = layout => normalizeConfig(base([{ kind: "mcq", total: 2, marksEach: 1 }], { layout })).layout;
+    assert.deepEqual(layoutOf({ watermark: { kind: "text", text: "  Confidential  ", strength: "strong" } }).watermark, { kind: "text", text: "Confidential", imageUrl: "", strength: "strong" });
+    assert.equal(layoutOf({ watermark: { kind: "image", imageUrl: "https://evil.example/x.png" } }).watermark.kind, "none", "only uploaded images");
+    assert.equal(layoutOf({ watermark: { kind: "text", text: "" } }).watermark.kind, "none");
+    assert.deepEqual([layoutOf({ font: "comic" }).font, layoutOf({ fontSize: "huge" }).fontSize, layoutOf({ spacing: "x" }).spacing, layoutOf({ titleStyle: "fancy" }).titleStyle], ["arial", "normal", "normal", "bold"]);
+    const pool = bank();
+    for (const font of ["arial", "times", "garamond", "calibri", "cambria", "poppins"]) {
+        const config = normalizeConfig(base([{ kind: "mcq", total: 4, marksEach: 1 }, { kind: "short", total: 2, attempt: 2, marksEach: 2, choice: true }], { layout: { font, fontSize: "large", spacing: "relaxed", titleStyle: "boxed", watermark: { kind: "text", text: "Mid Term" } } }));
+        const { selection } = generateSelection(config, pool, { seed: font });
+        const paper = buildPaper(config, selection, pool, "A", { seed: font });
+        const pdf = await renderPaperPdf([paper]);
+        assert.equal(pdf.buffer.subarray(0, 4).toString(), "%PDF", font);
+        assert.equal((await renderPaperDocx([paper])).subarray(0, 2).toString(), "PK", font);
+    }
 });

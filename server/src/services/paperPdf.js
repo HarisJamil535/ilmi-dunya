@@ -1,12 +1,36 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const PDFDocument = require("pdfkit");
 
-// Plain black-and-white exam papers on built-in PDF fonts (Helvetica or Times), laid out by hand so that
-// tables never split a row, a paper can be squeezed into N pages, and two groups can share one sheet.
+// Plain black-and-white exam papers, laid out by hand so that tables never split a row, a paper can be squeezed
+// into N pages, and two groups can share one sheet. Arial and Times are built into PDF; the others are bundled
+// open-licence fonts (EB Garamond, Carlito for Calibri, Caladea for Cambria, Poppins) embedded in the file.
 const SIZES = { A4: [595.28, 841.89], Letter: [612, 792] };
+const FONT_DIR = path.join(__dirname, "../../assets/fonts");
 const FONTS = {
-    sans: { r: "Helvetica", b: "Helvetica-Bold", i: "Helvetica-Oblique" },
-    serif: { r: "Times-Roman", b: "Times-Bold", i: "Times-Italic" },
+    arial: { r: "Helvetica", b: "Helvetica-Bold", i: "Helvetica-Oblique", size: 1 },
+    times: { r: "Times-Roman", b: "Times-Bold", i: "Times-Italic", size: 1.03 },
+    garamond: { file: "EBGaramond", size: 1.1 },
+    calibri: { file: "Carlito", size: 1.06 },
+    cambria: { file: "Caladea", size: 1 },
+    poppins: { file: "Poppins", size: 0.92 },
 };
+const FONT_SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
+const SPACING = { compact: 0.65, normal: 1, relaxed: 1.45 };
+const MARK_OPACITY = { light: 0.06, medium: 0.1, strong: 0.15 };
+const FOOTER = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const fontFiles = new Map();
+const fontData = name => { if (!fontFiles.has(name)) fontFiles.set(name, fs.readFileSync(path.join(FONT_DIR, `${name}.ttf`))); return fontFiles.get(name); };
+
+// The three styles of the chosen font, registered on this document when it is a bundled one.
+function fontsFor(doc, key) {
+    const font = FONTS[key] || FONTS[{ sans: "arial", serif: "times" }[key]] || FONTS.arial;
+    if (!font.file) return font;
+    const names = { r: `${font.file}-Regular`, b: `${font.file}-Bold`, i: `${font.file}-Italic` };
+    doc.paperFonts = doc.paperFonts || new Set();
+    for (const name of Object.values(names)) if (!doc.paperFonts.has(name)) { doc.registerFont(name, fontData(name)); doc.paperFonts.add(name); }
+    return { ...names, size: font.size };
+}
 const INK = "#000000";
 const LINE = 0.6;
 const SCALES_SINGLE = [1, 0.97, 0.94, 0.91, 0.88, 0.86, 0.84];
@@ -20,8 +44,34 @@ const hasNonLatin = value => /[^\x09\x0A\x20-\x7E -ÿ√≤≥≠≈∞→πθα
 // ---- drawing helpers -------------------------------------------------------------------------------------------
 
 function context(doc, layout, scale) {
-    const fonts = FONTS[layout.font] || FONTS.sans;
-    return { doc, fonts, s: scale, body: 10.5 * scale, cell: 9.5 * scale, pad: 3.2 * scale };
+    const fonts = fontsFor(doc, layout.font);
+    const k = scale * (FONT_SIZE[layout.fontSize] || 1) * fonts.size;
+    return { doc, fonts, s: scale, body: 10.5 * k, cell: 9.5 * k, pad: 3.2 * scale * (SPACING[layout.spacing] || 1), titleStyle: layout.titleStyle || "bold" };
+}
+
+// A faint diagonal word, or the faded logo, centred in an area of the page. Drawn first, so it sits behind the text.
+function watermark(ctx, area, layout, image) {
+    const mark = layout.watermark;
+    if (!mark || mark.kind === "none") return;
+    const { doc } = ctx;
+    const cx = area.x + area.w / 2;
+    const cy = area.y + area.h / 2;
+    doc.save();
+    if (mark.kind === "image" && image) {
+        const side = Math.min(area.w, area.h) * 0.62;
+        try { doc.image(image, cx - side / 2, cy - side / 2, { fit: [side, side], align: "center", valign: "center" }); } catch { /* an unreadable image is skipped */ }
+    } else if (mark.kind === "text" && mark.text) {
+        const words = latin(mark.text).toUpperCase();
+        const angle = Math.atan2(area.h, area.w) * 180 / Math.PI * (area.h > area.w ? 0.85 : 0.6);
+        doc.font(ctx.fonts.b).fontSize(10);
+        const target = Math.hypot(area.w, area.h) * (area.h > area.w ? 0.62 : 0.5);
+        const size = Math.max(18, Math.min(120, 10 * target / Math.max(1, doc.widthOfString(words))));
+        doc.fontSize(size).fillColor(INK).fillOpacity(MARK_OPACITY[mark.strength] || 0.06);
+        doc.rotate(-angle, { origin: [cx, cy] });
+        const width = doc.widthOfString(words);
+        doc.text(words, cx - width / 2, cy - size * 0.6, { lineBreak: false, characterSpacing: size * 0.06 });
+    }
+    doc.restore();
 }
 
 const measure = (ctx, value, width, font, size) => {
@@ -88,10 +138,16 @@ function header(ctx, fl, paper, { group = "", logo = null } = {}) {
 function sectionHead(ctx, fl, section) {
     const titleH = measure(ctx, section.title, fl.w, ctx.fonts.b, ctx.body + 1);
     const promptH = measure(ctx, section.prompt, fl.w, ctx.fonts.b, ctx.body);
-    room(fl, titleH + promptH + 24 * ctx.s);
-    fl.y += 3 * ctx.s;
-    write(ctx, section.title, fl.x, fl.y, fl.w, { font: ctx.fonts.b, size: ctx.body + 1, align: "center" });
-    fl.y += titleH + 3 * ctx.s;
+    const boxed = ctx.titleStyle === "boxed";
+    room(fl, titleH + promptH + (boxed ? 32 : 24) * ctx.s);
+    fl.y += (boxed ? 6 : 3) * ctx.s;
+    if (boxed) {
+        ctx.doc.font(ctx.fonts.b).fontSize(ctx.body + 1);
+        const width = Math.min(fl.w, ctx.doc.widthOfString(latin(section.title)) + 22 * ctx.s);
+        ctx.doc.lineWidth(0.9).strokeColor(INK).rect(fl.x + (fl.w - width) / 2, fl.y - 3.5 * ctx.s, width, titleH + 7 * ctx.s).stroke();
+    }
+    write(ctx, section.title, fl.x, fl.y, fl.w, { font: ctx.fonts.b, size: ctx.body + 1, align: "center", underline: ctx.titleStyle === "underline" });
+    fl.y += titleH + (boxed ? 8 : 3) * ctx.s;
     write(ctx, section.prompt, fl.x, fl.y, fl.w, { font: ctx.fonts.b, size: ctx.body });
     fl.y += promptH + 4 * ctx.s;
 }
@@ -227,11 +283,12 @@ function collect(doc) {
     });
 }
 
-function drawSingle(doc, size, paper, logo, scale) {
+function drawSingle(doc, size, paper, { logo = null, mark = null } = {}, scale) {
     const layout = paper.layout;
     const ctx = context(doc, layout, scale);
     const margin = (layout.paper === "A4" ? 38 : 36) * Math.max(scale, 0.9);
     const fl = flow(margin, size.width - margin * 2, margin, size.height - margin - 14, null);
+    doc.on("pageAdded", () => watermark(ctx, { x: 0, y: 0, w: size.width, h: size.height }, layout, mark));
     doc.addPage();
     fl.onFull = () => { doc.addPage(); fl.y = margin; };
     header(ctx, fl, paper, { logo });
@@ -249,24 +306,26 @@ function drawSingle(doc, size, paper, logo, scale) {
         drawSection(ctx, fl, section, layout);
     }
     const count = doc.bufferedPageRange().count;
-    if (count > 1) for (let i = 0; i < count; i++) {
+    for (let i = 0; i < count; i++) {
         doc.switchToPage(i);
-        write(ctx, `Page ${i + 1} of ${count}`, 0, size.height - margin + 2, size.width, { size: 8, align: "center" });
+        write(ctx, `${FOOTER}${count > 1 ? `  ·  Page ${i + 1} of ${count}` : ""}`, 0, size.height - margin + 2, size.width, { font: ctx.fonts.i, size: 7.5, align: "center" });
     }
     return { pages: count, overflow: 0 };
 }
 
 // Two groups share a sheet: Group A in the top half and Group B in the bottom half of both sides, so the sheet tears in two.
 // Each side is sized on its own, so a long front does not shrink the back.
-function drawSide(doc, size, papers, logo, scale, side) {
+function drawSide(doc, size, papers, { logo = null, mark = null } = {}, scale, side) {
     const layout = papers[0].layout;
     const ctx = context(doc, layout, scale);
     const margin = 30 * Math.max(scale, 0.85);
     const half = size.height / 2;
     let overflow = 0;
     doc.addPage();
+    for (const index of [0, 1]) watermark(ctx, { x: 0, y: index * half, w: size.width, h: half }, layout, mark);
     papers.slice(0, 2).forEach((paper, index) => {
-        const fl = flow(margin, size.width - margin * 2, index * half + 14 * scale, (index + 1) * half - 10, null);
+        write(ctx, FOOTER, 0, (index + 1) * half - 11, size.width, { font: ctx.fonts.i, size: 6.5, align: "center" });
+        const fl = flow(margin, size.width - margin * 2, index * half + 14 * scale, (index + 1) * half - 16, null);
         const group = `Group ${paper.version}`;
         if (side === "front") header(ctx, fl, paper, { group, logo });
         else { write(ctx, group, fl.x, fl.y, fl.w, { font: ctx.fonts.b, size: ctx.body + 2, align: "center", underline: true }); fl.y += ctx.body + 8 * scale; }
@@ -278,11 +337,11 @@ function drawSide(doc, size, papers, logo, scale, side) {
     return overflow;
 }
 
-function sideScale(papers, logo, side) {
+function sideScale(papers, assets, side) {
     const layout = papers[0].layout;
     for (const scale of SCALES_TEAR) {
         const { doc, width, height } = newDocument(layout, {});
-        const overflow = drawSide(doc, { width, height }, papers, logo, scale, side);
+        const overflow = drawSide(doc, { width, height }, papers, assets, scale, side);
         doc.end();
         if (!overflow) return { scale, overflow: 0 };
         if (scale === SCALES_TEAR[SCALES_TEAR.length - 1]) return { scale, overflow };
@@ -290,24 +349,25 @@ function sideScale(papers, logo, side) {
 }
 
 // Draws the paper at the largest size that fits the pages the teacher asked for.
-async function layoutAndRender(papers, { logo = null, title = "Question Paper", keep = true } = {}) {
+async function layoutAndRender(papers, { logo = null, mark = null, title = "Question Paper", keep = true } = {}) {
+    const assets = { logo, mark };
     const layout = papers[0].layout;
     const meta = { Title: latin(title), Author: "IlmiDunya Paper Maker", Creator: "IlmiDunya" };
     if (layout.mode === "tear" && papers.length >= 2) {
-        const front = sideScale(papers, logo, "front");
-        const back = sideScale(papers, logo, "back");
+        const front = sideScale(papers, assets, "front");
+        const back = sideScale(papers, assets, "back");
         const info = { mode: "tear", pages: 2, scale: Math.min(front.scale, back.scale), fits: !front.overflow && !back.overflow, wanted: 2, overflow: Math.ceil(Math.max(front.overflow, back.overflow)), sides: { front: front.scale, back: back.scale } };
         if (!keep) return { buffer: null, info };
         const { doc, width, height } = newDocument(layout, meta);
-        drawSide(doc, { width, height }, papers, logo, front.scale, "front");
-        drawSide(doc, { width, height }, papers, logo, back.scale, "back");
+        drawSide(doc, { width, height }, papers, assets, front.scale, "front");
+        drawSide(doc, { width, height }, papers, assets, back.scale, "back");
         return { buffer: await collect(doc), info };
     }
     const scales = layout.pages ? SCALES_SINGLE : [1];
     let last = null;
     for (const scale of scales) {
         const { doc, width, height } = newDocument(layout, meta);
-        const result = drawSingle(doc, { width, height }, papers[0], logo, scale);
+        const result = drawSingle(doc, { width, height }, papers[0], assets, scale);
         const fits = !layout.pages || result.pages <= layout.pages;
         last = { doc, scale, fits, pages: result.pages };
         if (fits) break;
@@ -368,6 +428,8 @@ async function renderKeyPdf(papers, { title = "Answer Key", logo = null } = {}) 
         }
         fl.y += 10;
     }
+    const count = doc.bufferedPageRange().count;
+    for (let i = 0; i < count; i++) { doc.switchToPage(i); write(ctx, FOOTER, 0, height - 28, width, { font: ctx.fonts.i, size: 7.5, align: "center" }); }
     return collect(doc);
 }
 

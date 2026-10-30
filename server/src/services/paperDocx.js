@@ -1,9 +1,24 @@
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, Footer, PageNumber, ImageRun, BorderStyle, VerticalAlign, TabStopType, HeightRule } = require("docx");
+const fs = require("node:fs");
+const path = require("node:path");
+const JSZip = require("jszip");
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, Header, Footer, PageNumber, ImageRun, BorderStyle, VerticalAlign, TabStopType, HeightRule, HorizontalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionRelativeFrom, CharacterSet } = require("docx");
 
 // Plain black-and-white Word version of the paper, matching the PDF: tables only for either/or questions,
 // bubble columns for MCQs, and (for two groups on one sheet) a fixed-height table per half so the sheet tears in two.
 const PAGES = { A4: { width: 11906, height: 16838 }, Letter: { width: 12240, height: 15840 } };
-const FONTS = { sans: "Arial", serif: "Times New Roman" };
+// Word font names; EB Garamond and Poppins are embedded because most computers do not have them.
+// Calibri and Cambria come with Office (the PDF uses their open look-alikes, Carlito and Caladea).
+const FONTS = {
+    arial: { name: "Arial", size: 1 }, times: { name: "Times New Roman", size: 1.03 },
+    garamond: { name: "EB Garamond", size: 1.1, embed: "EBGaramond-Regular" }, calibri: { name: "Calibri", size: 1.06 },
+    cambria: { name: "Cambria", size: 1 }, poppins: { name: "Poppins", size: 0.92, embed: "Poppins-Regular" },
+};
+const fontOf = key => FONTS[key] || FONTS[{ sans: "arial", serif: "times" }[key]] || FONTS.arial;
+const FONT_SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
+const SPACING = { compact: 0.65, normal: 1, relaxed: 1.45 };
+const MARK_GREY = { light: "EBEBEB", medium: "DEDEDE", strong: "CFCFCF" };
+const FOOTER_TEXT = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const embedded = key => { const font = fontOf(key); return font.embed ? [{ name: font.name, data: fs.readFileSync(path.join(__dirname, "../../assets/fonts", `${font.embed}.ttf`)), characterSet: CharacterSet.ANSI }] : []; };
 const BORDER = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
 const BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
 const NONE = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
@@ -11,18 +26,20 @@ const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE };
 const DASHED = { style: BorderStyle.DASHED, size: 4, color: "000000" };
 
 function kit(layout, scale) {
-    const font = FONTS[layout.font] || FONTS.sans;
-    const body = Math.round(10.5 * scale * 2);
-    const cell = Math.round(9.5 * scale * 2);
+    const chosen = fontOf(layout.font);
+    const font = chosen.name;
+    const k = scale * (FONT_SIZE[layout.fontSize] || 1) * chosen.size;
+    const body = Math.round(10.5 * k * 2);
+    const cell = Math.round(9.5 * k * 2);
     const run = (value, options = {}) => new TextRun({ text: String(value ?? ""), font, size: cell, ...options });
     const para = (children, options = {}) => new Paragraph({ spacing: { after: 0, line: 240 }, children: Array.isArray(children) ? children : [run(children)], ...options });
-    const pad = Math.round(50 * scale);
+    const pad = Math.round(50 * scale * (SPACING[layout.spacing] || 1));
     const tableCell = (children, width, options = {}) => new TableCell({
         borders: BORDERS, verticalAlign: VerticalAlign.CENTER, width: { size: width, type: WidthType.DXA },
         margins: { top: pad, bottom: pad, left: 70, right: 70 },
         children: Array.isArray(children) ? children : [para(children, { alignment: options.align || AlignmentType.LEFT })], ...options.cell,
     });
-    return { font, body, cell, run, para, pad, tableCell, scale };
+    return { font, body, cell, run, para, pad, tableCell, scale, titleStyle: layout.titleStyle || "bold" };
 }
 
 function imageRun(buffer, size) {
@@ -54,7 +71,8 @@ function headerBlocks(k, paper, width, { group = "", logo = null } = {}) {
 function sectionHead(k, section, newPage = false) {
     return [
         ...(newPage ? [k.para([k.run("Name of Candidate: ", { bold: true }), k.run("_".repeat(34)), k.run("    Roll No: ", { bold: true }), k.run("_".repeat(14))], { pageBreakBefore: true, spacing: { after: 100 } })] : []),
-        k.para([k.run(section.title, { bold: true, size: k.body + 2 })], { alignment: AlignmentType.CENTER, spacing: { before: 120, after: 40 }, keepNext: true }),
+        k.para([k.run(section.title, { bold: true, size: k.body + 2, ...(k.titleStyle === "underline" ? { underline: {} } : {}) })], { alignment: AlignmentType.CENTER, spacing: { before: k.titleStyle === "boxed" ? 200 : 120, after: k.titleStyle === "boxed" ? 100 : 40 }, keepNext: true,
+            ...(k.titleStyle === "boxed" ? { border: { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER }, indent: { left: 2600, right: 2600 } } : {}) }),
         k.para([k.run(section.prompt, { bold: true, size: k.body })], { spacing: { after: 60 }, keepNext: true }),
     ];
 }
@@ -118,15 +136,77 @@ function sectionBlocks(k, section, width, layout, newPage = false) {
     return blocks;
 }
 
-const footer = (k, show) => new Footer({ children: [show ? k.para([k.run("Page ", { size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: k.font, size: 16 }), k.run(" of ", { size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: k.font, size: 16 })], { alignment: AlignmentType.CENTER }) : k.para("")] });
+const footer = (k, pages = true) => new Footer({ children: [k.para([k.run(FOOTER_TEXT, { size: 15, italics: true }), ...(pages ? [k.run("  ·  Page ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.CURRENT], font: k.font, size: 15, italics: true }), k.run(" of ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: k.font, size: 15, italics: true })] : [])], { alignment: AlignmentType.CENTER })] });
+
+// Header paragraphs take no height, so the page body (and each half of a shared sheet) starts where it should.
+const TINY = { before: 0, after: 0, line: 20, lineRule: "exact" };
+const pngSize = buffer => (/^\x89PNG/.test(buffer.subarray(0, 4).toString("binary")) ? { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) } : null);
+// An image watermark lives in the page header as a picture behind the text, centred in each area (the whole page,
+// or each half of a shared sheet). Text watermarks are added afterwards by finishDocx, the way Word itself writes them.
+function markHeader(k, layout, dims, mark, areas) {
+    const children = [];
+    const wm = layout.watermark || {};
+    for (const area of areas) {
+        if (wm.kind === "image" && mark) {
+            const size = pngSize(mark);
+            if (!size) continue;
+            const box = Math.min(dims.width, area.height) / 15 * 0.62;
+            const ratio = Math.min(box / size.width, box / size.height);
+            const width = Math.round(size.width * ratio);
+            const height = Math.round(size.height * ratio);
+            children.push(new Paragraph({ spacing: TINY, children: [new ImageRun({ type: "png", data: mark, transformation: { width, height }, floating: {
+                horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, align: HorizontalPositionAlign.CENTER },
+                verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: Math.round((area.top + area.height / 2) * 635 - (height * 9525) / 2) },
+                behindDocument: true, allowOverlap: true } })] }));
+        }
+    }
+    if (!children.length) children.push(new Paragraph({ spacing: TINY, children: [new TextRun({ text: "", size: 2 })] }));
+    return new Header({ children });
+}
 
 // `sheet` is one paper, or both groups when the layout shares a sheet. `scale` is the size the PDF fitted at.
-async function renderPaperDocx(sheet, { logo = null, scale = 1 } = {}) {
+const SHAPETYPE = '<v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e"><v:formulas><v:f eqn="sum #0 0 10800"/><v:f eqn="prod #0 2 1"/><v:f eqn="sum 21600 0 @1"/><v:f eqn="sum 0 0 @2"/><v:f eqn="sum 21600 0 @3"/><v:f eqn="if @0 @3 0"/><v:f eqn="if @0 21600 @1"/><v:f eqn="if @0 0 @2"/><v:f eqn="if @0 @4 21600"/><v:f eqn="mid @5 @6"/><v:f eqn="mid @8 @5"/><v:f eqn="mid @7 @8"/><v:f eqn="mid @6 @7"/><v:f eqn="sum @6 0 @5"/></v:formulas><v:path textpathok="t" o:connecttype="custom" o:connectlocs="@9,0;@10,10800;@11,21600;@12,10800" o:connectangles="270,180,90,0"/><v:textpath on="t" fitshape="t"/><v:handles><v:h position="#0,bottomRight" xrange="6629,14971"/></v:handles><o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype>';
+const MARK_OPACITY = { light: ".3", medium: ".45", strong: ".6" };
+const xml = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Last touches the docx library cannot make: tell Word to use the embedded font, and add a text watermark
+// as Word's own WordArt shape (pale, behind the text, centred and turned) in each area of the page.
+async function finishDocx(buffer, { layout, dims, font, areas, embeds }) {
+    const wm = layout.watermark || {};
+    const wantText = wm.kind === "text" && wm.text;
+    if (!wantText && !embeds) return buffer;
+    const zip = await JSZip.loadAsync(buffer);
+    if (embeds) {
+        const settings = await zip.file("word/settings.xml").async("string");
+        zip.file("word/settings.xml", settings.includes("embedTrueTypeFonts") ? settings : settings.replace("<w:displayBackgroundShape/>", "<w:displayBackgroundShape/><w:embedTrueTypeFonts/>"));
+    }
+    if (wantText) {
+        const words = xml(wm.text.toUpperCase());
+        const pageW = dims.width / 20;
+        const shapes = areas.map((area, i) => {
+            const half = areas.length > 1;
+            const w = pageW * (half ? 0.62 : 0.82);
+            const h = Math.min(half ? 70 : 140, w / Math.max(2.5, wm.text.length * 0.62));
+            const cx = pageW / 2;
+            const cy = (area.top + area.height / 2) / 20;
+            return `<v:shape id="IlmiDunyaWatermark${i + 1}" o:spid="_x0000_s${2050 + i}" type="#_x0000_t136" style="position:absolute;margin-left:${(cx - w / 2).toFixed(1)}pt;margin-top:${(cy - h / 2).toFixed(1)}pt;width:${w.toFixed(1)}pt;height:${h.toFixed(1)}pt;rotation:${half ? 340 : 315};z-index:-251657216;mso-position-horizontal-relative:page;mso-position-vertical-relative:page" o:allowincell="f" fillcolor="silver" stroked="f"><v:fill opacity="${MARK_OPACITY[wm.strength] || ".3"}"/><v:textpath style="font-family:&quot;${xml(font)}&quot;;font-size:1pt;font-weight:bold" string="${words}"/><w10:wrap anchorx="page" anchory="page"/></v:shape>`;
+        });
+        // One paragraph per shape; the shape type is declared once, in the first.
+        const paragraph = shapes.map((shape, i) => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:rPr><w:noProof/><w:sz w:val="2"/></w:rPr><w:pict>${i === 0 ? SHAPETYPE : ""}${shape}</w:pict></w:r></w:p>`).join("");
+        for (const name of Object.keys(zip.files).filter(file => /^word\/header\d+\.xml$/.test(file))) {
+            const header = await zip.file(name).async("string");
+            zip.file(name, header.replace(/(<w:hdr[^>]*>)/, `$1${paragraph}`));
+        }
+    }
+    return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
+async function renderPaperDocx(sheet, { logo = null, mark = null, scale = 1 } = {}) {
     const papers = Array.isArray(sheet) ? sheet : [sheet];
     const layout = papers[0].layout;
     const dims = PAGES[layout.paper] || PAGES.A4;
     const k = kit(layout, scale);
-    const meta = { creator: "IlmiDunya Paper Maker", title: papers[0].header.subjectTitle || "Question Paper", styles: { default: { document: { run: { font: k.font, size: k.cell } } } } };
+    const meta = { creator: "IlmiDunya Paper Maker", title: papers[0].header.subjectTitle || "Question Paper", fonts: embedded(layout.font), styles: { default: { document: { run: { font: k.font, size: k.cell } } } } };
 
     if (layout.mode === "tear" && papers.length >= 2) {
         const margin = 300;
@@ -139,12 +219,16 @@ async function renderPaperDocx(sheet, { logo = null, scale = 1 } = {}) {
                 for (const section of paper.sections.filter(entry => (entry.kind === "mcq") === (name === "front"))) blocks.push(...sectionBlocks(k, section, inner, layout));
                 const cut = index === 1 && (layout.cutLine === "both" || (layout.cutLine === "back" && name === "back"));
                 const borders = { ...NO_BORDERS, ...(cut ? { top: DASHED } : {}) };
+                blocks.push(k.para([k.run(FOOTER_TEXT, { size: 13, italics: true })], { alignment: AlignmentType.CENTER, spacing: { before: 120 } }));
                 return new TableRow({ height: { value: rowHeight, rule: HeightRule.EXACT }, cantSplit: true, children: [new TableCell({ borders, width: { size: width, type: WidthType.DXA }, margins: { top: 60, bottom: 0, left: 120, right: 120 }, children: blocks })] });
             });
             return [new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: [width], rows }), new Paragraph({ spacing: { after: 0, line: 20 }, children: [new TextRun({ text: "", size: 2 })] })];
         };
         const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: margin, bottom: margin, left: 600, right: 600, header: 0, footer: 0 } } };
-        return Packer.toBuffer(new Document({ ...meta, sections: [{ properties, children: side("front") }, { properties, children: side("back") }] }));
+        const halves = [{ top: margin, height: rowHeight }, { top: margin + rowHeight, height: rowHeight }];
+        const headers = { default: markHeader(k, layout, dims, mark, halves) };
+        const file = await Packer.toBuffer(new Document({ ...meta, sections: [{ properties, headers, children: side("front") }, { properties, headers, children: side("back") }] }));
+        return finishDocx(file, { layout, dims, font: k.font, areas: halves, embeds: meta.fonts.length > 0 });
     }
 
     const paper = papers[0];
@@ -157,7 +241,10 @@ async function renderPaperDocx(sheet, { logo = null, scale = 1 } = {}) {
         children.push(...sectionBlocks(k, section, width, layout, first && layout.subjectiveNewPage));
     }
     const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } };
-    return Packer.toBuffer(new Document({ ...meta, sections: [{ properties, footers: { default: footer(k, true) }, children }] }));
+    const page = [{ top: 0, height: dims.height }];
+    const headers = { default: markHeader(k, layout, dims, mark, page) };
+    const file = await Packer.toBuffer(new Document({ ...meta, sections: [{ properties, headers, footers: { default: footer(k, true) }, children }] }));
+    return finishDocx(file, { layout, dims, font: k.font, areas: page, embeds: meta.fonts.length > 0 });
 }
 
 async function renderKeyDocx(papers, { logo = null } = {}) {
@@ -192,7 +279,9 @@ async function renderKeyDocx(papers, { logo = null } = {}) {
         if (index === 0 && written.length) children.push(k.para([k.run(`Marking scheme: ${written.map(section => `${section.name} - ${section.attempt} x ${section.marksEach} = ${section.marks}`).join("; ")}.`, { italics: true, size: 18 })], { spacing: { before: 160 } }));
     });
     const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } };
-    return Packer.toBuffer(new Document({ creator: "IlmiDunya Paper Maker", title: "Answer Key", styles: { default: { document: { run: { font: k.font, size: k.cell } } } }, sections: [{ properties, children }] }));
+    const fonts = embedded(layout.font);
+    const file = await Packer.toBuffer(new Document({ creator: "IlmiDunya Paper Maker", title: "Answer Key", fonts, styles: { default: { document: { run: { font: k.font, size: k.cell } } } }, sections: [{ properties, footers: { default: footer(k, false) }, children }] }));
+    return finishDocx(file, { layout: { watermark: {} }, dims, font: k.font, areas: [], embeds: fonts.length > 0 });
 }
 
 module.exports = { renderPaperDocx, renderKeyDocx };

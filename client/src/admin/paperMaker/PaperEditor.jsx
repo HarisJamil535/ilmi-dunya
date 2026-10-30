@@ -11,6 +11,7 @@ import DatePicker from "./DatePicker";
 import DurationPicker from "./DurationPicker";
 import SubjectPicker from "./SubjectPicker";
 import PaperPreview from "./PaperPreview";
+import PaperStyle from "./PaperStyle";
 import QuestionPicker from "./QuestionPicker";
 import { Button, Field, Pill, Stepper, Toggle, card, input } from "./ui";
 import { KIND_LABEL, TEMPLATES, newConfig, questionsInSlots, sectionMarks, sectionsFromTemplate, templateLayout, totalMarks } from "./paperDefaults";
@@ -288,16 +289,18 @@ export default function PaperEditor() {
     } catch (err) { setNotice({ type: "error", text: await blobMessage(err, "The file could not be created. Please try again.") }); } finally { setBusy(""); }
   };
 
-  const uploadLogo = async (file) => {
+  // Uploads a school logo or a watermark picture and hands back its address.
+  const uploadImage = async (file, done, label = "logo") => {
     if (!file) return;
-    if (!/^image\/(png|jpeg)$/.test(file.type)) { setNotice({ type: "error", text: "Upload the logo as a PNG or JPG image." }); return; }
+    if (!/^image\/(png|jpeg)$/.test(file.type)) { setNotice({ type: "error", text: "Upload the image as a PNG or JPG file." }); return; }
     const form = new FormData(); form.append("logo", file);
-    setBusy("logo"); setNotice(null);
+    setBusy(label); setNotice(null);
     try {
       const { data } = await axiosInstance.post("/papers/logo", form, { headers: { "Content-Type": "multipart/form-data" } });
-      setHeader({ logoUrl: data.logoUrl });
-    } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "The logo could not be uploaded." }); } finally { setBusy(""); }
+      done(data.logoUrl);
+    } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "The image could not be uploaded." }); } finally { setBusy(""); }
   };
+  const uploadLogo = (file) => uploadImage(file, (url) => setHeader({ logoUrl: url }));
 
   if (loading || !catalog) return notice?.type === "error" ? <AdminAlert type="error">{notice.text}</AdminAlert> : <AdminLoader label="Loading Paper Maker..." />;
   const slotsFilled = config.sections.every((s) => questionsInSlots(selection[s.id]) > 0);
@@ -379,12 +382,15 @@ export default function PaperEditor() {
         {outline?.urduQuestions > 0 && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800">{outline.urduQuestions} Urdu questions are left out because Urdu printing is not available yet.</p>}
       </Section>
 
+      <Section number={5} title="Look and watermark" hint="Choose the font, text size and spacing, and add a watermark if you like. Every page ends with “Prepared by IlmiDunya”.">
+        <PaperStyle layout={config.layout} setLayout={setLayout} uploading={busy === "mark"} onUpload={(file, done) => uploadImage(file, done, "mark")} />
+      </Section>
+
       <div className={card}>
         <button type="button" aria-expanded={more} onClick={() => setMore(!more)} className="flex w-full items-center justify-between text-left"><span className="text-lg font-black text-slate-900">More options</span><ChevronDown className={`h-5 w-5 text-slate-500 transition ${more ? "rotate-180" : ""}`} /></button>
         {more && <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-2">
           <div className="grid gap-4 sm:grid-cols-3">
             <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Paper size</span><CustomSelect value={config.layout.paper} allowClear={false} onChange={(value) => setLayout({ paper: value })} options={[{ value: "A4", label: "A4" }, { value: "Letter", label: "Letter" }]} /></div>
-            <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Font</span><CustomSelect value={config.layout.font} allowClear={false} onChange={(value) => setLayout({ font: value })} options={[{ value: "sans", label: "Arial (clean)" }, { value: "serif", label: "Times (classic)" }]} /></div>
             {!tear && <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Fit to</span><CustomSelect value={String(config.layout.pages)} allowClear={false} onChange={(value) => setLayout({ pages: Number(value) })} options={[{ value: "0", label: "As many pages as needed" }, ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} page${n > 1 ? "s" : ""} at most` }))]} /></div>}
             {tear && <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Cut line</span><CustomSelect value={config.layout.cutLine} allowClear={false} onChange={(value) => setLayout({ cutLine: value })} options={[{ value: "back", label: "Back side only" }, { value: "both", label: "Both sides" }, { value: "none", label: "None" }]} /></div>}
             <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Question difficulty</span><CustomSelect value={config.options.difficulty || "mixed"} allowClear={false} onChange={(value) => edit((c) => ({ ...c, options: { ...c.options, difficulty: value } }))} options={[{ value: "mixed", label: "Mixed" }, { value: "easy", label: "Easier questions first" }, { value: "hard", label: "Harder questions first" }]} /></div>

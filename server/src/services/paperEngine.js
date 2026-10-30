@@ -13,6 +13,18 @@ const idOf = value => String(value?._id || value || "");
 const validId = value => mongoose.isValidObjectId(value);
 const round = value => Math.round(value * 100) / 100;
 
+const FONT_KEYS = ["arial", "times", "garamond", "calibri", "cambria", "poppins"];
+// A faint word or image printed behind every page.
+function watermarkOf(input = {}) {
+    const kind = ["text", "image"].includes(input?.kind) ? input.kind : "none";
+    const imageUrl = /^\/api\/media\/images\/[a-f\d]{24}$/.test(input?.imageUrl || "") ? input.imageUrl : "";
+    const words = text(input?.text, 40);
+    const strength = ["light", "medium", "strong"].includes(input?.strength) ? input.strength : "light";
+    if (kind === "text" && words) return { kind, text: words, imageUrl: "", strength };
+    if (kind === "image" && imageUrl) return { kind, text: "", imageUrl, strength };
+    return { kind: "none", text: words, imageUrl, strength };
+}
+
 // Seeded random numbers, so the same paper and version always come out the same.
 function hashSeed(value) {
     let hash = 2166136261;
@@ -106,7 +118,11 @@ function normalizeConfig(input = {}) {
             mode: input.layout?.mode === "tear" ? "tear" : "single",
             paper: input.layout?.paper === "Letter" ? "Letter" : "A4",
             pages: [0, 1, 2, 3, 4].includes(Number(input.layout?.pages)) ? Number(input.layout.pages) : 0,
-            font: input.layout?.font === "serif" ? "serif" : "sans",
+            font: FONT_KEYS.includes(input.layout?.font) ? input.layout.font : input.layout?.font === "serif" ? "times" : "arial",
+            fontSize: ["small", "normal", "large", "xl"].includes(input.layout?.fontSize) ? input.layout.fontSize : "normal",
+            spacing: ["compact", "normal", "relaxed"].includes(input.layout?.spacing) ? input.layout.spacing : "normal",
+            titleStyle: ["bold", "underline", "boxed"].includes(input.layout?.titleStyle) ? input.layout.titleStyle : "bold",
+            watermark: watermarkOf(input.layout?.watermark),
             bubbles: input.layout?.bubbles !== false,
             cutLine: ["back", "both", "none"].includes(input.layout?.cutLine) ? input.layout.cutLine : "back",
             subjectiveNewPage: Boolean(input.layout?.subjectiveNewPage),
