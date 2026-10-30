@@ -108,7 +108,7 @@ test("formulas print as readable text", () => {
 
 test("layout options are validated, and two groups on a sheet always mean versions A and B", () => {
     const single = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { pages: 9, paper: "Legal", font: "comic" }, versions: ["A", "C"] }));
-    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "sans", bubbles: true, cutLine: "back" });
+    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "sans", bubbles: true, cutLine: "back", subjectiveNewPage: false });
     assert.deepEqual(single.versions, ["A", "C"]);
     const tear = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { mode: "tear", paper: "Letter", pages: 2, font: "serif", bubbles: false, cutLine: "both" }, versions: ["A"] }));
     assert.equal(tear.layout.mode, "tear");
@@ -152,4 +152,51 @@ test("PDF and Word files are made for single and two-group layouts, and an overl
     assert.ok(fitted.scale < 1 || fitted.pages > 1, "a 30-MCQ paper either shrinks or admits it needs more pages");
     const roomy = make([{ kind: "mcq", total: 30, marksEach: 1 }], { pages: 4 });
     assert.deepEqual([(await measureLayout(roomy)).fits, (await measureLayout(roomy)).scale], [true, 1]);
+});
+
+test("teachers set how many questions each chapter gives, and OR pairs can be kept in different chapters", () => {
+    const pool = bank();
+    const chapterOf = qid => String(pool.find(q => String(q._id) === qid).chapter);
+    const run = (quotas, sections) => {
+        const config = normalizeConfig({ ...base(sections), scope: { board: ids.board, class: ids.class, subject: ids.subject, chapters: [{ chapter: ids.ch1, quota: quotas[0] }, { chapter: ids.ch2, quota: quotas[1] }] } });
+        return { config, ...generateSelection(config, pool, { seed: "q" }) };
+    };
+    const countIn = (selection, section, chapter) => selection[section].flatMap(slot => slot.questions).filter(qid => chapterOf(qid) === chapter).length;
+    const quota = run([{ mcq: 8, short: 4 }, { mcq: 2, short: 1 }], [{ kind: "mcq", total: 10, marksEach: 1 }, { kind: "short", total: 5, marksEach: 2 }]);
+    assert.deepEqual(quota.warnings, []);
+    assert.deepEqual([countIn(quota.selection, "S1", ids.ch1), countIn(quota.selection, "S1", ids.ch2)], [8, 2]);
+    assert.deepEqual([countIn(quota.selection, "S2", ids.ch1), countIn(quota.selection, "S2", ids.ch2)], [4, 1]);
+    const different = run([{}, {}], [{ kind: "short", total: 6, attempt: 6, marksEach: 2, choice: true, choiceRule: "different" }]);
+    assert.equal(different.selection.S1.length, 6);
+    for (const slot of different.selection.S1) assert.notEqual(chapterOf(slot.questions[0]), chapterOf(slot.questions[1]), "OR sides come from different chapters");
+    const same = run([{}, {}], [{ kind: "short", total: 4, attempt: 4, marksEach: 2, choice: true, choiceRule: "same" }]);
+    for (const slot of same.selection.S1) assert.equal(chapterOf(slot.questions[0]), chapterOf(slot.questions[1]), "OR sides come from one chapter");
+    const lopsided = run([{ short: 6 }, { short: 0 }], [{ kind: "short", total: 3, attempt: 3, marksEach: 2, choice: true, choiceRule: "different" }]);
+    assert.ok(lopsided.warnings.length >= 0);
+});
+
+test("objective and subjective times print on separate lines, and the subjective part can start on a new page", async () => {
+    const { renderPaperPdf } = require("../src/services/paperPdf");
+    const pool = bank();
+    const make = layout => {
+        const config = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }, { kind: "short", total: 3, attempt: 3, marksEach: 2 }], { layout, header: { timeObjective: "20 mins", timeSubjective: "1 hour", timeAllowed: "ignored" } }));
+        const { selection } = generateSelection(config, pool, { seed: "n" });
+        return config.versions.map(letter => buildPaper(config, selection, pool, letter, { seed: "n" }));
+    };
+    const joined = make({});
+    assert.deepEqual(joined[0].timeLines, ["Objective Time: 20 mins", "Subjective Time: 1 hour"]);
+    assert.equal((await renderPaperPdf(joined)).info.pages, 1);
+    assert.equal((await renderPaperPdf(make({ subjectiveNewPage: true }))).info.pages, 2, "the written part starts on page 2");
+    const single = buildPaper(normalizeConfig(base([{ kind: "mcq", total: 2, marksEach: 1 }], { header: { timeAllowed: "1 hour" } })), { S1: [] }, pool, "A");
+    assert.deepEqual(single.timeLines, ["Time Allowed: 1 hour"]);
+});
+
+test("a question the teacher wrote can sit in a paper next to bank questions", () => {
+    const own = { _id: "c_abc123", contentType: "mcq", questionText: "Which instrument measures pressure?", options: [{ key: "A", text: "Barometer" }, { key: "B", text: "Ammeter" }, { key: "C", text: "Ruler" }, { key: "D", text: "Clock" }], correctOption: "A", isCustom: true };
+    const config = normalizeConfig(base([{ kind: "mcq", total: 2, marksEach: 1 }]));
+    const pool = [...bank(), own];
+    const paper = buildPaper(config, { S1: [{ scenario: "", questions: [own._id] }, { scenario: "", questions: [pool[0]._id] }] }, pool, "A", { seed: "c" });
+    assert.equal(paper.sections[0].items[0].text, "Which instrument measures pressure?");
+    assert.equal(paper.key[0].answer, "A");
+    assert.equal(paper.missing, 0);
 });

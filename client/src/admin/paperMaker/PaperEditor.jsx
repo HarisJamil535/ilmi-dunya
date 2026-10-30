@@ -1,18 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, FileDown, FileText, ImagePlus, KeyRound, Plus, RefreshCw, Save, Scissors, Shuffle, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, FileDown, FileText, ImagePlus, KeyRound, PenLine, Plus, RefreshCw, Save, Scissors, Shuffle, Sparkles, Trash2, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
+import CustomSelect from "../../shared/CustomSelect";
 import { AdminAlert, AdminLoader, AdminPageHeader } from "../components/AdminUI";
+import ChapterPlan from "./ChapterPlan";
+import { requiredFor, spreadEvenly } from "./planMath";
+import CustomQuestionModal from "./CustomQuestionModal";
+import DatePicker from "./DatePicker";
 import PaperPreview from "./PaperPreview";
 import QuestionPicker from "./QuestionPicker";
 import { Button, Field, Pill, Stepper, Toggle, card, input } from "./ui";
 import { KIND_LABEL, TEMPLATES, newConfig, questionsInSlots, sectionMarks, sectionsFromTemplate, templateLayout, totalMarks } from "./paperDefaults";
 import "./paper-maker.css";
 
-const STEPS = [["Set up", "Layout, pattern and chapters"], ["Questions", "Pick and review"], ["Download", "Preview, PDF and Word"]];
+const STEPS = [["Set up", "Layout, pattern and chapters"], ["Questions", "Pick, edit and add your own"], ["Download", "Preview, PDF and Word"]];
+const LAYOUTS = [["single", "Single paper", "One paper for every student. Optional versions A to D."], ["tear", "Two groups, one sheet", "Groups A and B on one sheet, printed both sides, then torn in half."]];
+const CHOICE_RULES = [{ value: "different", label: "Different chapters (recommended)" }, { value: "same", label: "Same chapter" }, { value: "any", label: "Any chapter" }];
 const blobMessage = async (error, fallback) => { try { return JSON.parse(await error.response.data.text()).message || fallback; } catch { return error.response?.data?.message || fallback; } };
 const download = (blob, name) => { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000); };
-const LAYOUTS = [["single", "Single paper", "One paper for every student. Optional versions A to D."], ["tear", "Two groups, one sheet", "Groups A and B on one sheet, printed both sides, then torn in half."]];
+
+const Section = ({ number, title, hint, aside, children }) => <div className={card}>
+  <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-black text-white">{number}</span><div><h2 className="text-lg font-black leading-tight text-slate-900">{title}</h2>{hint && <p className="mt-0.5 text-sm text-slate-500">{hint}</p>}</div></div>{aside}</div>
+  {children}
+</div>;
+
+// A text field with a list of known schools that opens under it as you type.
+function SchoolInput({ value, onChange, schools }) {
+  const [open, setOpen] = useState(false);
+  const matches = schools.filter((s) => s.name.toLowerCase().includes(value.trim().toLowerCase()) && s.name !== value).slice(0, 6);
+  return <div className="relative">
+    <input className={input} value={value} onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} placeholder="Type your school's name" autoComplete="off" />
+    {open && matches.length > 0 && <ul className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl animate-in fade-in slide-in-from-top-2">{matches.map((s) => <li key={s._id}><button type="button" onMouseDown={(e) => { e.preventDefault(); onChange(s.name); setOpen(false); }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-primary-soft">{s.name}</button></li>)}</ul>}
+  </div>;
+}
 
 export default function PaperEditor() {
   const { id } = useParams();
@@ -24,6 +45,7 @@ export default function PaperEditor() {
   const [title, setTitle] = useState("");
   const [config, setConfig] = useState(newConfig);
   const [selection, setSelection] = useState({});
+  const [custom, setCustom] = useState([]);
   const [seed, setSeed] = useState("");
   const [paperId, setPaperId] = useState(id || "");
   const [bank, setBank] = useState({ questions: {}, scenarios: {} });
@@ -33,6 +55,7 @@ export default function PaperEditor() {
   const [loading, setLoading] = useState(Boolean(id));
   const [dirty, setDirty] = useState(false);
   const [picker, setPicker] = useState(null);
+  const [writer, setWriter] = useState(null);
   const [papers, setPapers] = useState(null);
   const [fit, setFit] = useState(null);
   const [version, setVersion] = useState("A");
@@ -43,6 +66,7 @@ export default function PaperEditor() {
 
   const remember = useCallback((questions = [], scenarios = []) => setBank((current) => ({ questions: { ...current.questions, ...Object.fromEntries(questions.map((q) => [q._id, q])) }, scenarios: { ...current.scenarios, ...Object.fromEntries(scenarios.map((s) => [s._id, s])) } })), []);
   const edit = (fn) => { setConfig(fn); setDirty(true); setPapers(null); };
+  const touch = () => { setDirty(true); setPapers(null); };
   const setHeader = (patch) => edit((c) => ({ ...c, header: { ...c.header, ...patch } }));
   const setLayout = (patch) => edit((c) => ({ ...c, layout: { ...c.layout, ...patch } }));
   const setSection = (sectionId, patch) => edit((c) => ({ ...c, sections: c.sections.map((s) => (s.id === sectionId ? { ...s, ...patch } : s)) }));
@@ -57,8 +81,9 @@ export default function PaperEditor() {
   useEffect(() => {
     if (!id) return;
     axiosInstance.get(`/papers/${id}`).then(({ data }) => {
-      const saved = { ...newConfig(), ...data.paper.config, layout: { ...newConfig().layout, ...data.paper.config.layout } };
-      setTitle(data.paper.title); setConfig(saved); setSelection(data.paper.selection || {}); setSeed(data.paper.seed); setPaperId(data.paper._id);
+      const fresh = newConfig();
+      const saved = { ...fresh, ...data.paper.config, header: { ...fresh.header, ...data.paper.config.header }, layout: { ...fresh.layout, ...data.paper.config.layout }, options: { ...fresh.options, ...data.paper.config.options } };
+      setTitle(data.paper.title); setConfig(saved); setSelection(data.paper.selection || {}); setCustom(data.paper.custom || []); setSeed(data.paper.seed); setPaperId(data.paper._id);
       autoPicked.current = true; remember(data.questions, data.scenarios); setStep(1);
     }).catch((err) => setNotice({ type: "error", text: err.response?.data?.message || "Paper not found." })).finally(() => setLoading(false));
   }, [id, remember]);
@@ -71,7 +96,7 @@ export default function PaperEditor() {
       if (!live) return;
       setOutline(data);
       // A new paper starts with every chapter that has questions, so the teacher only unticks what is not taught.
-      setConfig((c) => (c.scope.chapters.length || c.scope.subject !== subjectId ? c : { ...c, scope: { ...c.scope, chapters: data.chapters.filter((ch) => ch.counts.mcq + ch.counts.short + ch.counts.long > 0).map((ch) => ({ chapter: ch._id, weight: 1, topics: [] })) } }));
+      setConfig((c) => (c.scope.chapters.length || c.scope.subject !== subjectId ? c : { ...c, scope: { ...c.scope, chapters: data.chapters.filter((ch) => ch.counts.mcq + ch.counts.short + ch.counts.long > 0).map((ch) => ({ chapter: ch._id, weight: 1, quota: {}, topics: [] })) } }));
     }).catch(() => live && setOutline(null));
     return () => { live = false; };
   }, [subjectId]);
@@ -85,14 +110,29 @@ export default function PaperEditor() {
   };
   const tear = config.layout.mode === "tear";
   const total = totalMarks(config.sections);
+  const hasObjective = config.sections.some((s) => s.kind === "mcq");
+  const hasSubjective = config.sections.some((s) => s.kind !== "mcq");
 
-  const chosen = new Set(config.scope.chapters.map((item) => item.chapter));
-  const toggleChapter = (chapterId) => { edit((c) => ({ ...c, scope: { ...c.scope, chapters: chosen.has(chapterId) ? c.scope.chapters.filter((item) => item.chapter !== chapterId) : [...c.scope.chapters, { chapter: chapterId, weight: 1, topics: [] }] } })); };
+  // ---- Chapters and how many questions each gives.
+  const chosenIds = new Set(config.scope.chapters.map((item) => item.chapter));
   const usable = (outline?.chapters || []).filter((ch) => ch.counts.mcq + ch.counts.short + ch.counts.long > 0);
+  const setChapters = (list) => edit((c) => ({ ...c, scope: { ...c.scope, chapters: list } }));
+  const toggleChapter = (chapterId) => setChapters(chosenIds.has(chapterId) ? config.scope.chapters.filter((item) => item.chapter !== chapterId) : [...config.scope.chapters, { chapter: chapterId, weight: 1, quota: {}, topics: [] }]);
   const available = (kind) => config.scope.chapters.reduce((sum, item) => sum + (outline?.chapters.find((c) => c._id === item.chapter)?.counts[kind] || 0), 0);
+  const setQuota = (chapterId, kind, value) => setChapters(config.scope.chapters.map((item) => (item.chapter === chapterId ? { ...item, quota: { ...item.quota, [kind]: value } } : item)));
+  const spread = () => {
+    const need = requiredFor(config.sections);
+    const chosen = config.scope.chapters;
+    const quotas = chosen.map(() => ({}));
+    for (const kind of ["mcq", "short", "long"]) {
+      if (!need[kind]) continue;
+      const caps = chosen.map((item) => outline?.chapters.find((c) => c._id === item.chapter)?.counts[kind] || 0);
+      spreadEvenly(need[kind], caps).forEach((value, i) => { quotas[i][kind] = value; });
+    }
+    setChapters(chosen.map((item, i) => ({ ...item, quota: quotas[i] })));
+  };
 
   const applyTemplate = (key) => { edit((c) => ({ ...c, sections: sectionsFromTemplate(key), layout: { ...c.layout, ...templateLayout(key) } })); clearSelection(); };
-  // Switching layout also swaps the untouched starter pattern, so the teacher lands on numbers that suit it.
   const sameAs = (key) => { const want = sectionsFromTemplate(key); return config.sections.length === want.length && want.every((w, i) => config.sections[i].kind === w.kind && config.sections[i].total === w.total && config.sections[i].marksEach === w.marksEach); };
   const chooseLayout = (mode) => {
     if (mode === "tear" && sameAs("full")) applyTemplate("tear");
@@ -102,13 +142,15 @@ export default function PaperEditor() {
 
   // ---- Questions.
   const usedIds = () => Object.values(selection).flat().flatMap((slot) => slot.questions);
-  const generate = useCallback(async (keepCurrent, current = {}) => {
-    setBusy("generate"); setNotice(null);
+  const activeCustom = () => { const used = new Set(usedIds()); return custom.filter((q) => used.has(q._id)); };
+  const generate = useCallback(async (keepCurrent, current = {}, label = "generate") => {
+    setBusy(label); setNotice(null);
     try {
       const { data } = await axiosInstance.post("/papers/generate", { config, seed: seed || undefined, paperId: paperId || undefined, keep: keepCurrent ? current : {} });
-      setSelection(data.selection); setSeed(data.seed); setWarnings(data.warnings || []); remember(data.questions, data.scenarios); setDirty(true); setPapers(null);
+      setSelection(data.selection); setSeed(data.seed); setWarnings(data.warnings || []); remember(data.questions, data.scenarios); touch();
     } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not pick questions." }); } finally { setBusy(""); }
   }, [config, seed, paperId, remember]);
+  const repick = (sectionId) => { const { [sectionId]: gone, ...others } = selection; void gone; generate(true, others, `repick-${sectionId}`); };
   const swap = async (sectionId, slotIndex, qIndex) => {
     const slot = selection[sectionId][slotIndex];
     setBusy(`swap-${sectionId}-${slotIndex}-${qIndex}`);
@@ -116,10 +158,11 @@ export default function PaperEditor() {
       const old = bank.questions[slot.questions[qIndex]];
       const { data } = await axiosInstance.post("/papers/suggest", { config, sectionId, exclude: usedIds(), chapter: old?.chapter });
       remember([data.question]);
-      setSelection((current) => ({ ...current, [sectionId]: current[sectionId].map((s, i) => (i === slotIndex ? { ...s, questions: s.questions.map((q, j) => (j === qIndex ? data.question._id : q)) } : s)) })); setDirty(true); setPapers(null);
+      setSelection((current) => ({ ...current, [sectionId]: current[sectionId].map((s, i) => (i === slotIndex ? { ...s, questions: s.questions.map((q, j) => (j === qIndex ? data.question._id : q)) } : s)) })); touch();
     } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "No other question is available." }); } finally { setBusy(""); }
   };
-  const removeSlot = (sectionId, slotIndex) => { setSelection((current) => ({ ...current, [sectionId]: current[sectionId].filter((_, i) => i !== slotIndex) })); setDirty(true); setPapers(null); };
+  const removeSlot = (sectionId, slotIndex) => { setSelection((current) => ({ ...current, [sectionId]: current[sectionId].filter((_, i) => i !== slotIndex) })); touch(); };
+  const moveSlot = (sectionId, from, to) => { setSelection((current) => { const list = [...current[sectionId]]; [list[from], list[to]] = [list[to], list[from]]; return { ...current, [sectionId]: list }; }); touch(); };
   const addToSection = ({ sectionId, slotIndex }, picked, scenarioId) => {
     setSelection((current) => {
       const slots = [...(current[sectionId] || [])];
@@ -128,8 +171,30 @@ export default function PaperEditor() {
       else picked.forEach((q) => slots.push({ scenario: "", questions: [q._id] }));
       return { ...current, [sectionId]: slots };
     });
-    remember(picked); setDirty(true); setPapers(null);
+    remember(picked); touch();
   };
+  const saveCustom = (question) => {
+    const isNew = !custom.some((q) => q._id === question._id);
+    setCustom((list) => (isNew ? [...list, question] : list.map((q) => (q._id === question._id ? question : q))));
+    remember([question]);
+    if (isNew) addToSection({ sectionId: writer.section.id, slotIndex: writer.slotIndex }, [question]);
+    touch(); setWriter(null);
+  };
+
+  // What the paper covers: questions and marks from each chapter.
+  const coverage = useMemo(() => {
+    const rows = new Map();
+    for (const section of config.sections) {
+      const slots = selection[section.id] || [];
+      const share = section.kind === "mcq" ? section.marksEach : (section.marksEach * section.attempt) / Math.max(1, section.total) / (section.choice ? 2 : 1);
+      for (const slot of slots) for (const qid of slot.questions) {
+        const q = bank.questions[qid]; const key = q?.chapter || "";
+        const row = rows.get(key) || { mcq: 0, short: 0, long: 0, marks: 0 };
+        row[section.kind] += 1; row.marks += share; rows.set(key, row);
+      }
+    }
+    return [...rows.entries()].map(([chapterId, row]) => ({ chapterId, ...row, marks: Math.round(row.marks * 10) / 10 }));
+  }, [selection, bank.questions, config.sections]);
 
   const readyForQuestions = Boolean(subjectId && config.scope.chapters.length && config.sections.length);
   const goTo = (next) => { if (next === 1 && !Object.keys(selection).length && !autoPicked.current) { autoPicked.current = true; generate(false); } setStep(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
@@ -138,7 +203,7 @@ export default function PaperEditor() {
   const save = async (quiet) => {
     setBusy("save");
     try {
-      const body = { title: title.trim() || [config.header.subjectTitle, config.header.examName].filter(Boolean).join(" - "), config, selection, seed };
+      const body = { title: title.trim() || [config.header.subjectTitle, config.header.examName].filter(Boolean).join(" - "), config, selection, custom: activeCustom(), seed };
       let savedId = paperId;
       if (paperId) { const { data } = await axiosInstance.put(`/papers/${paperId}`, body); setSeed(data.paper.seed); }
       else { const { data } = await axiosInstance.post("/papers", body); savedId = data.paper._id; setPaperId(savedId); setSeed(data.paper.seed); window.history.replaceState(null, "", `/admin/papers/${savedId}`); }
@@ -150,10 +215,11 @@ export default function PaperEditor() {
   const loadPreview = useCallback(async () => {
     setBusy("preview");
     try {
-      const { data } = await axiosInstance.post("/papers/preview", { config, selection, seed });
+      const used = new Set(Object.values(selection).flat().flatMap((slot) => slot.questions));
+      const { data } = await axiosInstance.post("/papers/preview", { config, selection, custom: custom.filter((q) => used.has(q._id)), seed });
       setPapers(data.papers); setFit(data.layout); setVersion((current) => (data.papers.some((p) => p.version === current) ? current : data.papers[0].version));
     } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not build the preview." }); } finally { setBusy(""); }
-  }, [config, selection, seed]);
+  }, [config, selection, custom, seed]);
   useEffect(() => { if (step === 2 && !papers && Object.keys(selection).length) loadPreview(); }, [step, papers, selection, loadPreview]);
 
   const exportFile = async (format, key) => {
@@ -177,9 +243,10 @@ export default function PaperEditor() {
     } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "The logo could not be uploaded." }); } finally { setBusy(""); }
   };
 
-  const subjects = useMemo(() => catalog?.subjects || [], [catalog]);
+  const subjectOptions = useMemo(() => (catalog?.subjects || []).map((s) => ({ value: s._id, label: `${s.name} · ${nameOf(catalog.classes, s.class)}` })), [catalog]);
   if (loading || !catalog) return notice?.type === "error" ? <AdminAlert type="error">{notice.text}</AdminAlert> : <AdminLoader label="Loading Paper Maker..." />;
   const slotsFilled = config.sections.every((s) => questionsInSlots(selection[s.id]) > 0);
+  const chapterName = (chapterId) => { const ch = outline?.chapters.find((c) => c._id === chapterId); return ch ? `Chapter ${ch.chapterNumber}: ${ch.name}` : "No chapter"; };
 
   return <div className="mx-auto max-w-5xl space-y-5">
     <AdminPageHeader icon={FileText} eyebrow="Paper Maker" title={title || "New question paper"} description="Set up the paper, check the questions, then download a print-ready PDF or an editable Word file." />
@@ -194,22 +261,23 @@ export default function PaperEditor() {
     </nav>
 
     {step === 0 && <section className="space-y-5">
-      <div className={card}>
-        <h2 className="text-lg font-black text-slate-900">1. Paper type</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">{LAYOUTS.map(([key, name, note]) => <button key={key} type="button" aria-pressed={config.layout.mode === key} onClick={() => chooseLayout(key)} className={`rounded-2xl border-2 p-4 text-left transition ${config.layout.mode === key ? "border-primary bg-primary-soft/40" : "border-slate-200 hover:border-primary/50"}`}>
+      <Section number={1} title="Paper type" hint="Pick how the paper prints, then a starting pattern. Every number can be changed.">
+        <div className="grid gap-3 sm:grid-cols-2">{LAYOUTS.map(([key, name, note]) => <button key={key} type="button" aria-pressed={config.layout.mode === key} onClick={() => chooseLayout(key)} className={`rounded-2xl border-2 p-4 text-left transition ${config.layout.mode === key ? "border-primary bg-primary-soft/40" : "border-slate-200 hover:border-primary/50"}`}>
           <span className="flex items-center gap-2 font-black text-slate-900">{key === "tear" && <Scissors className="h-4 w-4" />}{name}{config.layout.mode === key && <Check className="ml-auto h-4 w-4 text-primary" />}</span><span className="mt-1 block text-sm text-slate-500">{note}</span></button>)}</div>
-        <p className="mb-2 mt-5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Start from a pattern (you can change every number)</p>
+        <p className="mb-2 mt-5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Starting pattern</p>
         <div className="flex flex-wrap gap-2">{TEMPLATES.map((t) => <button key={t.key} type="button" onClick={() => applyTemplate(t.key)} title={t.note} className="min-h-10 rounded-xl border border-slate-200 px-3.5 text-sm font-bold text-slate-700 transition hover:border-primary hover:text-primary">{t.title}</button>)}</div>
-      </div>
+      </Section>
 
-      <div className={card}>
-        <h2 className="mb-4 text-lg font-black text-slate-900">2. School and exam</h2>
+      <Section number={2} title="School and exam">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Subject" className="sm:col-span-2"><select className={input} value={subjectId} onChange={(e) => chooseSubject(e.target.value)}><option value="">Choose class and subject</option>{subjects.map((s) => <option key={s._id} value={s._id}>{s.name} ({nameOf(catalog.classes, s.class)})</option>)}</select></Field>
-          <Field label="School name"><input className={input} list="paper-schools" value={config.header.schoolName} onChange={(e) => setHeader({ schoolName: e.target.value })} placeholder="Your school" /><datalist id="paper-schools">{schools.map((s) => <option key={s._id} value={s.name} />)}</datalist></Field>
+          <div className="sm:col-span-2"><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Class and subject</span><CustomSelect value={subjectId} onChange={chooseSubject} options={subjectOptions} placeholder="Choose class and subject" searchable allowClear={false} /></div>
+          <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">School name</span><SchoolInput value={config.header.schoolName} onChange={(value) => setHeader({ schoolName: value })} schools={schools} /></div>
           <Field label="Name of exam"><input className={input} value={config.header.examName} onChange={(e) => setHeader({ examName: e.target.value })} placeholder="Assessment-II 2026" /></Field>
-          <Field label="Time allowed"><input className={input} value={config.header.timeAllowed} onChange={(e) => setHeader({ timeAllowed: e.target.value })} placeholder="1 hour 20 mins" /></Field>
-          <Field label="Date (optional)"><input className={input} value={config.header.date} onChange={(e) => setHeader({ date: e.target.value })} placeholder="14 Jan 2026" /></Field>
+          <DatePicker label="Date" value={config.header.date} onChange={(value) => setHeader({ date: value })} placeholder="Choose the exam date" />
+          {hasObjective && hasSubjective ? <>
+            <Field label="Objective time (MCQs)"><input className={input} value={config.header.timeObjective} onChange={(e) => setHeader({ timeObjective: e.target.value })} placeholder="20 mins" /></Field>
+            <Field label="Subjective time (written)"><input className={input} value={config.header.timeSubjective} onChange={(e) => setHeader({ timeSubjective: e.target.value })} placeholder="1 hour" /></Field>
+          </> : <Field label="Time allowed"><input className={input} value={config.header.timeAllowed} onChange={(e) => setHeader({ timeAllowed: e.target.value })} placeholder="1 hour 20 mins" /></Field>}
         </div>
         <div className="mt-4 flex items-center gap-4 rounded-2xl border border-dashed border-slate-300 p-3">
           {config.header.logoUrl ? <img src={config.header.logoUrl} alt="School logo" className="h-14 w-14 rounded-lg border border-slate-200 object-contain" /> : <span className="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 text-slate-400"><ImagePlus className="h-6 w-6" /></span>}
@@ -218,14 +286,13 @@ export default function PaperEditor() {
           <Button variant="secondary" loading={busy === "logo"} onClick={() => logoInput.current?.click()}>{config.header.logoUrl ? "Change" : "Upload"}</Button>
           {config.header.logoUrl && <Button variant="ghost" onClick={() => setHeader({ logoUrl: "" })} aria-label="Remove logo"><X className="h-4 w-4" /></Button>}
         </div>
-      </div>
+      </Section>
 
-      <div className={card}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-black text-slate-900">3. Questions and marks</h2><Pill tone="violet">Total {total} marks</Pill></div>
+      <Section number={3} title="Questions and marks" aside={<Pill tone="violet">Total {total} marks</Pill>}>
         <div className="space-y-3">{config.sections.map((section) => <div key={section.id} className="rounded-2xl border border-slate-200 p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2.5">
             <input aria-label="Section name" className={`${input} max-w-40 font-black`} value={section.name} onChange={(e) => setSection(section.id, { name: e.target.value })} />
-            <select aria-label="Section type" className={`${input} max-w-40`} value={section.kind} onChange={(e) => { const kind = e.target.value; setSection(section.id, { kind, choice: kind === "mcq" ? false : section.choice, attempt: kind === "mcq" ? section.total : Math.min(section.attempt, section.total), marksEach: kind === "mcq" ? 1 : kind === "short" ? 2 : 5 }); setSelection((c) => ({ ...c, [section.id]: [] })); }}>{Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+            <div className="w-44"><CustomSelect value={section.kind} allowClear={false} onChange={(kind) => { setSection(section.id, { kind, choice: kind === "mcq" ? false : section.choice, attempt: kind === "mcq" ? section.total : Math.min(section.attempt, section.total), marksEach: kind === "mcq" ? 1 : kind === "short" ? 2 : 5 }); setSelection((c) => ({ ...c, [section.id]: [] })); }} options={Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }))} /></div>
             <Pill>{sectionMarks(section)} marks</Pill>
             <Button variant="danger" className="ml-auto" disabled={config.sections.length === 1} aria-label={`Remove ${section.name}`} onClick={() => { edit((c) => ({ ...c, sections: c.sections.filter((s) => s.id !== section.id) })); setSelection((c) => { const { [section.id]: gone, ...rest } = c; void gone; return rest; }); }}><Trash2 className="h-4 w-4" /></Button>
           </div>
@@ -235,33 +302,40 @@ export default function PaperEditor() {
             <div><span className="mb-1 block text-xs font-bold text-slate-500">Marks each</span><Stepper label="marks" value={section.marksEach} min={0.5} max={100} step={0.5} onChange={(value) => setSection(section.id, { marksEach: value })} /></div>
             {section.kind !== "mcq" && <div className="pb-2.5"><Toggle checked={Boolean(section.choice)} onChange={(v) => { setSection(section.id, { choice: v }); setSelection((c) => ({ ...c, [section.id]: [] })); }} label="Internal choice (OR)" /></div>}
           </div>
+          {section.kind !== "mcq" && section.choice && <div className="mt-3 max-w-sm"><span className="mb-1 block text-xs font-bold text-slate-500">Both OR questions come from</span><CustomSelect value={section.choiceRule || "different"} allowClear={false} onChange={(value) => { setSection(section.id, { choiceRule: value }); setSelection((c) => ({ ...c, [section.id]: [] })); }} options={CHOICE_RULES} /></div>}
           {section.kind !== "mcq" && section.attempt < section.total && <p className="mt-2 text-xs font-semibold text-slate-500">Printed as: "Answer any {section.attempt} of the following questions."</p>}
         </div>)}</div>
-        <Button className="mt-3" variant="secondary" icon={Plus} disabled={config.sections.length >= 8} onClick={() => edit((c) => { const next = c.sections.length + 1; return { ...c, sections: [...c.sections, { id: `S${Date.now() % 100000}`, kind: "short", name: `Section ${String.fromCharCode(64 + next)}`, total: 5, attempt: 5, marksEach: 2 }] }; })}>Add section</Button>
-      </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Button variant="secondary" icon={Plus} disabled={config.sections.length >= 8} onClick={() => edit((c) => { const next = c.sections.length + 1; return { ...c, sections: [...c.sections, { id: `S${Date.now() % 100000}`, kind: "short", name: `Section ${String.fromCharCode(64 + next)}`, total: 5, attempt: 5, marksEach: 2, choiceRule: "different" }] }; })}>Add section</Button>
+          {!tear && hasObjective && hasSubjective && <Toggle checked={config.layout.subjectiveNewPage} onChange={(v) => setLayout({ subjectiveNewPage: v })} label="Start the subjective part on a new page" />}
+        </div>
+      </Section>
 
-      <div className={card}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-black text-slate-900">4. Chapters</h2>
-          {outline && <div className="flex gap-2"><Button variant="secondary" className="min-h-9" onClick={() => edit((c) => ({ ...c, scope: { ...c.scope, chapters: usable.map((ch) => ({ chapter: ch._id, weight: 1, topics: [] })) } }))}>All</Button><Button variant="ghost" className="min-h-9" onClick={() => edit((c) => ({ ...c, scope: { ...c.scope, chapters: [] } }))}>None</Button></div>}</div>
-        {!subjectId ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Choose a subject first.</p> : !outline ? <AdminLoader label="Loading chapters..." /> : !usable.length ? <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">This subject has no questions in the bank yet.</p> :
-          <div className="grid gap-2 sm:grid-cols-2">{usable.map((chapter) => <label key={chapter._id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${chosen.has(chapter._id) ? "border-primary/40 bg-primary-soft/30" : "border-slate-200 hover:border-slate-300"}`}>
-            <input type="checkbox" checked={chosen.has(chapter._id)} onChange={() => toggleChapter(chapter._id)} className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[var(--color-primary)]" />
+      <Section number={4} title="Chapters" hint="Tick the chapters to take questions from, then decide how many each one gives."
+        aside={outline && <div className="flex gap-2"><Button variant="secondary" className="min-h-9" onClick={() => setChapters(usable.map((ch) => ({ chapter: ch._id, weight: 1, quota: {}, topics: [] })))}>All</Button><Button variant="ghost" className="min-h-9" onClick={() => setChapters([])}>None</Button></div>}>
+        {!subjectId ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Choose a subject first.</p> : !outline ? <AdminLoader label="Loading chapters..." /> : !usable.length ? <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">This subject has no questions in the bank yet. You can still write your own questions.</p> :
+          <div className="grid gap-2 sm:grid-cols-2">{usable.map((chapter) => <label key={chapter._id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${chosenIds.has(chapter._id) ? "border-primary/40 bg-primary-soft/30" : "border-slate-200 hover:border-slate-300"}`}>
+            <input type="checkbox" checked={chosenIds.has(chapter._id)} onChange={() => toggleChapter(chapter._id)} className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[var(--color-primary)]" />
             <span className="min-w-0"><span className="block text-sm font-black text-slate-900">Chapter {chapter.chapterNumber}: {chapter.name}</span><span className="text-xs text-slate-500">{chapter.counts.mcq} MCQs · {chapter.counts.short} short · {chapter.counts.long} long</span></span></label>)}</div>}
-        {config.scope.chapters.length > 0 && <p className="mt-3 text-sm text-slate-600">Available: <b>{available("mcq")}</b> MCQs, <b>{available("short")}</b> short, <b>{available("long")}</b> long questions.</p>}
+        {config.scope.chapters.length > 0 && outline && <>
+          <p className="mt-3 text-sm text-slate-600">Available: <b>{available("mcq")}</b> MCQs, <b>{available("short")}</b> short, <b>{available("long")}</b> long questions.</p>
+          <div className="mt-5 border-t border-slate-100 pt-5"><h3 className="mb-3 text-base font-black text-slate-900">Questions from each chapter</h3>
+            <ChapterPlan sections={config.sections} chosen={config.scope.chapters} chapters={outline.chapters} onQuota={setQuota} onSpread={spread} onClear={() => setChapters(config.scope.chapters.map((item) => ({ ...item, quota: {} })))} /></div></>}
         {outline?.urduQuestions > 0 && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800">{outline.urduQuestions} Urdu questions are left out because Urdu printing is not available yet.</p>}
-      </div>
+      </Section>
 
       <div className={card}>
         <button type="button" aria-expanded={more} onClick={() => setMore(!more)} className="flex w-full items-center justify-between text-left"><span className="text-lg font-black text-slate-900">More options</span><ChevronDown className={`h-5 w-5 text-slate-500 transition ${more ? "rotate-180" : ""}`} /></button>
-        {more && <div className="mt-4 space-y-5">
+        {more && <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-2">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Paper size"><select className={input} value={config.layout.paper} onChange={(e) => setLayout({ paper: e.target.value })}><option value="A4">A4</option><option value="Letter">Letter</option></select></Field>
-            <Field label="Font"><select className={input} value={config.layout.font} onChange={(e) => setLayout({ font: e.target.value })}><option value="sans">Arial (clean)</option><option value="serif">Times (classic)</option></select></Field>
-            {!tear && <Field label="Fit to"><select className={input} value={config.layout.pages} onChange={(e) => setLayout({ pages: Number(e.target.value) })}><option value={0}>As many pages as needed</option>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} page{n > 1 ? "s" : ""} at most</option>)}</select></Field>}
-            {tear && <Field label="Cut line"><select className={input} value={config.layout.cutLine} onChange={(e) => setLayout({ cutLine: e.target.value })}><option value="back">Back side only</option><option value="both">Both sides</option><option value="none">None</option></select></Field>}
+            <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Paper size</span><CustomSelect value={config.layout.paper} allowClear={false} onChange={(value) => setLayout({ paper: value })} options={[{ value: "A4", label: "A4" }, { value: "Letter", label: "Letter" }]} /></div>
+            <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Font</span><CustomSelect value={config.layout.font} allowClear={false} onChange={(value) => setLayout({ font: value })} options={[{ value: "sans", label: "Arial (clean)" }, { value: "serif", label: "Times (classic)" }]} /></div>
+            {!tear && <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Fit to</span><CustomSelect value={String(config.layout.pages)} allowClear={false} onChange={(value) => setLayout({ pages: Number(value) })} options={[{ value: "0", label: "As many pages as needed" }, ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} page${n > 1 ? "s" : ""} at most` }))]} /></div>}
+            {tear && <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Cut line</span><CustomSelect value={config.layout.cutLine} allowClear={false} onChange={(value) => setLayout({ cutLine: value })} options={[{ value: "back", label: "Back side only" }, { value: "both", label: "Both sides" }, { value: "none", label: "None" }]} /></div>}
+            <div><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Question difficulty</span><CustomSelect value={config.options.difficulty || "mixed"} allowClear={false} onChange={(value) => edit((c) => ({ ...c, options: { ...c.options, difficulty: value } }))} options={[{ value: "mixed", label: "Mixed" }, { value: "easy", label: "Easier questions first" }, { value: "hard", label: "Harder questions first" }]} /></div>
             <Field label="Subject title on paper"><input className={input} value={config.header.subjectTitle} onChange={(e) => setHeader({ subjectTitle: e.target.value })} /></Field>
             <Field label="Class on paper"><input className={input} value={config.header.className} onChange={(e) => setHeader({ className: e.target.value })} /></Field>
-            <Field label="Name in my list"><input className={input} value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} placeholder="Class 9 Physics mid term" /></Field>
+            <Field label="Name in my list" className="sm:col-span-3"><input className={input} value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} placeholder="Class 9 Physics mid term" /></Field>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-3"><Toggle checked={config.layout.bubbles} onChange={(v) => setLayout({ bubbles: v })} label="Bubble column for MCQs" /><Toggle checked={config.options.importantFirst} onChange={(v) => edit((c) => ({ ...c, options: { ...c.options, importantFirst: v } }))} label="Prefer important questions" /><Toggle checked={config.options.avoidRepeats} onChange={(v) => edit((c) => ({ ...c, options: { ...c.options, avoidRepeats: v } }))} label="Avoid questions from my last 10 papers" /></div>
           {!tear && <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Paper versions</p>
@@ -275,14 +349,14 @@ export default function PaperEditor() {
       <div className={`${card} flex flex-wrap items-center gap-3`}>
         <Button icon={Sparkles} loading={busy === "generate"} onClick={() => generate(false)}>{slotsFilled ? "Pick all again" : "Pick questions"}</Button>
         <Button variant="secondary" icon={Shuffle} loading={busy === "generate"} disabled={!Object.keys(selection).length} onClick={() => generate(true, selection)}>Fill missing only</Button>
-        <p className="text-xs text-slate-500">Swap any question with the arrow, remove it, or add your own from the bank.</p>
+        <p className="text-xs text-slate-500">Swap a question with the arrow, move it up or down, remove it, add one from the bank, or write your own.</p>
       </div>
       {warnings.map((w) => <AdminAlert key={w.message} type="error">{w.message}</AdminAlert>)}
       {busy === "generate" && !Object.keys(selection).length && <AdminLoader label="Picking questions..." />}
       {config.sections.map((section) => { const slots = selection[section.id] || []; const have = questionsInSlots(slots); const needs = section.kind === "mcq" ? section.total : section.total * (section.choice ? 2 : 1);
         return <div key={section.id} className={card}>
-          <div className="flex flex-wrap items-center gap-2"><h3 className="text-base font-black text-slate-900">{section.name} · {KIND_LABEL[section.kind]}</h3><Pill tone={have >= needs ? "green" : "amber"}>{have} / {needs}</Pill><Pill tone="violet">{sectionMarks(section)} marks</Pill>
-            <Button variant="secondary" icon={Plus} className="ml-auto min-h-10" onClick={() => setPicker({ sectionId: section.id })}>Add from bank</Button></div>
+          <div className="flex flex-wrap items-center gap-2"><h3 className="text-base font-black text-slate-900">{section.name} · {KIND_LABEL[section.kind]}</h3><Pill tone={have === needs ? "green" : "amber"}>{have} / {needs}{have > needs ? " (extra)" : ""}</Pill><Pill tone="violet">{sectionMarks(section)} marks</Pill>
+            <div className="ml-auto flex flex-wrap gap-2"><Button variant="ghost" className="min-h-10" icon={RefreshCw} loading={busy === `repick-${section.id}`} onClick={() => repick(section.id)}>Re-pick</Button><Button variant="secondary" icon={PenLine} className="min-h-10" onClick={() => setWriter({ section })}>Write my own</Button><Button variant="secondary" icon={Plus} className="min-h-10" onClick={() => setPicker({ sectionId: section.id })}>From bank</Button></div></div>
           {!slots.length && <p className="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">No questions yet.</p>}
           <ol className="mt-3 space-y-2.5">{slots.map((slot, slotIndex) => <li key={slotIndex} className="rounded-xl border border-slate-200 p-3">
             <div className="flex items-start gap-3">
@@ -291,16 +365,27 @@ export default function PaperEditor() {
                 {slot.scenario && <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700"><b>Scenario:</b> {bank.scenarios[slot.scenario]?.scenarioText?.slice(0, 160) || "Scenario"}… <Pill>{slot.questions.length} linked questions</Pill></p>}
                 {slot.questions.map((qid, qIndex) => { const q = bank.questions[qid]; return <div key={qid}>
                   {qIndex > 0 && <p className="my-1 text-center text-xs font-black text-slate-400">OR</p>}
-                  <div className="flex items-start gap-2"><p className="min-w-0 flex-1 text-sm font-semibold text-slate-800">{q ? q.questionText : "Question unavailable"}</p>
-                    {!slot.scenario && <button type="button" onClick={() => swap(section.id, slotIndex, qIndex)} disabled={Boolean(busy)} title="Replace with another question" aria-label="Replace this question" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-primary-soft hover:text-primary disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === `swap-${section.id}-${slotIndex}-${qIndex}` ? "animate-spin" : ""}`} /></button>}</div>
+                  <div className="flex items-start gap-1.5"><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{q ? q.questionText : "Question unavailable"}</p>
+                    <p className="mt-0.5 flex flex-wrap gap-1.5 text-[11px]">{q?.isCustom && <Pill tone="violet">Your question</Pill>}{q?.chapter && outline && <span className="text-slate-400">{chapterName(q.chapter)}</span>}</p></div>
+                    {q?.isCustom && <button type="button" onClick={() => setWriter({ section, existing: q })} title="Edit your question" aria-label="Edit your question" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-primary-soft hover:text-primary"><PenLine className="h-4 w-4" /></button>}
+                    {!slot.scenario && !q?.isCustom && <button type="button" onClick={() => swap(section.id, slotIndex, qIndex)} disabled={Boolean(busy)} title="Replace with another question" aria-label="Replace this question" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-primary-soft hover:text-primary disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === `swap-${section.id}-${slotIndex}-${qIndex}` ? "animate-spin" : ""}`} /></button>}</div>
                   {q?.contentType === "mcq" && <p className="mt-1 flex flex-wrap gap-1.5 text-xs">{q.options.map((o) => <span key={o.key} className={`rounded-md px-2 py-0.5 ${o.key === q.correctOption ? "bg-emerald-50 font-black text-emerald-700" : "bg-slate-50 text-slate-500"}`}>{o.key}. {o.text}</span>)}</p>}
                 </div>; })}
-                {section.choice && slot.questions.length < 2 && <Button variant="secondary" className="min-h-9" icon={Plus} onClick={() => setPicker({ sectionId: section.id, slotIndex })}>Add the OR question</Button>}
+                {section.choice && slot.questions.length < 2 && <div className="flex flex-wrap gap-2"><Button variant="secondary" className="min-h-9" icon={Plus} onClick={() => setPicker({ sectionId: section.id, slotIndex })}>Add OR question from bank</Button><Button variant="secondary" className="min-h-9" icon={PenLine} onClick={() => setWriter({ section, slotIndex })}>Write the OR question</Button></div>}
               </div>
-              <button type="button" onClick={() => removeSlot(section.id, slotIndex)} aria-label="Remove this question" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
+              <div className="flex shrink-0 flex-col">
+                <button type="button" disabled={slotIndex === 0} onClick={() => moveSlot(section.id, slotIndex, slotIndex - 1)} aria-label="Move up" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-25"><ArrowUp className="h-4 w-4" /></button>
+                <button type="button" disabled={slotIndex === slots.length - 1} onClick={() => moveSlot(section.id, slotIndex, slotIndex + 1)} aria-label="Move down" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-25"><ArrowDown className="h-4 w-4" /></button>
+                <button type="button" onClick={() => removeSlot(section.id, slotIndex)} aria-label="Remove this question" className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
+              </div>
             </div>
           </li>)}</ol>
         </div>; })}
+      {coverage.length > 0 && <div className={card}>
+        <h3 className="text-base font-black text-slate-900">What this paper covers</h3><p className="mb-3 text-sm text-slate-500">Questions and approximate marks taken from each chapter.</p>
+        <div className="overflow-x-auto"><table className="w-full min-w-[480px] text-sm"><thead><tr className="border-b border-slate-200 text-left text-xs font-black uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">Chapter</th><th className="px-2 text-center">MCQs</th><th className="px-2 text-center">Short</th><th className="px-2 text-center">Long</th><th className="pl-2 text-right">Marks</th></tr></thead>
+          <tbody>{coverage.map((row) => <tr key={row.chapterId || "none"} className="border-b border-slate-100 last:border-0"><td className="py-2 pr-3 font-semibold text-slate-800">{row.chapterId ? chapterName(row.chapterId) : "Your own questions"}</td><td className="px-2 text-center">{row.mcq || "-"}</td><td className="px-2 text-center">{row.short || "-"}</td><td className="px-2 text-center">{row.long || "-"}</td><td className="pl-2 text-right font-black">{row.marks}</td></tr>)}</tbody></table></div>
+      </div>}
     </section>}
 
     {step === 2 && <section className="space-y-4">
@@ -333,5 +418,6 @@ export default function PaperEditor() {
     </div>
 
     {picker && <QuestionPicker config={config} outline={outline} section={config.sections.find((s) => s.id === picker.sectionId)} used={new Set(usedIds())} onClose={() => setPicker(null)} onAdd={(picked, scenarioId) => { addToSection(picker, picked, scenarioId); if (picker.slotIndex !== undefined) setPicker(null); }} />}
+    {writer && <CustomQuestionModal section={writer.section} chapters={outline?.chapters || []} existing={writer.existing} onClose={() => setWriter(null)} onSave={saveCustom} />}
   </div>;
 }

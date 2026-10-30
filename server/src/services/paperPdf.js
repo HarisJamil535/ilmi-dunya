@@ -78,10 +78,11 @@ function header(ctx, fl, paper, { group = "", logo = null } = {}) {
     fl.y = Math.max(fl.y, top + (logo ? 48 * ctx.s : 0)) + 2 * ctx.s;
     const third = fl.w / 3;
     const subject = [h.subjectTitle, h.className].filter(Boolean).join(" - ") + (paper.versionCount > 1 && paper.layout.mode !== "tear" ? `   Paper: ${paper.version}` : "");
-    write(ctx, h.timeAllowed ? `Time Allowed: ${h.timeAllowed}` : "", fl.x, fl.y, third, { font: ctx.fonts.b, size: ctx.cell });
+    const times = paper.timeLines || [];
+    times.forEach((line, i) => write(ctx, line, fl.x, fl.y + i * (ctx.cell + 2.5 * ctx.s), third * 1.2, { font: ctx.fonts.b, size: ctx.cell }));
     write(ctx, subject, fl.x + third * 0.7, fl.y, third * 1.6, { font: ctx.fonts.b, size: ctx.cell, align: "center" });
     write(ctx, `Total Marks: ${paper.totalMarks}`, fl.x + third * 2, fl.y, third, { font: ctx.fonts.b, size: ctx.cell, align: "right" });
-    fl.y += ctx.cell + 7 * ctx.s;
+    fl.y += Math.max(1, times.length) * (ctx.cell + 2.5 * ctx.s) + 5 * ctx.s;
 }
 
 function sectionHead(ctx, fl, section) {
@@ -234,7 +235,19 @@ function drawSingle(doc, size, paper, logo, scale) {
     doc.addPage();
     fl.onFull = () => { doc.addPage(); fl.y = margin; };
     header(ctx, fl, paper, { logo });
-    for (const section of paper.sections) drawSection(ctx, fl, section, layout);
+    let subjective = false;
+    for (const section of paper.sections) {
+        if (section.kind !== "mcq" && !subjective) {
+            subjective = true;
+            if (layout.subjectiveNewPage && fl.y > margin + 1) {
+                doc.addPage(); fl.y = margin;
+                labelLine(ctx, "Name of Candidate:", fl.x, fl.y, fl.w * 0.6);
+                labelLine(ctx, "Roll No:", fl.x + fl.w * 0.62, fl.y, fl.w * 0.38);
+                fl.y += 20 * ctx.s;
+            }
+        }
+        drawSection(ctx, fl, section, layout);
+    }
     const count = doc.bufferedPageRange().count;
     if (count > 1) for (let i = 0; i < count; i++) {
         doc.switchToPage(i);

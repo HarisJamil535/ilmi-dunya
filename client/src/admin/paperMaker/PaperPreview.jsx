@@ -11,7 +11,7 @@ const Head = ({ paper, logoUrl, group }) => {
       {logoUrl && <img src={logoUrl} alt="" />}
       <div>{group && <u className="pp-group">{group}</u>}{h.schoolName && <strong className="pp-school">{h.schoolName}</strong>}{h.examName && <strong>{h.examName}</strong>}</div>
     </div>
-    <div className="pp-meta"><b>{h.timeAllowed && `Time Allowed: ${h.timeAllowed}`}</b><b>{subject}</b><b>Total Marks: {paper.totalMarks}</b></div>
+    <div className="pp-meta"><b className="pp-times">{(paper.timeLines || []).map((line) => <span key={line}>{line}</span>)}</b><b>{subject}</b><b>Total Marks: {paper.totalMarks}</b></div>
   </header>;
 };
 
@@ -46,6 +46,9 @@ export default function PaperPreview({ papers, version, showAnswers, logoUrl }) 
   const paper = papers.find((p) => p.version === version) || papers[0];
   return <div className={`pp-stack ${font}`}><article className="pp-sheet" aria-label={`Question paper ${paper.version}`}>
     <Head paper={paper} logoUrl={logoUrl} />
-    {paper.sections.map((s) => <Section key={s.id} section={s} paper={paper} showAnswers={showAnswers} />)}
+    {paper.sections.map((s, i) => <Fragment key={s.id}>
+      {layout.subjectiveNewPage && s.kind !== "mcq" && paper.sections.slice(0, i).every((p) => p.kind === "mcq") && i > 0 && <div className="pp-break" role="separator"><span>New page: subjective part</span></div>}
+      <Section section={s} paper={paper} showAnswers={showAnswers} />
+    </Fragment>)}
   </article></div>;
 }

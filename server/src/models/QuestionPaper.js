@@ -7,6 +7,8 @@ const questionPaperSchema = new mongoose.Schema({
     title: { type: String, required: true, trim: true, maxlength: 160 },
     config: { type: mongoose.Schema.Types.Mixed, required: true },
     selection: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Questions the teacher typed in for this paper only (ids start with "c_"); they never enter the question bank.
+    custom: { type: [mongoose.Schema.Types.Mixed], default: [] },
     // Fixes the order of shuffled versions, so reprinting gives the same paper.
     seed: { type: String, required: true },
     exports: { type: Number, default: 0 },

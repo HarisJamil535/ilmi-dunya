@@ -29,12 +29,12 @@ export const sectionsFromTemplate = (key) => withIds((TEMPLATES.find((item) => i
 export const templateLayout = (key) => (TEMPLATES.find((item) => item.key === key) || TEMPLATES[0]).layout;
 
 export const newConfig = () => ({
-  header: { schoolName: "", logoUrl: "", examName: "", subjectTitle: "", className: "", date: "", timeAllowed: "", instructions: [] },
+  header: { schoolName: "", logoUrl: "", examName: "", subjectTitle: "", className: "", date: "", timeAllowed: "", timeObjective: "", timeSubjective: "", instructions: [] },
   scope: { board: "", class: "", group: "", subject: "", chapters: [] },
   sections: sectionsFromTemplate("full"),
-  layout: { mode: "single", paper: "A4", pages: 2, font: "sans", bubbles: true, cutLine: "back" },
+  layout: { mode: "single", paper: "A4", pages: 2, font: "sans", bubbles: true, cutLine: "back", subjectiveNewPage: false },
   versions: ["A"],
-  options: { importantFirst: true, avoidRepeats: false },
+  options: { importantFirst: true, avoidRepeats: false, difficulty: "mixed" },
 });
 
 export const KIND_LABEL = { mcq: "MCQs", short: "Short questions", long: "Long questions" };

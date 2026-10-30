@@ -39,3 +39,6 @@
 .pp-lines-list li b:last-child { text-align: right; }
 @media (max-width: 640px) { .pp-sheet { padding: 16px 12px; font-size: 10px; } .pp-half { padding: 10px 10px; } }
 @media (max-width: 640px) { .pp-stack { justify-items: start; } .pp-sheet { min-width: 700px; } }
+.pp-times { display: grid; }
+.pp-break { display: flex; align-items: center; gap: 10px; margin: 18px -34px 6px; color: #777; font: 700 10px Arial, sans-serif; text-transform: uppercase; letter-spacing: .08em; }
+.pp-break::before, .pp-break::after { content: ""; flex: 1; border-top: 1px dashed #999; }

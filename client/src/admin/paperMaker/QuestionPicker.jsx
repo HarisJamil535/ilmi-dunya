@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AdminLoader } from "../components/AdminUI";
+import CustomSelect from "../../shared/CustomSelect";
 import { KIND_LABEL } from "./paperDefaults";
 import { Button, Pill, input } from "./ui";
 
@@ -35,8 +36,8 @@ export default function QuestionPicker({ config, outline, section, used, onClose
     <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="text-lg font-black text-slate-900">Add {KIND_LABEL[section.kind].toLowerCase()} to {section.name}</h2><p className="text-sm text-slate-500">{added ? `${added} added. ` : ""}Tap Add on each question you want.{section.kind === "mcq" && " Scenario questions come with all their linked questions."}</p></div><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
       <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-3">
-        <select className={input} value={chapter} onChange={(e) => { setChapter(e.target.value); setTopic(""); setPage(1); }}><option value="">All chapters</option>{chapters.map((c) => <option key={c._id} value={c._id}>Ch {c.chapterNumber}: {c.name}</option>)}</select>
-        <select className={input} value={topic} disabled={!topics.length} onChange={(e) => { setTopic(e.target.value); setPage(1); }}><option value="">All topics</option>{topics.map((t) => <option key={t._id} value={t._id}>{t.topicNumber} {t.name}</option>)}</select>
+        <CustomSelect value={chapter} onChange={(value) => { setChapter(value); setTopic(""); setPage(1); }} placeholder="All chapters" searchable options={chapters.map((c) => ({ value: c._id, label: `Ch ${c.chapterNumber}: ${c.name}` }))} />
+        <CustomSelect value={topic} disabled={!topics.length} onChange={(value) => { setTopic(value); setPage(1); }} placeholder="All topics" searchable options={topics.map((t) => ({ value: t._id, label: `${t.topicNumber} ${t.name}` }))} />
         <div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input className={`${input} pl-9`} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search text" aria-label="Search questions" /></div>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">

@@ -45,12 +45,15 @@ function headerBlocks(k, paper, width, { group = "", logo = null } = {}) {
         ] })] }));
     } else out.push(...lines);
     const subject = [h.subjectTitle, h.className].filter(Boolean).join(" - ") + (paper.versionCount > 1 && paper.layout.mode !== "tear" ? `   Paper: ${paper.version}` : "");
-    out.push(k.para([k.run(h.timeAllowed ? `Time Allowed: ${h.timeAllowed}` : "", { bold: true }), k.run(`\t${subject}\t`, { bold: true }), k.run(`Total Marks: ${paper.totalMarks}`, { bold: true })], { spacing: { before: 80, after: 80 }, tabStops: [{ type: TabStopType.CENTER, position: Math.round(width / 2) }, { type: TabStopType.RIGHT, position: width }] }));
+    const times = paper.timeLines || [];
+    out.push(k.para([k.run(times[0] || "", { bold: true }), k.run(`\t${subject}\t`, { bold: true }), k.run(`Total Marks: ${paper.totalMarks}`, { bold: true })], { spacing: { before: 80, after: times.length > 1 ? 0 : 80 }, tabStops: [{ type: TabStopType.CENTER, position: Math.round(width / 2) }, { type: TabStopType.RIGHT, position: width }] }));
+    times.slice(1).forEach((line, i, rest) => out.push(k.para([k.run(line, { bold: true })], { spacing: { after: i === rest.length - 1 ? 80 : 0 } })));
     return out;
 }
 
-function sectionHead(k, section) {
+function sectionHead(k, section, newPage = false) {
     return [
+        ...(newPage ? [k.para([k.run("Name of Candidate: ", { bold: true }), k.run("_".repeat(34)), k.run("    Roll No: ", { bold: true }), k.run("_".repeat(14))], { pageBreakBefore: true, spacing: { after: 100 } })] : []),
         k.para([k.run(section.title, { bold: true, size: k.body + 2 })], { alignment: AlignmentType.CENTER, spacing: { before: 120, after: 40 }, keepNext: true }),
         k.para([k.run(section.prompt, { bold: true, size: k.body })], { spacing: { after: 60 }, keepNext: true }),
     ];
@@ -106,8 +109,8 @@ function writtenLines(k, section, width) {
     }));
 }
 
-function sectionBlocks(k, section, width, layout) {
-    const blocks = sectionHead(k, section);
+function sectionBlocks(k, section, width, layout, newPage = false) {
+    const blocks = sectionHead(k, section, newPage);
     if (section.kind === "mcq") blocks.push(mcqTable(k, section, width, layout.bubbles));
     else if (section.choice) blocks.push(writtenTable(k, section, width));
     else blocks.push(...writtenLines(k, section, width));
@@ -147,7 +150,12 @@ async function renderPaperDocx(sheet, { logo = null, scale = 1 } = {}) {
     const paper = papers[0];
     const width = dims.width - 1440;
     const children = [...headerBlocks(k, paper, width, { logo })];
-    for (const section of paper.sections) children.push(...sectionBlocks(k, section, width, layout));
+    let subjective = false;
+    for (const section of paper.sections) {
+        const first = section.kind !== "mcq" && !subjective;
+        if (first) subjective = true;
+        children.push(...sectionBlocks(k, section, width, layout, first && layout.subjectiveNewPage));
+    }
     const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } };
     return Packer.toBuffer(new Document({ ...meta, sections: [{ properties, footers: { default: footer(k, true) }, children }] }));
 }

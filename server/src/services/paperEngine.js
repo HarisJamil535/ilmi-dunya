@@ -73,6 +73,7 @@ function normalizeConfig(input = {}) {
             name: text(section.name, 40) || `Section ${String.fromCharCode(65 + index)}`,
             heading: text(section.heading, 80) || { mcq: "Multiple Choice Questions", short: "Short Questions", long: "Long Questions" }[kind],
             instructions: clean(section.instructions, 400), total, attempt, marksEach, choice,
+            choiceRule: ["different", "same", "any"].includes(section.choiceRule) ? section.choiceRule : "different",
         };
     });
     if (new Set(sections.map(section => section.id)).size !== sections.length) fail("Each section needs its own id.");
@@ -81,7 +82,12 @@ function normalizeConfig(input = {}) {
     const chapters = (Array.isArray(scope.chapters) ? scope.chapters : []).slice(0, 80).map(item => {
         if (!validId(item.chapter)) fail("A chosen chapter is not valid.");
         const weight = Number(item.weight ?? 1);
-        return { chapter: idOf(item.chapter), weight: weight > 0 && weight <= 100 ? weight : 1, topics: (Array.isArray(item.topics) ? item.topics : []).filter(validId).map(idOf).slice(0, 200) };
+        const quota = {};
+        for (const kind of KINDS) {
+            const value = item.quota?.[kind];
+            if (value !== undefined && value !== null && value !== "") quota[kind] = Math.min(Math.max(Math.floor(Number(value)) || 0, 0), MAX_QUESTIONS);
+        }
+        return { chapter: idOf(item.chapter), weight: weight > 0 && weight <= 100 ? weight : 1, quota, topics: (Array.isArray(item.topics) ? item.topics : []).filter(validId).map(idOf).slice(0, 200) };
     });
     if (!chapters.length) fail("Choose at least one chapter to take questions from.");
     const versions = [...new Set((Array.isArray(input.versions) ? input.versions : ["A"]).map(letter => String(letter).toUpperCase()).filter(letter => VERSION_LETTERS.includes(letter)))];
@@ -90,7 +96,7 @@ function normalizeConfig(input = {}) {
         header: {
             schoolName: text(header.schoolName, 120), logoUrl: /^\/api\/media\/images\/[a-f\d]{24}$/.test(header.logoUrl || "") ? header.logoUrl : "",
             examName: text(header.examName, 120), subjectTitle: text(header.subjectTitle, 100), className: text(header.className, 60), date: text(header.date, 40),
-            timeAllowed: text(header.timeAllowed, 40), paperCode: text(header.paperCode, 40), schemeNote: text(header.schemeNote, 120),
+            timeAllowed: text(header.timeAllowed, 40), timeObjective: text(header.timeObjective, 40), timeSubjective: text(header.timeSubjective, 40), paperCode: text(header.paperCode, 40), schemeNote: text(header.schemeNote, 120),
             instructions, showRollBoxes: header.showRollBoxes !== false, rollBoxCount: Math.min(Math.max(Number(header.rollBoxCount) || 7, 4), 12),
             showSignatures: header.showSignatures !== false, footerNote: text(header.footerNote, 120),
         },
@@ -103,9 +109,10 @@ function normalizeConfig(input = {}) {
             font: input.layout?.font === "serif" ? "serif" : "sans",
             bubbles: input.layout?.bubbles !== false,
             cutLine: ["back", "both", "none"].includes(input.layout?.cutLine) ? input.layout.cutLine : "back",
+            subjectiveNewPage: Boolean(input.layout?.subjectiveNewPage),
         },
         versions: input.layout?.mode === "tear" ? ["A", "B"] : versions.length ? versions.sort() : ["A"],
-        options: { importantFirst: input.options?.importantFirst !== false, avoidRepeats: Boolean(input.options?.avoidRepeats) },
+        options: { importantFirst: input.options?.importantFirst !== false, avoidRepeats: Boolean(input.options?.avoidRepeats), difficulty: ["mixed", "easy", "hard"].includes(input.options?.difficulty) ? input.options.difficulty : "mixed" },
     };
 }
 
@@ -153,7 +160,22 @@ function generateSelection(config, bank, { seed = "paper", exclude = new Set(), 
         return Boolean(info) && (!info.topics.length || info.topics.includes(idOf(question.topic)));
     };
     const pool = bank.filter(inScope);
-    const order = list => (config.options.importantFirst ? [...shuffled(list.filter(q => q.isImportant), random), ...shuffled(list.filter(q => !q.isImportant), random)] : shuffled(list, random));
+    const rank = { easy: 0, medium: 1, hard: 2 };
+    const order = list => {
+        const base = config.options.importantFirst ? [...shuffled(list.filter(q => q.isImportant), random), ...shuffled(list.filter(q => !q.isImportant), random)] : shuffled(list, random);
+        if (config.options.difficulty === "mixed") return base;
+        const sign = config.options.difficulty === "easy" ? 1 : -1;
+        return base.map((q, index) => ({ q, index })).sort((a, b) => sign * ((rank[a.q.difficulty] ?? 1) - (rank[b.q.difficulty] ?? 1)) || a.index - b.index).map(item => item.q);
+    };
+    // When the teacher set how many questions each chapter gives, those numbers replace the weights and are used up as sections take them.
+    const quotaMaps = {};
+    for (const kind of KINDS) if (config.scope.chapters.some(item => item.quota?.[kind] !== undefined)) quotaMaps[kind] = new Map(config.scope.chapters.map(item => [item.chapter, item.quota?.[kind] ?? 0]));
+    const weightOf = (info, kind) => (quotaMaps[kind] ? quotaMaps[kind].get(info.chapter) ?? 0 : info.weight);
+    const consume = (kind, chapter, count) => { if (quotaMaps[kind]) quotaMaps[kind].set(chapter, Math.max(0, (quotaMaps[kind].get(chapter) || 0) - count)); };
+    const groupsFor = (kind, capOf) => {
+        const groups = [...chapterInfo.values()].map(info => ({ key: info.chapter, weight: weightOf(info, kind), cap: capOf(info.chapter) }));
+        return groups.some(group => group.weight > 0 && group.cap > 0) ? groups.filter(group => group.weight > 0) : groups.map(group => ({ ...group, weight: chapterInfo.get(group.key).weight }));
+    };
 
     for (const section of config.sections) {
         // Slots the teacher chose by hand stay; the rest are filled automatically.
@@ -173,12 +195,13 @@ function generateSelection(config, bank, { seed = "paper", exclude = new Set(), 
             const byChapter = new Map();
             for (const unit of units.values()) byChapter.set(unit.chapter, [...(byChapter.get(unit.chapter) || []), unit]);
             const need = section.total - have;
-            const quota = allocate(need, [...chapterInfo.values()].map(info => ({ key: info.chapter, weight: info.weight, cap: (byChapter.get(info.chapter) || []).reduce((sum, unit) => sum + unit.questions.length, 0) })));
+            const quota = allocate(need, groupsFor("mcq", chapter => (byChapter.get(chapter) || []).reduce((sum, unit) => sum + unit.questions.length, 0)));
             const take = (unit, limit) => {
                 const questions = unit.scenario ? [...unit.questions].sort((a, b) => idOf(a).localeCompare(idOf(b))) : unit.questions;
                 if (questions.length > limit) return false;
                 slots.push({ scenario: unit.scenario || "", questions: questions.map(idOf) });
                 questions.forEach(q => used.add(idOf(q)));
+                consume("mcq", unit.chapter, questions.length);
                 have += questions.length;
                 return true;
             };
@@ -202,29 +225,56 @@ function generateSelection(config, bank, { seed = "paper", exclude = new Set(), 
         } else {
             const wantType = section.kind === "short" ? "short_question" : "long_question";
             const per = section.choice ? 2 : 1;
+            const rule = section.choice ? section.choiceRule : "any";
             const slots = [...kept];
             const candidates = pool.filter(q => q.contentType === wantType && !used.has(idOf(q)));
             const byChapter = new Map();
             for (const q of candidates) byChapter.set(idOf(q.chapter), [...(byChapter.get(idOf(q.chapter)) || []), q]);
             const need = section.total - slots.length;
-            const quota = allocate(need, [...chapterInfo.values()].map(info => ({ key: info.chapter, weight: info.weight, cap: Math.floor((byChapter.get(info.chapter) || []).length / per) })));
-            const picked = [];
+            const spread = rule === "different" && chapterInfo.size > 1;
+            // Chapters give questions one by one; for "same chapter" pairs they give them two at a time.
+            const unit = rule === "same" ? 2 : 1;
+            const wanted = need * per;
+            const quota = allocate(Math.floor(wanted / unit), groupsFor(section.kind, chapter => Math.floor(Math.min((byChapter.get(chapter) || []).length, spread ? need : Infinity) / unit)));
+            const chosen = [];
             for (const info of chapterInfo.values()) {
                 const list = order(byChapter.get(info.chapter) || []);
-                for (let n = 0; n < (quota.get(info.chapter) || 0); n++) { picked.push(list.splice(0, per)); }
+                const count = (quota.get(info.chapter) || 0) * unit;
+                chosen.push(...list.splice(0, count));
+                consume(section.kind, info.chapter, count);
                 byChapter.set(info.chapter, list);
             }
-            // Top up from whatever is left, pairs staying within one chapter when they can.
-            let missing = need - picked.length;
-            for (const info of chapterInfo.values()) {
-                const list = byChapter.get(info.chapter) || [];
-                while (missing > 0 && list.length >= per) { picked.push(list.splice(0, per)); missing -= 1; }
+            // Top up from what is left, taking from the chapters with the most questions so pairs can still differ.
+            while (chosen.length < wanted) {
+                const richest = [...byChapter.entries()].filter(([, list]) => list.length).sort((x, y) => y[1].length - x[1].length)[0];
+                if (!richest) break;
+                const picked = richest[1].shift();
+                chosen.push(picked);
+                consume(section.kind, richest[0], 1);
             }
-            if (missing > 0) {
-                const rest = order(Object.values(Object.fromEntries(byChapter)).flat());
-                while (missing > 0 && rest.length >= per) { picked.push(rest.splice(0, per)); missing -= 1; }
-            }
-            for (const group of shuffled(picked, random)) { slots.push({ questions: group.map(idOf) }); group.forEach(q => used.add(idOf(q))); }
+            const groups = [];
+            let crossed = 0;
+            if (per === 1) chosen.forEach(q => groups.push([q]));
+            else if (rule === "different") {
+                const pools = new Map();
+                for (const q of chosen) pools.set(idOf(q.chapter), [...(pools.get(idOf(q.chapter)) || []), q]);
+                const left = () => [...pools.values()].filter(list => list.length);
+                // Always pair the two chapters with the most questions left; this keeps every pair apart whenever that is possible.
+                while (left().length >= 2) {
+                    const [first, second] = shuffled(left(), random).sort((x, y) => y.length - x.length);
+                    groups.push(random() < 0.5 ? [first.pop(), second.pop()] : [second.pop(), first.pop()]);
+                }
+                const rest = left().flat();
+                while (rest.length >= 2) { groups.push([rest.pop(), rest.pop()]); crossed += 1; }
+            } else if (rule === "same") {
+                const pools = new Map();
+                for (const q of chosen) pools.set(idOf(q.chapter), [...(pools.get(idOf(q.chapter)) || []), q]);
+                const rest = [];
+                for (const list of pools.values()) { while (list.length >= 2) groups.push([list.pop(), list.pop()]); rest.push(...list); }
+                while (rest.length >= 2) groups.push([rest.pop(), rest.pop()]);
+            } else { const mixed = shuffled(chosen, random); while (mixed.length >= 2) groups.push([mixed.pop(), mixed.pop()]); }
+            if (crossed) warnings.push({ sectionId: section.id, message: `${section.name}: ${crossed} OR pair${crossed > 1 ? "s" : ""} could not use different chapters. Choose more chapters or give each chapter fewer questions.` });
+            for (const group of shuffled(groups, random).slice(0, need)) { slots.push({ questions: group.map(idOf) }); group.forEach(q => used.add(idOf(q))); }
             if (slots.length < section.total) warnings.push({ sectionId: section.id, message: `${section.name}: only ${slots.length} of ${section.total} ${section.kind} questions${section.choice ? " (with choices)" : ""} are available in the chosen chapters.` });
             selection[section.id] = slots;
         }
@@ -237,6 +287,11 @@ const roman = number => ROMAN[number - 1] || String(number);
 const WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen"];
 const words = number => WORDS[number] || String(number);
 const titleOf = (section, count) => `${section.name} (Marks ${section.marksEach} x ${count} = ${round(section.marksEach * count)})`;
+// The time lines printed in the header: separate times for the objective and subjective parts, or one overall time.
+const timeLinesOf = header => {
+    const parts = [header.timeObjective && `Objective Time: ${header.timeObjective}`, header.timeSubjective && `Subjective Time: ${header.timeSubjective}`].filter(Boolean);
+    return parts.length ? parts : header.timeAllowed ? [`Time Allowed: ${header.timeAllowed}`] : [];
+};
 const keepsOrder = option => /(all|none|both|neither)\s+of\s+(the\s+)?(above|these)|^(all|none)\b|both\s+[a-d]\s+and\s+[a-d]/i.test(option?.text || "");
 
 // The paper as it will be printed: numbered questions, marks lines and (for MCQs) the answer key.
@@ -282,7 +337,7 @@ function buildPaper(config, selection, questions, letter = "A", { seed = "paper"
         return { ...section, marks: sectionMarks(section), title: titleOf(section, section.attempt), prompt, number: 0, items };
     });
     sections.forEach((section, index) => { section.number = index + 1; section.prompt = `Q${index + 1}. ${section.prompt}`; if (section.instructions) section.prompt += ` ${section.instructions}`; });
-    return { version: letter, versionCount: config.versions.length, header: config.header, layout: config.layout, totalMarks: totalMarks(config), sections, key, missing };
+    return { version: letter, timeLines: timeLinesOf(config.header), versionCount: config.versions.length, header: config.header, layout: config.layout, totalMarks: totalMarks(config), sections, key, missing };
 }
 
 module.exports = { normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };

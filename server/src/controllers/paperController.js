@@ -118,13 +118,35 @@ async function recentlyUsed(ownerId, exceptId) {
     const papers = await QuestionPaper.find({ owner: ownerId, ...(exceptId ? { _id: { $ne: exceptId } } : {}) }).sort({ updatedAt: -1 }).limit(10).select("selection").lean();
     return new Set(papers.flatMap(paper => Object.values(paper.selection || {}).flat().flatMap(slot => (slot.questions || []).map(String))));
 }
+const CUSTOM_ID = /^c_[a-z0-9]{4,16}$/;
+const TYPES = ["mcq", "short_question", "long_question"];
+const cleanText = (value, max) => String(value ?? "").replace(/\r/g, "").trim().slice(0, max);
+// The teacher's own questions: validated here so a paper can only hold well-formed ones.
+function cleanCustom(list) {
+    const seen = new Set();
+    const out = [];
+    for (const item of (Array.isArray(list) ? list : []).slice(0, 60)) {
+        if (!CUSTOM_ID.test(String(item?._id)) || seen.has(item._id) || !TYPES.includes(item.contentType)) continue;
+        const questionText = cleanText(item.questionText, 1500);
+        if (!questionText) continue;
+        const entry = { _id: item._id, contentType: item.contentType, questionText, chapter: mongoose.isValidObjectId(item.chapter) ? String(item.chapter) : "", isCustom: true };
+        if (item.contentType === "mcq") {
+            const options = (Array.isArray(item.options) ? item.options : []).slice(0, 4).map((option, i) => ({ key: String.fromCharCode(65 + i), text: cleanText(option?.text, 300) }));
+            if (options.length < 2 || options.some(option => !option.text) || !options.some(option => option.key === item.correctOption)) continue;
+            entry.options = options; entry.correctOption = item.correctOption;
+        }
+        seen.add(item._id); out.push(entry);
+    }
+    return out;
+}
+const customView = list => (list || []).map(q => ({ ...q, options: q.options || [], isImportant: false, topic: "", scenario: "" }));
 const newSeed = () => new mongoose.Types.ObjectId().toString();
 
 // Question text and scenarios for the picked questions, so the editor can show them.
-async function detailsFor(selection) {
+async function detailsFor(selection, custom = []) {
     const ids = [...new Set(Object.values(selection || {}).flat().flatMap(slot => slot.questions || []).map(String))].filter(value => mongoose.isValidObjectId(value));
     const rows = ids.length ? await Question.find({ _id: { $in: ids } }).select("contentType questionText options correctOption isImportant chapter topic scenario difficulty").lean() : [];
-    return { questions: rows.map(publicQuestion), scenarios: Object.values(await loadScenarios(rows)).map(row => ({ _id: id(row), title: row.title, scenarioText: row.scenarioText })) };
+    return { questions: [...rows.map(publicQuestion), ...customView(custom)], scenarios: Object.values(await loadScenarios(rows)).map(row => ({ _id: id(row), title: row.title, scenarioText: row.scenarioText })) };
 }
 
 // Picks questions automatically; slots in `keep` (chosen by hand) stay as they are.
@@ -152,9 +174,10 @@ const suggest = async (req, res) => {
 };
 
 // Builds the printed layout of every version, for the on-screen preview and for exports.
-async function paperFor(config, selection, seed) {
+async function paperFor(config, selection, seed, custom = []) {
     const ids = [...new Set(Object.values(selection || {}).flat().flatMap(slot => slot.questions || []).map(String))].filter(value => mongoose.isValidObjectId(value));
-    const questions = await Question.find({ _id: { $in: ids } }).select("contentType questionText options correctOption isImportant chapter topic scenario imageUrls").lean();
+    const stored = await Question.find({ _id: { $in: ids } }).select("contentType questionText options correctOption isImportant chapter topic scenario imageUrls").lean();
+    const questions = [...stored, ...customView(custom)];
     const scenarios = await loadScenarios(questions);
     const papers = config.versions.map(letter => engine.buildPaper(config, selection, questions, letter, { seed, scenarios }));
     const mixed = questions.some(q => hasNonLatin(q.questionText));
@@ -164,7 +187,7 @@ async function paperFor(config, selection, seed) {
 const preview = async (req, res) => {
     const config = engine.normalizeConfig(req.body.config);
     const seed = String(req.body.seed || "paper").slice(0, 40);
-    const { papers } = await paperFor(config, req.body.selection || {}, seed);
+    const { papers } = await paperFor(config, req.body.selection || {}, seed, cleanCustom(req.body.custom));
     const logo = config.header.logoUrl ? await mediaStore.readImage(config.header.logoUrl).catch(() => null) : null;
     const filled = papers.some(paper => paper.sections.some(section => section.items.length));
     res.json({ success: true, papers, totalMarks: engine.totalMarks(config), layout: filled ? await measureLayout(papers, { logo }) : null });
@@ -174,14 +197,16 @@ const fields = body => {
     const config = engine.normalizeConfig(body.config);
     const title = String(body.title || "").replace(/\s+/g, " ").trim().slice(0, 160) || [config.header.subjectTitle, config.header.examName].filter(Boolean).join(" - ") || "Untitled paper";
     const selection = body.selection && typeof body.selection === "object" ? body.selection : {};
+    const custom = cleanCustom(body.custom);
+    const allowed = new Set(custom.map(q => q._id));
     const clean = {};
     for (const section of config.sections) {
         clean[section.id] = (Array.isArray(selection[section.id]) ? selection[section.id] : []).slice(0, engine.MAX_QUESTIONS).map(slot => ({
             scenario: mongoose.isValidObjectId(slot.scenario) ? String(slot.scenario) : "",
-            questions: (Array.isArray(slot.questions) ? slot.questions : []).filter(value => mongoose.isValidObjectId(value)).map(String).slice(0, 12),
+            questions: (Array.isArray(slot.questions) ? slot.questions : []).filter(value => mongoose.isValidObjectId(value) || allowed.has(String(value))).map(String).slice(0, 12),
         })).filter(slot => slot.questions.length);
     }
-    return { title, config, selection: clean, seed: String(body.seed || newSeed()).slice(0, 40) };
+    return { title, config, selection: clean, custom, seed: String(body.seed || newSeed()).slice(0, 40) };
 };
 
 const list = async (req, res) => {
@@ -192,7 +217,7 @@ const list = async (req, res) => {
 
 const getOne = async (req, res) => {
     const paper = await loadOwned(req);
-    res.json({ success: true, paper: { _id: paper._id, title: paper.title, config: paper.config, selection: paper.selection, seed: paper.seed, updatedAt: paper.updatedAt }, ...await detailsFor(paper.selection) });
+    res.json({ success: true, paper: { _id: paper._id, title: paper.title, config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: paper.seed, updatedAt: paper.updatedAt }, ...await detailsFor(paper.selection, paper.custom) });
 };
 async function loadOwned(req) {
     if (!mongoose.isValidObjectId(req.params.id)) fail("Paper not found.", 404);
@@ -221,7 +246,7 @@ const remove = async (req, res) => {
 };
 const duplicate = async (req, res) => {
     const paper = await loadOwned(req);
-    const copy = await QuestionPaper.create({ owner: req.admin._id, title: `${paper.title} (copy)`.slice(0, 160), config: paper.config, selection: paper.selection, seed: newSeed() });
+    const copy = await QuestionPaper.create({ owner: req.admin._id, title: `${paper.title} (copy)`.slice(0, 160), config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: newSeed() });
     res.status(201).json({ success: true, paper: { _id: copy._id } });
 };
 
@@ -236,7 +261,7 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
         if (!exportAllowed(id(req.admin._id))) fail("You have exported many papers in the last hour. Please try again a little later.", 429);
         const format = req.query.format === "docx" ? "docx" : "pdf";
         const config = engine.normalizeConfig(stored.config);
-        const { papers } = await paperFor(config, stored.selection, stored.seed);
+        const { papers } = await paperFor(config, stored.selection, stored.seed, stored.custom);
         if (!papers.some(paper => paper.sections.some(section => section.items.length))) fail("This paper has no questions yet. Pick the questions first.");
         const logo = config.header.logoUrl ? await mediaStore.readImage(config.header.logoUrl).catch(() => null) : null;
         const wantKey = req.query.key === "1";
