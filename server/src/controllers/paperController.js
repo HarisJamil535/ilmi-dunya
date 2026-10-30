@@ -167,8 +167,11 @@ const suggest = async (req, res) => {
     const used = new Set((Array.isArray(req.body.exclude) ? req.body.exclude : []).map(String));
     const bank = (await loadBank(config)).filter(q => q.contentType === kindType[section.kind] && !used.has(id(q)) && !q.scenario);
     const wantChapter = mongoose.isValidObjectId(req.body.chapter) ? String(req.body.chapter) : "";
-    const pool = wantChapter ? bank.filter(q => id(q.chapter) === wantChapter) : bank;
-    const list = pool.length ? pool : bank;
+    // The other side of an OR pair may ask for a different chapter; that wins over the preferred chapter.
+    const avoid = mongoose.isValidObjectId(req.body.avoidChapter) ? String(req.body.avoidChapter) : "";
+    const allowed = avoid && bank.some(q => id(q.chapter) !== avoid) ? bank.filter(q => id(q.chapter) !== avoid) : bank;
+    const pool = wantChapter ? allowed.filter(q => id(q.chapter) === wantChapter) : allowed;
+    const list = pool.length ? pool : allowed;
     if (!list.length) fail("No other question is available for this section.", 404);
     res.json({ success: true, question: publicQuestion(list[Math.floor(Math.random() * list.length)]) });
 };

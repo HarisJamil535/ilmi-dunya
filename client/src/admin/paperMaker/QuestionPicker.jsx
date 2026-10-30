@@ -7,7 +7,7 @@ import { KIND_LABEL } from "./paperDefaults";
 import { Button, Pill, input } from "./ui";
 
 // Browse the bank and add questions by hand.
-export default function QuestionPicker({ config, outline, section, used, onClose, onAdd }) {
+export default function QuestionPicker({ config, outline, section, used, onClose, onAdd, replace = false }) {
   const [chapter, setChapter] = useState("");
   const [topic, setTopic] = useState("");
   const [search, setSearch] = useState("");
@@ -34,7 +34,7 @@ export default function QuestionPicker({ config, outline, section, used, onClose
   };
   return <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add questions" onKeyDown={(e) => e.key === "Escape" && onClose()}>
     <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="text-lg font-black text-slate-900">Add {KIND_LABEL[section.kind].toLowerCase()} to {section.name}</h2><p className="text-sm text-slate-500">{added ? `${added} added. ` : ""}Tap Add on each question you want.{section.kind === "mcq" && " Scenario questions come with all their linked questions."}</p></div><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="text-lg font-black text-slate-900">{replace ? "Replace with a question from the bank" : `Add ${KIND_LABEL[section.kind].toLowerCase()} to ${section.name}`}</h2><p className="text-sm text-slate-500">{added ? `${added} added. ` : ""}Tap Add on each question you want.{section.kind === "mcq" && " Scenario questions come with all their linked questions."}</p></div><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
       <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-3">
         <CustomSelect value={chapter} onChange={(value) => { setChapter(value); setTopic(""); setPage(1); }} placeholder="All chapters" searchable options={chapters.map((c) => ({ value: c._id, label: `Ch ${c.chapterNumber}: ${c.name}` }))} />
         <CustomSelect value={topic} disabled={!topics.length} onChange={(value) => { setTopic(value); setPage(1); }} placeholder="All topics" searchable options={topics.map((t) => ({ value: t._id, label: `${t.topicNumber} ${t.name}` }))} />
@@ -46,7 +46,7 @@ export default function QuestionPicker({ config, outline, section, used, onClose
           <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{q.questionText}</p>
             {q.scenario && <Pill tone="violet">Scenario group</Pill>}
             {q.contentType === "mcq" && <p className="mt-1.5 flex flex-wrap gap-1.5 text-xs">{q.options.map((o) => <span key={o.key} className={`rounded-md px-2 py-0.5 ${o.key === q.correctOption ? "bg-emerald-50 font-black text-emerald-700" : "bg-slate-50 text-slate-500"}`}>{o.key}. {o.text}</span>)}</p>}</div>
-          {inPaper ? <Pill tone="green">In paper</Pill> : <Button variant="secondary" className="min-h-9 shrink-0" icon={Plus} onClick={() => addOne(q)}>Add</Button>}
+          {inPaper ? <Pill tone="green">In paper</Pill> : replace && q.scenario ? <Pill>Scenario group</Pill> : <Button variant="secondary" className="min-h-9 shrink-0" icon={Plus} onClick={() => addOne(q)}>{replace ? "Use this" : "Add"}</Button>}
         </div>; })}
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-slate-100 p-4"><span className="text-xs font-bold text-slate-500">{data ? `${data.total} questions` : ""}</span>

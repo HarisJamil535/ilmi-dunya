@@ -23,9 +23,12 @@ export default function DatePicker({ label, value, onChange, placeholder = "Choo
     const rect = button.current?.getBoundingClientRect();
     if (!rect) return null;
     const width = Math.min(320, window.innerWidth - 24);
-    const below = window.innerHeight - rect.bottom;
-    const up = below < 360 && rect.top > below;
-    return { width, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), ...(up ? { bottom: window.innerHeight - rect.top + 8 } : { top: rect.bottom + 8 }) };
+    const below = window.innerHeight - rect.bottom - 20;
+    const above = rect.top - 20;
+    const up = below < 370 && above > below;
+    // Never taller than the room on the chosen side; the panel scrolls inside if the window is very short.
+    const maxHeight = Math.max(200, up ? above : below);
+    return { width, maxHeight, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), ...(up ? { bottom: window.innerHeight - rect.top + 8 } : { top: rect.bottom + 8 }) };
   }, []);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export default function DatePicker({ label, value, onChange, placeholder = "Choo
       </button>
       {value && <button type="button" aria-label="Clear date" onClick={() => onChange("")} className="-ml-9 mr-1 grid h-11 w-8 place-items-center text-slate-400 hover:text-rose-500"><X className="h-4 w-4" /></button>}
     </div>
-    {open && style && createPortal(<div ref={panel} role="dialog" aria-label="Choose a date" style={style} className="fixed z-[200] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/15 animate-in fade-in zoom-in-95 slide-in-from-top-2">
+    {open && style && createPortal(<div ref={panel} role="dialog" aria-label="Choose a date" style={style} className="fixed z-[200] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/15 animate-in fade-in zoom-in-95 slide-in-from-top-2">
       <div className="mb-2 flex items-center justify-between">
         <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"><ChevronLeft className="h-4 w-4" /></button>
         <p className="text-sm font-black text-slate-900">{MONTHS[view.getMonth()]} {view.getFullYear()}</p>

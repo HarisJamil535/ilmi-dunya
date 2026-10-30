@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Copy, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AdminAlert, AdminLoader, AdminPageHeader } from "../components/AdminUI";
 
@@ -10,6 +10,7 @@ export default function PaperList() {
   const navigate = useNavigate();
   const [papers, setPapers] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [query, setQuery] = useState("");
   const load = () => axiosInstance.get("/papers").then(({ data }) => setPapers(data.papers || [])).catch((err) => { setPapers([]); setNotice({ type: "error", text: err.response?.data?.message || "Could not load your papers." }); });
   useEffect(() => { load(); }, []);
   const duplicate = async (id) => { try { const { data } = await axiosInstance.post(`/papers/${id}/duplicate`); navigate(`/admin/papers/${data.paper._id}`); } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not copy the paper." }); } };
@@ -20,9 +21,12 @@ export default function PaperList() {
   return <div className="mx-auto max-w-5xl space-y-5">
     <AdminPageHeader icon={FileText} eyebrow="Paper Maker" title="My question papers" description="Create exam papers from the question bank and download them as PDF or Word, with answer keys." />
     {notice && <AdminAlert type={notice.type}>{notice.text}</AdminAlert>}
-    <Link to="/admin/papers/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-white shadow-sm hover:brightness-110"><Plus className="h-4 w-4" />New paper</Link>
+    <div className="flex flex-wrap items-center gap-3">
+      <Link to="/admin/papers/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-white shadow-sm hover:brightness-110"><Plus className="h-4 w-4" />New paper</Link>
+      {papers?.length > 3 && <label className="relative min-w-56 flex-1 sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, subject or school" aria-label="Search papers" className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-primary" /></label>}
+    </div>
     {!papers ? <AdminLoader label="Loading papers..." /> : !papers.length ? <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No papers yet. Create your first one.</p> :
-      <ul className="space-y-3">{papers.map((paper) => <li key={paper._id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <ul className="space-y-3">{papers.filter((paper) => !query.trim() || [paper.title, paper.subject, paper.school, paper.exam].join(" ").toLowerCase().includes(query.trim().toLowerCase())).map((paper) => <li key={paper._id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="min-w-0 flex-1"><Link to={`/admin/papers/${paper._id}`} className="block truncate font-black text-slate-900 hover:text-primary">{paper.title}</Link><p className="text-xs text-slate-500">{[paper.subject, paper.school, paper.totalMarks ? `${paper.totalMarks} marks` : "", new Date(paper.updatedAt).toLocaleDateString()].filter(Boolean).join(" · ")}</p></div>
         <Link to={`/admin/papers/${paper._id}`} className={btn}><Pencil className="h-4 w-4" />Open</Link>
         <button type="button" className={btn} onClick={() => duplicate(paper._id)}><Copy className="h-4 w-4" />Copy</button>
