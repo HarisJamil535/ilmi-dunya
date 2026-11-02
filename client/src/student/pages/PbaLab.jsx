@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BookMarked, ChevronDown, Download, ExternalLink, FileText, FlaskConical, Layers, ListChecks, Search, SearchX, X } from "lucide-react";
+import { AppWindow, Atom, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Rocket, Search, SearchX, Sparkles, Trophy, Workflow, X } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import Spinner from "../../shared/Spinner";
 import CustomSelect from "../../shared/CustomSelect";
@@ -9,18 +9,47 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import PbaVideoModal from "../components/PbaVideoModal";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { youtubeEmbed } from "../pbaVideo";
+import "./pba.css";
 
 const has = (text, needle) => String(text || "").toLowerCase().includes(needle);
+// Each topic gets its own colours, in turn.
+const PALETTE = [["#7c5cff", "#a855f7"], ["#0ea5e9", "#22d3ee"], ["#10b981", "#34d399"], ["#f59e0b", "#f97316"], ["#ec4899", "#f43f5e"], ["#6366f1", "#3b82f6"], ["#14b8a6", "#84cc16"]];
+const ICONS = [[/html|web ?page/, FileCode2], [/css|style|design/, Palette], [/java ?script|\bjs\b|program|code/, Braces], [/flow ?chart|algorithm/, Workflow], [/concept|map|tree|graph/, Network], [/device|hardware|computer/, Cpu], [/software|app/, AppWindow], [/business|plan|entrepreneur/, Briefcase], [/physic|motion|force|electric/, Atom], [/chemi|reaction|acid|salt/, FlaskConical], [/bio|cell|plant|animal/, Microscope], [/gene|dna/, Dna]];
+const iconFor = (title) => ICONS.find(([pattern]) => pattern.test(String(title).toLowerCase()))?.[1] || Sparkles;
+const accent = (index) => ({ "--accent": PALETTE[index % PALETTE.length][0], "--accent2": PALETTE[index % PALETTE.length][1] });
 
-// The two buttons every lesson and practical can have. A button is left out when the admin has not added its link.
+// What the student has finished, kept on this device only.
+function useProgress(subjectId) {
+  const key = `pba-progress:${subjectId}`;
+  const [done, setDone] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); } catch { return new Set(); } });
+  const toggle = useCallback((id) => setDone((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    try { localStorage.setItem(key, JSON.stringify([...next])); } catch { /* progress is a convenience; ignore storage errors */ }
+    return next;
+  }), [key]);
+  return [done, toggle];
+}
+
+// Watch and notes buttons; each is left out when its link has not been added yet.
 function Actions({ title, videoUrl, notesUrl, onPlay }) {
-  if (!videoUrl && !notesUrl) return <span className="text-xs font-semibold text-slate-400">Coming soon</span>;
-  return <div className="flex flex-wrap gap-2">
-    {videoUrl && (youtubeEmbed(videoUrl)
-      ? <button type="button" onClick={() => onPlay({ title, url: videoUrl, embed: youtubeEmbed(videoUrl) })} aria-label={`Watch video: ${title}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-rose-50 px-3.5 text-sm font-bold text-rose-700 transition hover:bg-rose-100"><YouTubeIcon size={18} />Watch video</button>
-      : <a href={videoUrl} target="_blank" rel="noopener noreferrer" aria-label={`Watch video: ${title}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-rose-50 px-3.5 text-sm font-bold text-rose-700 transition hover:bg-rose-100"><YouTubeIcon size={18} />Watch video</a>)}
-    {notesUrl && <a href={pdfLinks(notesUrl).download} target="_blank" rel="noopener noreferrer" aria-label={`Download notes: ${title}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark"><Download className="h-4 w-4" />Download notes</a>}
+  if (!videoUrl && !notesUrl) return <span className="pba-soon">Coming soon</span>;
+  const embed = videoUrl && youtubeEmbed(videoUrl);
+  return <div className="pba-actions">
+    {videoUrl && (embed
+      ? <button type="button" className="pba-btn pba-btn-video" onClick={() => onPlay({ title, url: videoUrl, embed })} aria-label={`Watch video: ${title}`}><YouTubeIcon size={18} />Watch</button>
+      : <a className="pba-btn pba-btn-video" href={videoUrl} target="_blank" rel="noopener noreferrer" aria-label={`Watch video: ${title}`}><YouTubeIcon size={18} />Watch</a>)}
+    {notesUrl && <a className="pba-btn pba-btn-notes" href={pdfLinks(notesUrl).download} target="_blank" rel="noopener noreferrer" aria-label={`Download notes: ${title}`}><Download size={16} />Notes</a>}
   </div>;
+}
+
+function Ring({ value }) {
+  const r = 56; const c = 2 * Math.PI * r;
+  return <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+    <defs><linearGradient id="pba-ring" x1="0" x2="1"><stop offset="0" stopColor="#a5f3fc" /><stop offset="1" stopColor="#c4b5fd" /></linearGradient></defs>
+    <circle cx="66" cy="66" r={r} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="11" />
+    <circle cx="66" cy="66" r={r} fill="none" stroke="url(#pba-ring)" strokeWidth="11" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} style={{ transition: "stroke-dashoffset .6s ease" }} />
+  </svg>;
 }
 
 export default function PbaLab() {
@@ -33,88 +62,131 @@ export default function PbaLab() {
   const [category, setCategory] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
   const [video, setVideo] = useState(null);
+  const [flash, setFlash] = useState("");
   const [retry, setRetry] = useState(0);
+  const [done, toggleDone] = useProgress(subjectId);
+  const searchBox = useRef(null);
 
   useEffect(() => {
     if (!subjectId) return undefined;
     const controller = new AbortController();
     axiosInstance.get(`/pba/${subjectId}`, { signal: controller.signal })
-      .then(({ data: response }) => { if (!response.enabled) { setState("off"); setData(response); } else { setData(response); setState("ready"); } })
+      .then(({ data: response }) => { setData(response); setState(response.enabled ? "ready" : "off"); })
       .catch((error) => { if (!controller.signal.aborted) setState(error.response?.status === 404 ? "none" : "error"); });
     return () => controller.abort();
   }, [subjectId, retry]);
 
+  // Press "/" to jump to the search box.
+  useEffect(() => {
+    const key = (event) => { if (event.key === "/" && !/input|textarea/i.test(document.activeElement?.tagName || "")) { event.preventDefault(); searchBox.current?.focus(); } };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+
   const view = subjectId ? state : "none";
   const subject = data?.subject;
   useEffect(() => {
-    document.title = subject ? `PBA Prep Lab: ${subject.name} Practical Based Assessment | IlmiDunya` : "PBA Prep Lab | IlmiDunya";
+    document.title = subject ? `Prepare PBA: ${subject.name} Practical Based Assessment | IlmiDunya` : "Prepare PBA | IlmiDunya";
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
     meta.setAttribute("content", subject ? `Prepare for ${subject.name} practical based assessment (PBA): lecture videos, notes and the list of practicals for ${subject.class} ${subject.board}.` : "Prepare for practical based assessment with lecture videos, notes and practical lists.");
   }, [subject]);
 
   const needle = query.trim().toLowerCase();
-  const topics = useMemo(() => (data?.topics || []).map((topic) => {
-    if (!needle) return { ...topic, shown: topic.subtopics };
-    if (has(topic.title, needle) || has(topic.summary, needle)) return { ...topic, shown: topic.subtopics };
+  const topics = useMemo(() => (data?.topics || []).map((topic, index) => {
+    const base = { ...topic, index };
+    if (!needle || has(topic.title, needle) || has(topic.summary, needle)) return { ...base, shown: topic.subtopics };
     const shown = topic.subtopics.filter((sub) => has(sub.title, needle) || has(sub.summary, needle));
-    return shown.length ? { ...topic, shown } : null;
+    return shown.length ? { ...base, shown } : null;
   }).filter(Boolean), [data, needle]);
-  const topicNames = useMemo(() => new Map((data?.topics || []).map((t) => [t._id, t.title])), [data]);
-  const categoryNames = useMemo(() => new Map((data?.categories || []).map((c) => [c._id, c.name])), [data]);
-  const topicName = (id) => topicNames.get(id) || "";
-  const categoryName = (id) => categoryNames.get(id) || "";
-  const practicals = useMemo(() => (data?.practicals || []).filter((p) => (!category || p.category === category) && (!topicFilter || p.topic === topicFilter)
-    && (!needle || [p.title, p.label, p.summary, topicNames.get(p.topic), categoryNames.get(p.category)].some((text) => has(text, needle)))), [data, needle, category, topicFilter, topicNames, categoryNames]);
-  const toggle = (id) => setOpen((set) => { const next = new Set(set); if (next.has(id)) next.delete(id); else next.add(id); return next; });
-  const usedCategories = (data?.categories || []).filter((c) => data.practicals.some((p) => p.category === c._id));
+  const topicIndex = useMemo(() => new Map((data?.topics || []).map((t, i) => [t._id, i])), [data]);
+  const categoryIndex = useMemo(() => new Map((data?.categories || []).map((c, i) => [c._id, i])), [data]);
+  const practicals = useMemo(() => (data?.practicals || []).map((p, number) => ({ ...p, number })).filter((p) => (!category || p.category === category) && (!topicFilter || p.topic === topicFilter)
+    && (!needle || [p.title, p.label, p.summary, data.topics[topicIndex.get(p.topic)]?.title, data.categories[categoryIndex.get(p.category)]?.name].some((text) => has(text, needle)))), [data, needle, category, topicFilter, topicIndex, categoryIndex]);
+
+  // Progress counts every subtopic and practical with something to study.
+  const items = useMemo(() => [...(data?.topics || []).flatMap((t) => t.subtopics.map((s) => ({ id: s._id, topic: t._id }))), ...(data?.practicals || []).map((p) => ({ id: p._id }))], [data]);
+  const finished = items.filter((item) => done.has(item.id)).length;
+  const share = items.length ? finished / items.length : 0;
+  const next = items.find((item) => !done.has(item.id));
+  const goNext = () => {
+    if (!next) return;
+    setQuery(""); setCategory(""); setTopicFilter("");
+    if (next.topic) setOpen((set) => new Set(set).add(next.topic));
+    setFlash(next.id);
+    setTimeout(() => document.getElementById(`pba-item-${next.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+    setTimeout(() => setFlash(""), 1800);
+  };
+  const toggle = (id) => setOpen((set) => { const nextSet = new Set(set); if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id); return nextSet; });
+  const usedCategories = (data?.categories || []).map((c) => ({ ...c, count: data.practicals.filter((p) => p.category === c._id).length })).filter((c) => c.count);
   const chaptersLink = `/chapters?${params.toString()}`;
 
-  return <main className="min-h-[70vh] bg-slate-50/60 px-4 pb-16 pt-6 sm:px-6">
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Breadcrumbs items={[{ label: "Subjects", to: "/subjects" }, ...(subject ? [{ label: subject.name, to: chaptersLink }] : []), { label: "PBA Prep Lab" }]} />
+  return <main className="pba-page">
+    <div className="pba-wrap">
+      <Breadcrumbs items={[{ label: "Subjects", to: "/subjects" }, ...(subject ? [{ label: subject.name, to: chaptersLink }] : []), { label: "Prepare PBA" }]} />
 
       {view === "loading" && <div className="grid min-h-[40vh] place-items-center"><Spinner /></div>}
-      {view === "error" && <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center"><p role="alert" className="font-bold text-rose-700">The PBA lists could not be loaded right now.</p><button type="button" onClick={() => { setState("loading"); setRetry((n) => n + 1); }} className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
-      {(view === "none" || view === "off") && <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary"><FlaskConical className="h-7 w-7" /></span>
-        <h1 className="mt-4 text-xl font-black text-slate-900">{view === "off" ? "PBA Prep Lab is not available for this subject yet" : "Choose a subject first"}</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">{view === "off" ? "Practical Based Assessment lists are added for science and practical subjects. Check back soon." : "Open a subject from your subjects page and use its PBA button."}</p>
-        <Link to={view === "off" ? chaptersLink : "/subjects"} className="mt-5 inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white">{view === "off" ? "Back to chapters" : "Browse subjects"}</Link>
+      {view === "error" && <div className="pba-empty"><p role="alert" className="font-bold text-rose-600">The PBA lists could not be loaded right now.</p><button type="button" onClick={() => { setState("loading"); setRetry((n) => n + 1); }} className="pba-btn pba-btn-notes">Try again</button></div>}
+      {(view === "none" || view === "off") && <div className="pba-empty">
+        <FlaskConical size={34} />
+        <h1 className="text-xl font-black" style={{ color: "var(--pba-ink)" }}>{view === "off" ? "PBA preparation is not available for this subject yet" : "Choose a subject first"}</h1>
+        <p className="max-w-md">{view === "off" ? "Practical Based Assessment lists are added for science and practical subjects. Check back soon." : "Open a subject from your subjects page and use its Prepare PBA button."}</p>
+        <Link to={view === "off" ? chaptersLink : "/subjects"} className="pba-btn pba-btn-notes">{view === "off" ? "Back to chapters" : "Browse subjects"}</Link>
       </div>}
 
       {view === "ready" && data && <>
-        <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-slate-950 p-6 text-white shadow-lg shadow-primary/10 sm:p-8">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] ring-1 ring-white/15"><FlaskConical className="h-4 w-4" />Practical Based Assessment</span>
-          <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">PBA Prep Lab</h1>
-          <p className="mt-1 text-base font-bold text-white/85">{subject.name} · {subject.class} · {subject.board}</p>
-          {data.setting.intro && <p className="mt-3 max-w-3xl text-sm leading-6 text-white/80">{data.setting.intro}</p>}
-          {data.setting.facts.length > 0 && <dl className="mt-5 flex flex-wrap gap-2.5">{data.setting.facts.map((fact) => <div key={fact.label} className="rounded-2xl bg-white/10 px-4 py-2.5 ring-1 ring-white/15"><dt className="text-[11px] font-black uppercase tracking-wider text-white/65">{fact.label}</dt><dd className="text-base font-black">{fact.value}</dd></div>)}</dl>}
-          {data.setting.links.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{data.setting.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-dark shadow-sm hover:bg-primary-soft"><ExternalLink className="h-4 w-4" />{link.title}</a>)}</div>}
+        <header className="pba-hero">
+          <div className="pba-hero-grid">
+            <div>
+              <span className="pba-kicker"><i />Practical Based Assessment</span>
+              <h1 className="pba-title">Prepare <span>PBA</span></h1>
+              <div className="pba-chips"><span><FlaskConical size={15} />{subject.name}</span>{subject.class && <span><GraduationCap size={15} />{subject.class}</span>}{subject.board && <span><Landmark size={15} />{subject.board}</span>}</div>
+              <p className="pba-intro">{data.setting.intro || "Learn every topic with short lectures and notes, then practise the exam-style practicals until you can do each one on your own."}</p>
+              {data.setting.facts.length > 0 && <dl className="pba-facts">{data.setting.facts.map((fact) => <div key={fact.label} className="pba-fact"><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>}
+              {data.setting.links.length > 0 && <div className="pba-links">{data.setting.links.map((link) => <a key={link.url} className="pba-link" href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} />{link.title}</a>)}</div>}
+            </div>
+            {items.length > 0 && <aside className="pba-progress" aria-label="Your preparation">
+              <div className="pba-ring"><Ring value={share} /><b><span>{Math.round(share * 100)}%<small>READY</small></span></b></div>
+              <div><p><strong className="text-white">{finished} of {items.length}</strong> lessons and practicals done</p><p className="mt-1 text-xs text-white/55">Saved on this device</p></div>
+              <button type="button" className="pba-continue" onClick={goNext} disabled={!next}>{next ? <><Rocket size={16} />{finished ? "Continue" : "Start preparing"}</> : <><Trophy size={16} />All done. Well prepared!</>}</button>
+            </aside>}
+          </div>
         </header>
 
-        <div className="sticky top-[4.5rem] z-20 space-y-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-md backdrop-blur">
-          <label className="relative block"><Search className="pointer-events-none absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search topics, subtopics and practicals" aria-label="Search the PBA lists" className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-semibold text-slate-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
-            {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>}</label>
-          <div className="flex gap-2 text-sm font-black"><a href="#pba-topics" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-slate-700 hover:bg-primary-soft"><Layers className="h-4 w-4" />Topics <span className="text-slate-400">{topics.length}</span></a><a href="#pba-practicals" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-slate-700 hover:bg-primary-soft"><ListChecks className="h-4 w-4" />Practicals <span className="text-slate-400">{practicals.length}</span></a></div>
+        <nav className="pba-road" aria-label="How to prepare">
+          <a className="pba-step" href="#pba-topics"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#7c5cff,#a855f7)" }}>1</span><span><strong>Learn the topics</strong><small>{data.topics.length} topics with lectures and notes</small></span></a>
+          <a className="pba-step" href="#pba-practicals"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#0ea5e9,#22d3ee)" }}>2</span><span><strong>Practise the practicals</strong><small>{data.practicals.length} exam-style practicals</small></span></a>
+          <div className="pba-step"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#10b981,#34d399)" }}>3</span><span><strong>Ace the PBA</strong><small>Tick each one off as you finish</small></span></div>
+        </nav>
+
+        <div className="pba-toolbar">
+          <label className="pba-search"><Search size={17} />
+            <input ref={searchBox} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search topics, lessons and practicals" aria-label="Search the PBA lists" />
+            {query ? <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X size={16} /></button> : <kbd>/</kbd>}</label>
+          <a className="pba-jump" href="#pba-topics"><Layers size={16} />Topics <em>{topics.length}</em></a>
+          <a className="pba-jump" href="#pba-practicals"><ListChecks size={16} />Practicals <em>{practicals.length}</em></a>
         </div>
 
-        <section id="pba-topics" aria-labelledby="pba-topics-title" className="scroll-mt-52 space-y-3">
-          <div><h2 id="pba-topics-title" className="text-2xl font-black text-slate-900">Topics</h2><p className="text-sm text-slate-500">Learn each topic first: open it, then watch the lecture and download the notes.</p></div>
-          {!topics.length ? <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">{needle ? <><SearchX className="mx-auto mb-2 h-6 w-6 text-slate-300" />No topics match "{query}".</> : "Topics will be added soon."}</p> : <ol className="space-y-3">{topics.map((topic, index) => {
+        <section id="pba-topics" aria-labelledby="pba-topics-title" className="grid scroll-mt-52 gap-4">
+          <div className="pba-head"><div><span className="pba-eyebrow">Step 1</span><h2 id="pba-topics-title">Learn the topics</h2><p>Open a topic, watch each lecture and download its notes. Tick a lesson when you have finished it.</p></div></div>
+          {!topics.length ? <div className="pba-empty">{needle ? <><SearchX size={30} />No topics match "{query}".</> : <><Sparkles size={30} />Topics will be added soon.</>}</div> : <ol className="pba-topics">{topics.map((topic) => {
             const expanded = Boolean(needle) || open.has(topic._id);
-            return <li key={topic._id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <button type="button" aria-expanded={expanded} aria-controls={`pba-${topic._id}`} onClick={() => toggle(topic._id)} className="flex w-full items-center gap-3.5 p-4 text-left transition hover:bg-slate-50 sm:p-5">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-base font-black text-primary-dark">{index + 1}</span>
-                <span className="min-w-0 flex-1"><span className="block text-lg font-black text-slate-900">{topic.title}</span><span className="block text-xs font-semibold text-slate-500">{topic.subtopics.length} subtopic{topic.subtopics.length === 1 ? "" : "s"}{topic.summary ? ` · ${topic.summary}` : ""}</span></span>
-                <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+            const Icon = iconFor(topic.title);
+            const total = topic.subtopics.length;
+            const complete = topic.subtopics.filter((s) => done.has(s._id)).length;
+            return <li key={topic._id} className={`pba-topic ${expanded ? "is-open" : ""}`} style={accent(topic.index)}>
+              <button type="button" className="pba-topic-head" aria-expanded={expanded} aria-controls={`pba-${topic._id}`} onClick={() => toggle(topic._id)}>
+                <span className="pba-icon"><Icon size={24} /></span>
+                <span className="min-w-0 flex-1"><span className="pba-topic-title">{topic.title}</span>
+                  <span className="pba-topic-meta block">{total} lesson{total === 1 ? "" : "s"}{complete ? ` · ${complete} done` : ""}{topic.summary ? ` · ${topic.summary}` : ""}</span>
+                  {total > 0 && <span className="pba-bar block"><i style={{ width: `${(complete / total) * 100}%` }} /></span>}</span>
+                <span className="pba-chevron"><ChevronDown size={18} /></span>
               </button>
-              {expanded && <div id={`pba-${topic._id}`} className="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-3 animate-in fade-in slide-in-from-top-1 sm:p-4">
-                {(topic.videoUrl || topic.notesUrl) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/15 bg-primary-soft/40 p-3"><span className="text-sm font-black text-primary-dark">Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} onPlay={setVideo} /></div>}
-                {topic.shown.length === 0 ? <p className="p-3 text-center text-sm text-slate-500">Subtopics will be added soon.</p> : topic.shown.map((sub, i) => <div key={sub._id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <span className="w-6 text-center text-xs font-black text-slate-400">{i + 1}</span>
-                  <div className="min-w-0 flex-1"><p className="text-[15px] font-bold text-slate-800">{sub.title}</p>{sub.summary && <p className="text-xs text-slate-500">{sub.summary}</p>}</div>
+              {expanded && <div id={`pba-${topic._id}`} className="pba-topic-body">
+                {(topic.videoUrl || topic.notesUrl) && <div className="pba-whole"><span className="inline-flex items-center gap-2"><PlayCircle size={18} />Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} onPlay={setVideo} /></div>}
+                {topic.shown.length === 0 ? <p className="pba-soon p-3 text-center">Lessons will be added soon.</p> : topic.shown.map((sub) => <div key={sub._id} id={`pba-item-${sub._id}`} className={`pba-row ${done.has(sub._id) ? "is-done" : ""} ${flash === sub._id ? "is-flash" : ""}`}>
+                  <button type="button" className="pba-check" aria-pressed={done.has(sub._id)} aria-label={`${done.has(sub._id) ? "Mark as not done" : "Mark as done"}: ${sub.title}`} onClick={() => toggleDone(sub._id)}><Check size={16} strokeWidth={3} /></button>
+                  <div className="pba-row-main"><p className="pba-row-title">{sub.title}</p>{sub.summary && <p className="pba-row-sub">{sub.summary}</p>}</div>
                   <Actions title={sub.title} videoUrl={sub.videoUrl} notesUrl={sub.notesUrl} onPlay={setVideo} />
                 </div>)}
               </div>}
@@ -122,23 +194,31 @@ export default function PbaLab() {
           })}</ol>}
         </section>
 
-        <section id="pba-practicals" aria-labelledby="pba-practicals-title" className="scroll-mt-52 space-y-3">
-          <div><h2 id="pba-practicals-title" className="text-2xl font-black text-slate-900">Practicals</h2><p className="text-sm text-slate-500">The practicals you should be ready for, each with its own lecture and notes.</p></div>
-          {(usedCategories.length > 0 || data.topics.length > 0) && <div className="flex flex-wrap items-center gap-2">
-            {usedCategories.length > 0 && <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-1.5">
-              <button type="button" aria-pressed={!category} onClick={() => setCategory("")} className={`min-h-9 rounded-full px-3.5 text-sm font-bold transition ${!category ? "bg-primary text-white shadow-sm" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-primary/40"}`}>All</button>
-              {usedCategories.map((c) => <button key={c._id} type="button" aria-pressed={category === c._id} onClick={() => setCategory(category === c._id ? "" : c._id)} className={`min-h-9 rounded-full px-3.5 text-sm font-bold transition ${category === c._id ? "bg-primary text-white shadow-sm" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-primary/40"}`}>{c.name}</button>)}</div>}
-            {data.practicals.some((p) => p.topic) && <div className="w-full sm:ml-auto sm:w-60"><CustomSelect value={topicFilter} onChange={setTopicFilter} placeholder="All topics" options={data.topics.filter((t) => data.practicals.some((p) => p.topic === t._id)).map((t) => ({ value: t._id, label: t.title }))} /></div>}
+        <section id="pba-practicals" aria-labelledby="pba-practicals-title" className="grid scroll-mt-52 gap-4">
+          <div className="pba-head"><div><span className="pba-eyebrow">Step 2</span><h2 id="pba-practicals-title">Practise the practicals</h2><p>The exam-style practicals to be ready for, each with its own lecture and notes.</p></div>
+            {data.practicals.some((p) => p.topic) && <div className="w-full sm:w-60"><CustomSelect value={topicFilter} onChange={setTopicFilter} placeholder="All topics" options={data.topics.filter((t) => data.practicals.some((p) => p.topic === t._id)).map((t) => ({ value: t._id, label: t.title }))} /></div>}</div>
+          {usedCategories.length > 0 && <div className="pba-filters" role="group" aria-label="Filter by category">
+            <button type="button" className="pba-chip" aria-pressed={!category} onClick={() => setCategory("")}>All <em>{data.practicals.length}</em></button>
+            {usedCategories.map((c) => <button key={c._id} type="button" className="pba-chip" aria-pressed={category === c._id} onClick={() => setCategory(category === c._id ? "" : c._id)}>{c.name} <em>{c.count}</em></button>)}
           </div>}
-          {!practicals.length ? <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">{data.practicals.length ? "No practicals match your search or filters." : "Practicals will be added soon."}</p> : <ol className="space-y-2.5">{practicals.map((p) => <li key={p._id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white">{data.practicals.indexOf(p) + 1}</span>
-            <div className="min-w-0 flex-1"><p className="text-[15px] font-black text-slate-900">{p.title}</p>
-              <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-black">{p.topic && <span className="rounded-full bg-primary-soft px-2.5 py-1 text-primary-dark">{topicName(p.topic)}</span>}{p.category && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{categoryName(p.category)}</span>}{p.label && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{p.label}</span>}</p>
-              {p.summary && <p className="mt-1.5 text-xs leading-5 text-slate-500">{p.summary}</p>}</div>
-            <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} onPlay={setVideo} />
-          </li>)}</ol>}
+          {!practicals.length ? <div className="pba-empty">{data.practicals.length ? <><SearchX size={30} />No practicals match your search or filters.</> : <><Sparkles size={30} />Practicals will be added soon.</>}</div> : <div className="pba-grid">{practicals.map((p) => {
+            const topicNo = topicIndex.get(p.topic);
+            const topic = data.topics[topicNo];
+            const cat = data.categories[categoryIndex.get(p.category)];
+            const TopicIcon = topic ? iconFor(topic.title) : Sparkles;
+            return <article key={p._id} id={`pba-item-${p._id}`} className={`pba-card ${done.has(p._id) ? "is-done" : ""} ${flash === p._id ? "is-flash" : ""}`} style={accent(topicNo ?? categoryIndex.get(p.category) ?? p.number)}>
+              <div className="pba-card-top"><span className="pba-num">P{p.number + 1}</span><div className="pba-tags">{cat && <span className="pba-tag pba-tag-cat">{cat.name}</span>}{p.label && <span className="pba-tag pba-tag-label">{p.label}</span>}</div></div>
+              <h3>{p.title}</h3>
+              {p.summary && <p>{p.summary}</p>}
+              {topic && <div><span className="pba-tag pba-tag-topic"><TopicIcon size={13} />{topic.title}</span></div>}
+              <div className="pba-card-foot">
+                <button type="button" className="pba-mark" aria-pressed={done.has(p._id)} onClick={() => toggleDone(p._id)}><span><Check size={13} strokeWidth={3} /></span>{done.has(p._id) ? "Practised" : "Mark practised"}</button>
+                <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} onPlay={setVideo} />
+              </div>
+            </article>;
+          })}</div>}
         </section>
-        <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400"><BookMarked className="h-3.5 w-3.5" />Notes open as PDF files. Videos play right here.<FileText className="hidden h-3.5 w-3.5" /></p>
+        <p className="pba-note"><Sparkles size={14} />Videos play right here. Notes open as PDF files. Your ticks stay on this device.</p>
       </>}
     </div>
     {video && <PbaVideoModal video={video} onClose={() => setVideo(null)} />}

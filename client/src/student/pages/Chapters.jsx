@@ -203,8 +203,10 @@ const Chapters = () => {
             <Link to={buildResourceLink({ path: "/past-papers", ...resourceLinks })} className="resource-link">
               <FileText aria-hidden="true" size={18} /><span>Past papers</span>
             </Link>
-            {pbaOn && <Link to={buildResourceLink({ path: "/pba", ...resourceLinks, subjectId: pbaSubjectId })} className="resource-link pba-resource" title="Practical Based Assessment: lectures, notes and practicals">
-              <FlaskConical aria-hidden="true" size={18} /><span>PBA Prep Lab</span>
+            {pbaOn && <Link to={buildResourceLink({ path: "/pba", ...resourceLinks, subjectId: pbaSubjectId })} className="pba-cta" title="Practical Based Assessment: lectures, notes and practicals">
+              <span className="pba-cta-icon"><FlaskConical aria-hidden="true" size={18} /></span>
+              <span className="pba-cta-text"><strong>Prepare PBA</strong><small>Practical Based Assessment</small></span>
+              <span className="pba-cta-new">NEW</span>
             </Link>}
             {answerSheet && <Link to={buildResourceLink({ path: "/answer-sheet", ...resourceLinks, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id })} className="resource-link answer-sheet-resource">
               <FileCheck2 aria-hidden="true" size={18} /><span>Answer sheet</span>
