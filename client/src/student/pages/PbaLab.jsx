@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AppWindow, Atom, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Search, SearchX, Sparkles, Workflow, X } from "lucide-react";
+import { AppWindow, Atom, FileQuestion, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Search, SearchX, Sparkles, Workflow, X } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import Spinner from "../../shared/Spinner";
 import CustomSelect from "../../shared/CustomSelect";
 import { pdfLinks } from "../../shared/pdfLinks";
 import Breadcrumbs from "../components/Breadcrumbs";
+import PbaQuestion from "../components/PbaQuestion";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { youtubeEmbed } from "../pbaVideo";
 import { useProgress } from "../pbaProgress";
@@ -46,6 +47,7 @@ export default function PbaLab() {
   const [category, setCategory] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
   const [flash, setFlash] = useState("");
+  const [openQuestions, setOpenQuestions] = useState(() => new Set());
   const [retry, setRetry] = useState(0);
   const [done, toggleDone] = useProgress(subjectId);
   const searchBox = useRef(null);
@@ -100,6 +102,7 @@ export default function PbaLab() {
     setTimeout(() => document.getElementById(`pba-item-${next.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
     setTimeout(() => setFlash(""), 1800);
   };
+  const toggleQuestion = (id) => setOpenQuestions((set) => { const nextSet = new Set(set); if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id); return nextSet; });
   const toggle = (id) => setOpen((set) => { const nextSet = new Set(set); if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id); return nextSet; });
   const usedCategories = (data?.categories || []).map((c) => ({ ...c, count: data.practicals.filter((p) => p.category === c._id).length })).filter((c) => c.count);
   const chaptersLink = `/chapters?${params.toString()}`;
@@ -185,12 +188,14 @@ export default function PbaLab() {
             const topic = data.topics[topicNo];
             const cat = data.categories[categoryIndex.get(p.category)];
             const TopicIcon = topic ? iconFor(topic.title) : Sparkles;
-            return <article key={p._id} id={`pba-item-${p._id}`} className={`pba-card ${flash === p._id ? "is-flash" : ""}`}>
-              <div className="pba-card-top"><span className="pba-num">P{p.number + 1}</span><div className="pba-tags">{cat && <span className="pba-tag pba-tag-cat">{cat.name}</span>}{p.label && <span className="pba-tag pba-tag-label">{p.label}</span>}</div></div>
+            return <article key={p._id} id={`pba-item-${p._id}`} className={`pba-card ${flash === p._id ? "is-flash" : ""} ${openQuestions.has(p._id) ? "is-wide" : ""}`}>
+              <div className="pba-card-top"><span className="pba-num">P{p.number + 1}</span><div className="pba-tags">{cat && <span className="pba-tag pba-tag-cat">{cat.name}</span>}{p.label && <span className="pba-tag pba-tag-label">{p.label}</span>}{p.marks > 0 && <span className="pba-tag pba-tag-label">{p.marks} marks</span>}</div></div>
               <h3>{p.title}</h3>
               {p.summary && <p>{p.summary}</p>}
               {topic && <span className="pba-tag pba-tag-topic"><TopicIcon size={14} />{topic.title}</span>}
+              {openQuestions.has(p._id) && <PbaQuestion subjectId={subjectId} id={p._id} />}
               <div className="pba-card-foot">
+                {p.hasQuestion && <button type="button" className="pba-view" aria-expanded={openQuestions.has(p._id)} onClick={() => toggleQuestion(p._id)}><FileQuestion size={16} />{openQuestions.has(p._id) ? "Hide question" : "View question"}</button>}
                 <button type="button" className="pba-mark" aria-pressed={done.has(p._id)} onClick={() => toggleDone(p._id)}><span><Check size={12} strokeWidth={3} /></span>{done.has(p._id) ? "Practised" : "Mark practised"}</button>
                 <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} watchTo={watchLink(p._id)} />
               </div>

@@ -1,0 +1,23 @@
+/* Formatted PBA question content (text, code, pictures, tables, labelling). Uses the app's theme colours. */
+.pbc { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pbc p, .pbc li { color: var(--app-text-primary); font-size: 14.5px; line-height: 1.65; }
+.pbc ul, .pbc ol { margin: 0; padding-left: 22px; }
+.pbc ul { list-style: disc; }
+.pbc ol { list-style: decimal; }
+.pbc strong { font-weight: 800; }
+.pbc-code { overflow: hidden; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-bg-card); }
+.pbc-code figcaption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--app-border); background: var(--app-bg-muted); color: var(--app-text-muted); font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.pbc-code figcaption button { padding: 3px 9px; border-radius: 7px; color: var(--brand-primary); font-size: 11.5px; font-weight: 800; text-transform: none; letter-spacing: 0; }
+.pbc-code figcaption button:hover { background: var(--brand-primary-soft); }
+.pbc-code pre { margin: 0; padding: 12px 14px; overflow-x: auto; color: var(--app-text-primary); font: 500 13px/1.6 ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; tab-size: 2; }
+.pbc-figure { margin: 0; }
+.pbc-figure img { display: block; max-width: 100%; height: auto; border: 1px solid var(--app-border); border-radius: 12px; background: #fff; }
+.pbc-figure.is-small img { width: 200px; } .pbc-figure.is-medium img { width: 340px; } .pbc-figure.is-large img { width: 520px; }
+.pbc-figure figcaption { margin-top: 5px; color: var(--app-text-muted); font-size: 12.5px; }
+.pbc-table-wrap { overflow-x: auto; }
+.pbc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pbc-table th, .pbc-table td { padding: 8px 12px; border: 1px solid var(--app-border); color: var(--app-text-primary); text-align: left; vertical-align: top; }
+.pbc-table th { background: var(--app-bg-muted); font-weight: 800; }
+.pbc-table td.is-blank { height: 52px; }
+.pbc-table img { display: block; max-width: 120px; max-height: 90px; border-radius: 8px; }
+.pbc-mark { color: var(--app-text-muted); font-weight: 700; white-space: nowrap; }

@@ -196,3 +196,22 @@ html.dark .pba-topic.is-open { background: linear-gradient(180deg, #221d3d, var(
 }
 html.dark .pba-player { outline-color: #303443; }
 html.dark .pba-play-row.is-current { background: #221d3d; }
+
+/* Question content on the PBA pages */
+.pba-q { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-bg-main); }
+.pba-q-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pba-q-head h3 { color: var(--app-text-primary); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.pba-q-marks { padding: 3px 10px; border-radius: 999px; background: var(--brand-primary-soft); color: var(--brand-primary-dark); font-size: 12px; font-weight: 800; }
+.pba-q-part { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; }
+.pba-q-label b { color: var(--brand-primary); font-size: 15px; font-weight: 800; }
+.pba-q-body { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
+.pba-q-pm { color: var(--app-text-muted); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.pba-q-answer { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed var(--brand-primary-muted); border-radius: 12px; background: var(--brand-primary-soft); }
+.pba-q-answer > span { color: var(--brand-primary-dark); font-size: 11.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pba-q-toggle { display: inline-flex; width: fit-content; min-height: 38px; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid var(--brand-primary-muted); border-radius: 10px; color: var(--brand-primary-dark); font-size: 13px; font-weight: 750; transition: background .16s; }
+.pba-q-toggle:hover, .pba-q-toggle[aria-pressed="true"] { background: var(--brand-primary-soft); }
+.pba-q-state { display: grid; place-items: center; padding: 18px; color: var(--app-text-muted); font-size: 13px; }
+html.dark .pba-q-answer { background: #221d3d; }
+.pba-card.is-wide { grid-column: 1 / -1; }
+.pba-view { display: inline-flex; min-height: 34px; align-items: center; gap: 6px; padding: 0 12px; border-radius: 10px; color: var(--brand-primary); font-size: 13px; font-weight: 750; transition: background .16s; }
+.pba-view:hover, .pba-view[aria-expanded="true"] { background: var(--brand-primary-soft); }
