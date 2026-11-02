@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AppWindow, Atom, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Search, SearchX, Sparkles, Workflow, X } from "lucide-react";
 import axiosInstance from "../../api/axios";
@@ -6,35 +6,22 @@ import Spinner from "../../shared/Spinner";
 import CustomSelect from "../../shared/CustomSelect";
 import { pdfLinks } from "../../shared/pdfLinks";
 import Breadcrumbs from "../components/Breadcrumbs";
-import PbaVideoModal from "../components/PbaVideoModal";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { youtubeEmbed } from "../pbaVideo";
+import { useProgress } from "../pbaProgress";
 import "./pba.css";
 
 const has = (text, needle) => String(text || "").toLowerCase().includes(needle);
 const ICONS = [[/html|web ?page/, FileCode2], [/css|style|design/, Palette], [/java ?script|\bjs\b|program|code/, Braces], [/flow ?chart|algorithm/, Workflow], [/concept|map|tree|graph/, Network], [/device|hardware|computer/, Cpu], [/software|app/, AppWindow], [/business|plan|entrepreneur/, Briefcase], [/physic|motion|force|electric/, Atom], [/chemi|reaction|acid|salt/, FlaskConical], [/bio|cell|plant|animal/, Microscope], [/gene|dna/, Dna]];
 const iconFor = (title) => ICONS.find(([pattern]) => pattern.test(String(title).toLowerCase()))?.[1] || Sparkles;
 
-// What the student has finished, kept on this device only.
-function useProgress(subjectId) {
-  const key = `pba-progress:${subjectId}`;
-  const [done, setDone] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); } catch { return new Set(); } });
-  const toggle = useCallback((id) => setDone((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    try { localStorage.setItem(key, JSON.stringify([...next])); } catch { /* progress is a convenience; ignore storage errors */ }
-    return next;
-  }), [key]);
-  return [done, toggle];
-}
-
 // Watch and notes buttons; each is left out when its link has not been added yet.
-function Actions({ title, videoUrl, notesUrl, onPlay }) {
+function Actions({ title, videoUrl, notesUrl, watchTo }) {
   if (!videoUrl && !notesUrl) return <span className="pba-soon">Coming soon</span>;
   const embed = videoUrl && youtubeEmbed(videoUrl);
   return <div className="pba-actions">
     {videoUrl && (embed
-      ? <button type="button" className="pba-btn pba-btn-video" onClick={() => onPlay({ title, url: videoUrl, embed })} aria-label={`Watch video: ${title}`}><YouTubeIcon size={18} />Watch</button>
+      ? <Link to={watchTo} className="pba-btn pba-btn-video" aria-label={`Watch video: ${title}`}><YouTubeIcon size={18} />Watch</Link>
       : <a className="pba-btn pba-btn-video" href={videoUrl} target="_blank" rel="noopener noreferrer" aria-label={`Watch video: ${title}`}><YouTubeIcon size={18} />Watch</a>)}
     {notesUrl && <a className="pba-btn pba-btn-notes" href={pdfLinks(notesUrl).download} target="_blank" rel="noopener noreferrer" aria-label={`Download notes: ${title}`}><Download size={16} />Notes</a>}
   </div>;
@@ -58,7 +45,6 @@ export default function PbaLab() {
   const [open, setOpen] = useState(() => new Set());
   const [category, setCategory] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
-  const [video, setVideo] = useState(null);
   const [flash, setFlash] = useState("");
   const [retry, setRetry] = useState(0);
   const [done, toggleDone] = useProgress(subjectId);
@@ -117,6 +103,8 @@ export default function PbaLab() {
   const toggle = (id) => setOpen((set) => { const nextSet = new Set(set); if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id); return nextSet; });
   const usedCategories = (data?.categories || []).map((c) => ({ ...c, count: data.practicals.filter((p) => p.category === c._id).length })).filter((c) => c.count);
   const chaptersLink = `/chapters?${params.toString()}`;
+  // Each video has its own page; the same address details are carried along so the page can link back here.
+  const watchLink = (id) => { const next = new URLSearchParams(params); next.set("item", id); return `/pba/watch?${next.toString()}`; };
 
   return <main className="pba-page">
     <div className="pba-wrap">
@@ -174,11 +162,11 @@ export default function PbaLab() {
                 <span className="pba-chevron"><ChevronDown size={18} /></span>
               </button>
               {expanded && <div id={`pba-${topic._id}`} className="pba-topic-body">
-                {(topic.videoUrl || topic.notesUrl) && <div className="pba-whole"><span>Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} onPlay={setVideo} /></div>}
+                {(topic.videoUrl || topic.notesUrl) && <div className="pba-whole"><span>Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} watchTo={watchLink(topic._id)} /></div>}
                 {topic.shown.length === 0 ? <p className="pba-soon p-3 text-center">Lessons will be added soon.</p> : topic.shown.map((sub) => <div key={sub._id} id={`pba-item-${sub._id}`} className={`pba-row ${done.has(sub._id) ? "is-done" : ""} ${flash === sub._id ? "is-flash" : ""}`}>
                   <button type="button" className="pba-check" aria-pressed={done.has(sub._id)} aria-label={`${done.has(sub._id) ? "Mark as not done" : "Mark as done"}: ${sub.title}`} onClick={() => toggleDone(sub._id)}><Check size={14} strokeWidth={3} /></button>
                   <div className="pba-row-main"><p className="pba-row-title">{sub.title}</p>{sub.summary && <p className="pba-row-sub">{sub.summary}</p>}</div>
-                  <Actions title={sub.title} videoUrl={sub.videoUrl} notesUrl={sub.notesUrl} onPlay={setVideo} />
+                  <Actions title={sub.title} videoUrl={sub.videoUrl} notesUrl={sub.notesUrl} watchTo={watchLink(sub._id)} />
                 </div>)}
               </div>}
             </li>;
@@ -204,7 +192,7 @@ export default function PbaLab() {
               {topic && <span className="pba-tag pba-tag-topic"><TopicIcon size={14} />{topic.title}</span>}
               <div className="pba-card-foot">
                 <button type="button" className="pba-mark" aria-pressed={done.has(p._id)} onClick={() => toggleDone(p._id)}><span><Check size={12} strokeWidth={3} /></span>{done.has(p._id) ? "Practised" : "Mark practised"}</button>
-                <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} onPlay={setVideo} />
+                <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} watchTo={watchLink(p._id)} />
               </div>
             </article>;
           })}</div>}
@@ -212,6 +200,5 @@ export default function PbaLab() {
         <p className="pba-note">Videos play on this page. Notes open as PDF files. Your ticks are saved on this device.</p>
       </>}
     </div>
-    {video && <PbaVideoModal video={video} onClose={() => setVideo(null)} />}
   </main>;
 }
