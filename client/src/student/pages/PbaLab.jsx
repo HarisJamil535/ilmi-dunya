@@ -44,7 +44,8 @@ function Ring({ value }) {
   const r = 32; const c = 2 * Math.PI * r;
   return <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
     <circle cx="38" cy="38" r={r} fill="none" stroke="var(--app-bg-muted)" strokeWidth="7" />
-    <circle cx="38" cy="38" r={r} fill="none" stroke="var(--brand-primary)" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} style={{ transition: "stroke-dashoffset .5s ease" }} />
+    <defs><linearGradient id="pba-ring-grad" x1="0" x2="1"><stop offset="0" style={{ stopColor: "var(--brand-primary-dark)" }} /><stop offset="1" style={{ stopColor: "#8b6cf0" }} /></linearGradient></defs>
+    <circle cx="38" cy="38" r={r} fill="none" stroke="url(#pba-ring-grad)" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} style={{ transition: "stroke-dashoffset .5s ease" }} />
   </svg>;
 }
 
