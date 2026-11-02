@@ -11,6 +11,8 @@ const questionPaperSchema = new mongoose.Schema({
     custom: { type: [mongoose.Schema.Types.Mixed], default: [] },
     // Fixes the order of shuffled versions, so reprinting gives the same paper.
     seed: { type: String, required: true },
+    // Small summary for the list: { kind: "pba", totalMarks }.
+    meta: { type: mongoose.Schema.Types.Mixed, default: undefined },
     exports: { type: Number, default: 0 },
 }, { timestamps: true });
 
