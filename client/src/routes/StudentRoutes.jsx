@@ -11,6 +11,7 @@ const Subjects = lazy(() => import("../student/pages/Subjects"));
 const Videos = lazy(() => import("../student/pages/Videos"));
 const BookViewer = lazy(() => import("../student/pages/BookViewer"));
 const PastPapers = lazy(() => import("../student/pages/PastPapers"));
+const PbaLab = lazy(() => import("../student/pages/PbaLab"));
 const ChapterNotes = lazy(() => import("../student/pages/ChapterNotes"));
 const StudentLogin = lazy(() => import("../student/pages/StudentLogin"));
 const StudentRegister = lazy(() => import("../student/pages/StudentRegister"));
@@ -47,6 +48,7 @@ const StudentRoutes = ({ initialData, initialView }) => {
           <Route path="/chapters" element={<Chapters />} />
           <Route path="/book" element={<BookViewer />} />
           <Route path="/past-papers" element={<PastPapers />} />
+          <Route path="/pba" element={<PbaLab />} />
           <Route path="/answer-sheet" element={<AnswerSheetViewer />} />
           <Route path="/notes" element={<ChapterNotes />} />
           <Route path="/login" element={<StudentLogin />} />

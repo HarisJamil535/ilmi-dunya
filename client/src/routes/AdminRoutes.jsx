@@ -29,6 +29,7 @@ const AdminManagement = lazy(() => import("@/admin/pages/AdminManagement"));
 const StudentManagement = lazy(() => import("@/admin/pages/StudentManagement"));
 const AnswerSheetManagement = lazy(() => import("@/admin/pages/AnswerSheetManagement"));
 const SchoolManagement = lazy(() => import("@/admin/pages/SchoolManagement"));
+const PbaManagement = lazy(() => import("@/admin/pba/PbaManagement"));
 const PaperList = lazy(() => import("@/admin/paperMaker/PaperList"));
 const PaperEditor = lazy(() => import("@/admin/paperMaker/PaperEditor"));
 const SchoolResults = lazy(() => import("@/admin/pages/SchoolResults"));
@@ -65,6 +66,7 @@ const AdminRoutes = () => {
                         <Route path="students" element={<StudentManagement />} />
                         <Route path="schools" element={<SchoolManagement />} />
                         <Route path="school-results" element={<SchoolResults />} />
+                        <Route path="pba" element={<PbaManagement />} />
                         <Route path="papers" element={<PaperList />} />
                         <Route path="papers/new" element={<PaperEditor key="new" />} />
                         <Route path="papers/:id" element={<PaperEditor />} />

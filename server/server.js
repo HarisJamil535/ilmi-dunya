@@ -101,7 +101,7 @@ const visitLimiter = rateLimit({
 app.get("/api/media/images/:id", require("./src/services/mediaStore").serveImage);
 app.use("/api", limits.apiLimiter);
 // Public lists that every visitor reads; cleared immediately when an admin changes content.
-for (const route of ['/api/boards', '/api/classes', '/api/groups', '/api/subjects', '/api/chapters', '/api/topics/chapter', '/api/home-content']) app.use(route, microCache());
+for (const route of ['/api/boards', '/api/classes', '/api/groups', '/api/subjects', '/api/chapters', '/api/topics/chapter', '/api/home-content', '/api/pba']) app.use(route, microCache());
 app.use("/api/home-content/visit", visitLimiter);
 // Sign-in and password limits count failures per account, so a school sharing one IP is not locked out together.
 app.post("/api/admin/login", ...limits.adminLoginLimiters);
@@ -137,6 +137,9 @@ app.use("/api/schools", schoolRoutes);
 // Open-licence fonts used by the Paper Maker, so the on-screen preview matches the printed paper.
 app.use("/api/paper-fonts", express.static(path.join(__dirname, "assets/fonts"), { maxAge: "30d", immutable: true, index: false, fallthrough: false }));
 app.use("/api/papers", require("./src/routes/paperRoutes"));
+const pbaRoutes = require("./src/routes/pbaRoutes");
+app.use("/api/pba-manage", pbaRoutes.manageRouter);
+app.use("/api/pba", pbaRoutes.publicRouter);
 app.get("/api/verify/:reference", limits.reportVerifyLimiter, require("./src/controllers/schoolResultsController").verifyReport);
 
 app.use(publicRoutes());

@@ -13,6 +13,8 @@ const subjectSchema = new mongoose.Schema(
             default: "",
         },
         cardImage: { type: String, default: "", maxlength: 200 },
+        // Shows the Practical Based Assessment (PBA) button on this subject's chapters page.
+        pbaEnabled: { type: Boolean, default: false },
         board: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Board",

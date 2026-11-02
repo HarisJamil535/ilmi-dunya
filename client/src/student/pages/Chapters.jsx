@@ -1,7 +1,7 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronDown, ClipboardCheck, Download, FileCheck2, FileText, GraduationCap, Landmark, Layers, ListOrdered, MousePointerClick, NotebookPen, SearchX } from "lucide-react";
+import { BookOpen, ChevronDown, ClipboardCheck, Download, FileCheck2, FileText, FlaskConical, GraduationCap, Landmark, Layers, ListOrdered, MousePointerClick, NotebookPen, SearchX } from "lucide-react";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
@@ -70,6 +70,8 @@ const Chapters = () => {
   const [error, setError] = useState(null);
   const [openChapters, setOpenChapters] = useState(() => new Set());
   const [answerSheet, setAnswerSheet] = useState(null);
+  const [pbaOn, setPbaOn] = useState(false);
+  const [pbaSubjectId, setPbaSubjectId] = useState("");
   const [retry, setRetry] = useState(0);
 
   const hasRequiredContext = Boolean(boardParam && classParam && (subjectParam || subjectId));
@@ -98,6 +100,7 @@ const Chapters = () => {
   useEffect(() => {
     const controller = new AbortController();
     setAnswerSheet(null);
+    setPbaOn(false);
     setOpenChapters(new Set());
     const fetchChapters = async () => {
       if (!hasRequiredContext) {
@@ -131,6 +134,13 @@ const Chapters = () => {
 
         setChapters(sortedChapters);
         setIsLoading(false);
+        // The PBA button only appears on subjects where the admin has switched it on.
+        const pbaSubject = subjectId || sortedChapters[0]?.subject?._id || "";
+        if (pbaSubject) {
+          axiosInstance.get(`/pba/status?subjectId=${pbaSubject}`, { signal: controller.signal })
+            .then((statusResponse) => { if (!controller.signal.aborted) { setPbaOn(Boolean(statusResponse.data.enabled)); setPbaSubjectId(pbaSubject); } })
+            .catch(() => { if (!controller.signal.aborted) setPbaOn(false); });
+        } else setPbaOn(false);
         const resolvedBoardId = boardId || sortedChapters[0]?.board?._id;
         const resolvedClassId = classId || sortedChapters[0]?.class?._id;
         if (resolvedBoardId && resolvedClassId) {
@@ -193,6 +203,9 @@ const Chapters = () => {
             <Link to={buildResourceLink({ path: "/past-papers", ...resourceLinks })} className="resource-link">
               <FileText aria-hidden="true" size={18} /><span>Past papers</span>
             </Link>
+            {pbaOn && <Link to={buildResourceLink({ path: "/pba", ...resourceLinks, subjectId: pbaSubjectId })} className="resource-link pba-resource" title="Practical Based Assessment: lectures, notes and practicals">
+              <FlaskConical aria-hidden="true" size={18} /><span>PBA Prep Lab</span>
+            </Link>}
             {answerSheet && <Link to={buildResourceLink({ path: "/answer-sheet", ...resourceLinks, boardId: boardId || answerSheet.board?._id, classId: classId || answerSheet.class?._id })} className="resource-link answer-sheet-resource">
               <FileCheck2 aria-hidden="true" size={18} /><span>Answer sheet</span>
             </Link>}

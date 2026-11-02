@@ -16,6 +16,7 @@ const routePermissions = [
     { prefix: "/api/news", permission: "news" },
     { prefix: "/api/schools", permission: "schools" },
     { prefix: "/api/papers", permission: "papers" },
+    { prefix: "/api/pba-manage", permission: "pba" },
 ];
 
 const permissionForRequest = (req) => {
