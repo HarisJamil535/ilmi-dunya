@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { fail, safeUrl } = require("./publishing");
+const content = require("./pbaContent");
 
 // Limits keep one subject's PBA page fast and tidy.
 const LIMITS = { topics: 60, subtopics: 120, practicals: 500, categories: 30, facts: 8, links: 6 };
@@ -61,7 +62,12 @@ function cleanPractical(body, { topics, categories }) {
         if (!mongoose.isValidObjectId(value) || !allowed.has(String(value))) fail(`Choose a ${label} from this subject.`);
         return String(value);
     };
+    const parts = content.cleanParts(body.parts);
     return {
+        blocks: content.cleanBlocks(body.blocks, "Question"),
+        parts,
+        marks: content.totalOf(parts, body.marks),
+        answerVisible: Boolean(body.answerVisible),
         title: clean(body.title, 200, "Practical title", { required: true }),
         label: clean(body.label, 80, "Badge"),
         summary: clean(body.summary, 400, "Description"),

@@ -9,6 +9,12 @@ const pbaPracticalSchema = new mongoose.Schema({
     // Short free text shown as a badge, for example "Section A - Q2 - 6 marks" or an SLO code.
     label: { type: String, trim: true, maxlength: 80, default: "" },
     summary: { type: String, trim: true, maxlength: 400, default: "" },
+    // The question itself: formatted blocks (text, code, images, tables, labelling pictures) and its parts with marks.
+    blocks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    parts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    marks: { type: Number, default: 0 },
+    // Lets students open the model answer on the page; off until the admin decides.
+    answerVisible: { type: Boolean, default: false },
     videoUrl: { type: String, trim: true, maxlength: 500, default: "" },
     notesUrl: { type: String, trim: true, maxlength: 1000, default: "" },
     order: { type: Number, default: 0 },

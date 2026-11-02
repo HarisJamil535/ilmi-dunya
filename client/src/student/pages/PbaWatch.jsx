@@ -5,6 +5,7 @@ import axiosInstance from "../../api/axios";
 import Spinner from "../../shared/Spinner";
 import { pdfLinks } from "../../shared/pdfLinks";
 import Breadcrumbs from "../components/Breadcrumbs";
+import PbaQuestion from "../components/PbaQuestion";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { youtubeEmbed } from "../pbaVideo";
 import { useProgress } from "../pbaProgress";
@@ -22,6 +23,7 @@ function locate(data, id) {
   const practical = data.practicals.find((p) => p._id === id);
   if (practical) return {
     kind: "practical", heading: "Practicals", topic: data.topics.find((t) => t._id === practical.topic) || null, category: data.categories.find((c) => c._id === practical.category) || null,
+    hasQuestion: practical.hasQuestion,
     item: { id: practical._id, title: practical.title, videoUrl: practical.videoUrl, notesUrl: practical.notesUrl, summary: practical.summary, label: practical.label },
     list: data.practicals.filter((p) => p.videoUrl).map((p) => ({ id: p._id, title: p.title, videoUrl: p.videoUrl, notesUrl: p.notesUrl, summary: p.summary })),
   };
@@ -94,6 +96,8 @@ export default function PbaWatch() {
               {embed && <a href={found.item.videoUrl} target="_blank" rel="noopener noreferrer" className="pba-btn pba-btn-video pba-btn-lg"><ExternalLink size={16} />YouTube</a>}
             </div>
           </section>
+
+          {found.kind === "practical" && found.hasQuestion && <section className="pba-watch-question" aria-label="The question"><PbaQuestion subjectId={subjectId} id={found.item.id} /></section>}
 
           <nav className="pba-watch-nav" aria-label="Previous and next lecture">
             {prev ? <Link to={withItem(prev.id)} className="pba-nav-card"><span><ArrowLeft size={14} />Previous</span><strong>{prev.title}</strong></Link> : <span />}

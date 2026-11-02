@@ -69,3 +69,29 @@
 .pp-watermark img { width: 58%; max-height: 70%; object-fit: contain; filter: grayscale(1); }
 .pp-made { margin: 14px 0 0; text-align: center; font-style: italic; font-size: 9px; color: #333; }
 .pp-sheet h3 { font-family: inherit; }
+
+/* ---- PBA paper preview ---- */
+.pbp .pbp-head { display: grid; grid-template-columns: 1.1fr 1.2fr 1fr; border: 1px solid #000; }
+.pbp .pbp-head > div { padding: 8px 10px; border-right: 1px solid #000; }
+.pbp .pbp-head > div:last-child { border-right: 0; }
+.pbp-fields p { margin: 8px 0; border-bottom: 0; }
+.pbp-fields span { display: inline-block; min-width: 40%; border-bottom: 1px solid #000; }
+.pbp-title { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; }
+.pbp-title img { height: 44px; width: auto; object-fit: contain; }
+.pbp-roll { text-align: center; font-size: 0.8em; }
+.pbp-boxes { display: flex; border: 1px solid #000; margin: 3px 0; }
+.pbp-boxes i { flex: 1; height: 18px; border-right: 1px solid #000; } .pbp-boxes i:last-child { border-right: 0; }
+.pbp-digits { display: grid; gap: 1px; font-size: 0.7em; }
+.pbp-digits span { display: grid; place-items: center; width: 1.35em; height: 1.35em; margin: auto; border: 1px solid #000; border-radius: 50%; line-height: 1; }
+.pbp-total { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 6px 0; margin: 0; }
+.pbp-note { margin: 6px 0; }
+.pbp-key { text-align: center; } .pbp-key h2 { font-size: 1.6em; margin: 0; }
+.pbp-section > h3 { text-align: center; text-decoration: underline; margin: 14px 0 6px; font-size: 1.05em; }
+.pbp-sectionnote { text-align: center; font-style: italic; margin: 0 0 6px; }
+.pbp-question { margin-top: 10px; }
+.pbp-qhead { display: flex; justify-content: space-between; margin: 0; }
+.pbp-row { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 6px; margin-top: 4px; }
+.pbp-part .pbp-label { text-align: left; }
+.pbp-body > :first-child { margin-top: 0; }
+.pbp-lines i { display: block; height: 1.6em; border-bottom: 1px solid #000; }
+.pbp-box { border: 1px solid #000; margin: 4px 0; min-height: 3em; }

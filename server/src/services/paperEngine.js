@@ -356,4 +356,15 @@ function buildPaper(config, selection, questions, letter = "A", { seed = "paper"
     return { version: letter, timeLines: timeLinesOf(config.header), versionCount: config.versions.length, header: config.header, layout: config.layout, totalMarks: totalMarks(config), sections, key, missing };
 }
 
-module.exports = { normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };
+// The style options every paper type shares: page size, font, spacing, title style and watermark.
+const styleOf = (layout = {}) => ({
+    paper: layout.paper === "Letter" ? "Letter" : "A4",
+    pages: [0, 1, 2, 3, 4].includes(Number(layout.pages)) ? Number(layout.pages) : 0,
+    font: FONT_KEYS.includes(layout.font) ? layout.font : layout.font === "serif" ? "times" : "arial",
+    fontSize: ["small", "normal", "large", "xl"].includes(layout.fontSize) ? layout.fontSize : "normal",
+    spacing: ["compact", "normal", "relaxed"].includes(layout.spacing) ? layout.spacing : "normal",
+    titleStyle: ["bold", "underline", "boxed"].includes(layout.titleStyle) ? layout.titleStyle : "bold",
+    watermark: watermarkOf(layout.watermark),
+});
+
+module.exports = { styleOf, hashSeed, normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };

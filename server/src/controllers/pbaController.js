@@ -18,7 +18,7 @@ async function loadSubject(id) {
 }
 
 // Everything the PBA page of one subject shows, in the admin's order.
-async function payload(subject) {
+async function payload(subject, full = false) {
     const [setting, topics, categories, practicals] = await Promise.all([
         PbaSetting.findOne({ subject: subject._id }).lean(),
         PbaTopic.find({ subject: subject._id }).lean(),
@@ -30,7 +30,8 @@ async function payload(subject) {
         setting: { intro: setting?.intro || "", facts: setting?.facts || [], links: setting?.links || [] },
         topics: topics.sort(byOrder).map(t => ({ _id: idOf(t), title: t.title, summary: t.summary, videoUrl: t.videoUrl, notesUrl: t.notesUrl, order: t.order, subtopics: (t.subtopics || []).map(s => ({ _id: idOf(s), title: s.title, summary: s.summary, videoUrl: s.videoUrl, notesUrl: s.notesUrl })) })),
         categories: categories.sort(byOrder).map(c => ({ _id: idOf(c), name: c.name, order: c.order })),
-        practicals: practicals.sort(byOrder).map(p => ({ _id: idOf(p), title: p.title, label: p.label, summary: p.summary, videoUrl: p.videoUrl, notesUrl: p.notesUrl, topic: idOf(p.topic), category: idOf(p.category), order: p.order })),
+        practicals: practicals.sort(byOrder).map(p => ({ _id: idOf(p), title: p.title, label: p.label, summary: p.summary, videoUrl: p.videoUrl, notesUrl: p.notesUrl, topic: idOf(p.topic), category: idOf(p.category), order: p.order, marks: p.marks || 0, hasQuestion: Boolean(p.blocks?.length || p.parts?.length), answerVisible: Boolean(p.answerVisible),
+            ...(full ? { blocks: p.blocks || [], parts: p.parts || [] } : {}) })),
     };
 }
 
@@ -49,11 +50,22 @@ const overview = async (req, res) => {
     res.json({ success: true, enabled: true, ...await payload(subject) });
 };
 
+// One practical's question for the student page. Model answers are left out unless the admin allowed them.
+const question = async (req, res) => {
+    const subject = await loadSubject(req.params.subjectId);
+    if (!subject.pbaEnabled) fail("Practical not found.", 404);
+    const practical = mongoose.isValidObjectId(req.params.id) ? await PbaPractical.findOne({ _id: req.params.id, subject: subject._id }).lean() : null;
+    if (!practical) fail("Practical not found.", 404);
+    const show = Boolean(practical.answerVisible);
+    res.json({ success: true, practical: { _id: idOf(practical), title: practical.title, marks: practical.marks || 0, blocks: practical.blocks || [], answerVisible: show,
+        parts: (practical.parts || []).map(part => ({ marks: part.marks, blocks: part.blocks || [], space: part.space, ...(show ? { answer: part.answer || [] } : {}) })) } });
+};
+
 // ---- Admin -------------------------------------------------------------------------------------------------
 
 const manage = async (req, res) => {
     const subject = await loadSubject(req.params.subjectId);
-    res.json({ success: true, enabled: Boolean(subject.pbaEnabled), ...await payload(subject) });
+    res.json({ success: true, enabled: Boolean(subject.pbaEnabled), ...await payload(subject, true) });
 };
 
 const setEnabled = async (req, res) => {
@@ -143,6 +155,15 @@ const removeCategory = async (req, res) => {
     res.json({ success: true });
 };
 
+// Pictures for questions (a router to identify, a diagram...). PNG or JPG so they can be printed on papers.
+const uploadImage = async (req, res) => {
+    await loadSubject(req.params.subjectId);
+    if (!req.file) fail("Choose a picture to upload.");
+    const { imageExtension } = require("../services/imageUpload");
+    if (imageExtension(req.file.buffer) === ".webp") fail("Upload the picture as a PNG or JPG file.");
+    res.status(201).json({ success: true, url: await require("../services/mediaStore").storeImage(req.file.buffer, "pba") });
+};
+
 const MODELS = { topics: PbaTopic, practicals: PbaPractical, categories: PbaCategory };
 // The admin sends the ids in the order they should appear; that becomes the order students see.
 const reorder = async (req, res) => {
@@ -157,4 +178,4 @@ const reorder = async (req, res) => {
     res.json({ success: true });
 };
 
-module.exports = { status, overview, manage, setEnabled, saveSetting, createTopic, updateTopic, removeTopic, createPractical, updatePractical, removePractical, createCategory, updateCategory, removeCategory, reorder };
+module.exports = { question, uploadImage, status, overview, manage, setEnabled, saveSetting, createTopic, updateTopic, removeTopic, createPractical, updatePractical, removePractical, createCategory, updateCategory, removeCategory, reorder };

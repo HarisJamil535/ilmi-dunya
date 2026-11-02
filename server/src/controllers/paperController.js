@@ -12,6 +12,8 @@ const QuestionPaper = require("../models/QuestionPaper");
 const mediaStore = require("../services/mediaStore");
 const { fail } = require("../services/publishing");
 const engine = require("../services/paperEngine");
+const pbaController = require("./pbaPaperController");
+const pbaPaper = require("../services/pbaPaper");
 const { renderPaperPdf, renderKeyPdf, measureLayout, hasNonLatin } = require("../services/paperPdf");
 const { renderPaperDocx, renderKeyDocx } = require("../services/paperDocx");
 const { fadeImage } = require("../services/watermark");
@@ -203,6 +205,7 @@ const preview = async (req, res) => {
 };
 
 const fields = body => {
+    if (body.config?.kind === "pba") return pbaFields(body);
     const config = engine.normalizeConfig(body.config);
     const title = String(body.title || "").replace(/\s+/g, " ").trim().slice(0, 160) || [config.header.subjectTitle, config.header.examName].filter(Boolean).join(" - ") || "Untitled paper";
     const selection = body.selection && typeof body.selection === "object" ? body.selection : {};
@@ -218,14 +221,24 @@ const fields = body => {
     return { title, config, selection: clean, custom, seed: String(body.seed || newSeed()).slice(0, 40) };
 };
 
+function pbaFields(body) {
+    const config = pbaPaper.normalizePbaConfig(body.config);
+    const title = String(body.title || "").replace(/\s+/g, " ").trim().slice(0, 160) || [config.header.subjectTitle, config.header.examName].filter(Boolean).join(" - ") || "Untitled PBA paper";
+    const custom = pbaController.cleanCustom(body.custom);
+    const selection = pbaController.cleanSelection(config, body.selection, custom);
+    const totalMarks = pbaPaper.buildPbaPaper(config, selection, new Map(custom.map(item => [item._id, item])), config.versions[0]).totalMarks;
+    return { title, config, selection, custom, seed: String(body.seed || newSeed()).slice(0, 40), meta: { kind: "pba", totalMarks } };
+}
+
 const list = async (req, res) => {
     const all = req.admin.role === "super_admin" && req.query.all === "1";
-    const papers = await QuestionPaper.find(all ? {} : { owner: req.admin._id }).sort({ updatedAt: -1 }).limit(200).select("title owner config.header config.sections updatedAt createdAt exports").populate("owner", "name email").lean();
-    res.json({ success: true, papers: papers.map(paper => ({ _id: paper._id, title: paper.title, owner: paper.owner ? { name: paper.owner.name, email: paper.owner.email } : null, mine: id(paper.owner) === id(req.admin._id), school: paper.config?.header?.schoolName || "", subject: paper.config?.header?.subjectTitle || "", exam: paper.config?.header?.examName || "", totalMarks: (paper.config?.sections || []).reduce((sum, section) => sum + (section.kind === "mcq" ? section.total : section.attempt) * section.marksEach, 0), exports: paper.exports || 0, updatedAt: paper.updatedAt })) });
+    const papers = await QuestionPaper.find(all ? {} : { owner: req.admin._id }).sort({ updatedAt: -1 }).limit(200).select("title owner config.header config.sections config.kind meta updatedAt createdAt exports").populate("owner", "name email").lean();
+    res.json({ success: true, papers: papers.map(paper => ({ _id: paper._id, title: paper.title, owner: paper.owner ? { name: paper.owner.name, email: paper.owner.email } : null, mine: id(paper.owner) === id(req.admin._id), school: paper.config?.header?.schoolName || "", subject: paper.config?.header?.subjectTitle || "", exam: paper.config?.header?.examName || "", kind: paper.config?.kind === "pba" ? "pba" : "bank", totalMarks: paper.config?.kind === "pba" ? paper.meta?.totalMarks || 0 : (paper.config?.sections || []).reduce((sum, section) => sum + (section.kind === "mcq" ? section.total : section.attempt) * section.marksEach, 0), exports: paper.exports || 0, updatedAt: paper.updatedAt })) });
 };
 
 const getOne = async (req, res) => {
     const paper = await loadOwned(req);
+    if (paper.config?.kind === "pba") return res.json({ success: true, paper: { _id: paper._id, title: paper.title, config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: paper.seed, updatedAt: paper.updatedAt } });
     res.json({ success: true, paper: { _id: paper._id, title: paper.title, config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: paper.seed, updatedAt: paper.updatedAt }, ...await detailsFor(paper.selection, paper.custom) });
 };
 async function loadOwned(req) {
@@ -255,7 +268,7 @@ const remove = async (req, res) => {
 };
 const duplicate = async (req, res) => {
     const paper = await loadOwned(req);
-    const copy = await QuestionPaper.create({ owner: req.admin._id, title: `${paper.title} (copy)`.slice(0, 160), config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: newSeed() });
+    const copy = await QuestionPaper.create({ owner: req.admin._id, title: `${paper.title} (copy)`.slice(0, 160), config: paper.config, selection: paper.selection, custom: paper.custom || [], seed: newSeed(), meta: paper.meta });
     res.status(201).json({ success: true, paper: { _id: copy._id } });
 };
 
@@ -268,6 +281,13 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
     try {
         const stored = await loadOwned(req);
         if (!exportAllowed(id(req.admin._id))) fail("You have exported many papers in the last hour. Please try again a little later.", 429);
+        if (stored.config?.kind === "pba") {
+            const out = await pbaController.exportPba(stored, req.query);
+            await QuestionPaper.updateOne({ _id: stored._id }, { $inc: { exports: 1 } });
+            const label = { paper: `Version-${out.paper.version}`, key: "Answer-Key", esheet: "E-Sheet" }[out.mode];
+            const file = [safeName(out.config.header.subjectTitle || stored.title), safeName(out.config.header.examName), label].filter(Boolean).join("_");
+            return res.set({ "Content-Type": MIME[out.format], "Content-Disposition": `attachment; filename="${file}.${out.format}"`, "Content-Length": String(out.buffer.length), "Cache-Control": "private, no-store" }).send(out.buffer);
+        }
         const format = req.query.format === "docx" ? "docx" : "pdf";
         const config = engine.normalizeConfig(stored.config);
         const { papers } = await paperFor(config, stored.selection, stored.seed, stored.custom);

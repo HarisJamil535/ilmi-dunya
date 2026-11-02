@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const authMiddleware = require("../middleware/authMiddleware");
 const papers = require("../controllers/paperController");
+const pba = require("../controllers/pbaPaperController");
 
 const router = express.Router();
 const upload = multer({
@@ -20,6 +21,9 @@ router.post("/logo", upload.single("logo"), papers.uploadLogo);
 router.post("/generate", papers.generate);
 router.post("/suggest", papers.suggest);
 router.post("/preview", papers.preview);
+router.get("/pba/practicals", pba.practicals);
+router.post("/pba/generate", pba.generate);
+router.post("/pba/preview", pba.preview);
 router.get("/", papers.list);
 router.post("/", papers.create);
 router.get("/:id", papers.getOne);
