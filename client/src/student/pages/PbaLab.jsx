@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AppWindow, Atom, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Rocket, Search, SearchX, Sparkles, Trophy, Workflow, X } from "lucide-react";
+import { AppWindow, Atom, Braces, Briefcase, Check, ChevronDown, Cpu, Dna, Download, ExternalLink, FileCode2, FlaskConical, GraduationCap, Landmark, Layers, ListChecks, Microscope, Network, Palette, PlayCircle, Search, SearchX, Sparkles, Workflow, X } from "lucide-react";
 import axiosInstance from "../../api/axios";
 import Spinner from "../../shared/Spinner";
 import CustomSelect from "../../shared/CustomSelect";
@@ -12,11 +12,8 @@ import { youtubeEmbed } from "../pbaVideo";
 import "./pba.css";
 
 const has = (text, needle) => String(text || "").toLowerCase().includes(needle);
-// Each topic gets its own colours, in turn.
-const PALETTE = [["#7c5cff", "#a855f7"], ["#0ea5e9", "#22d3ee"], ["#10b981", "#34d399"], ["#f59e0b", "#f97316"], ["#ec4899", "#f43f5e"], ["#6366f1", "#3b82f6"], ["#14b8a6", "#84cc16"]];
 const ICONS = [[/html|web ?page/, FileCode2], [/css|style|design/, Palette], [/java ?script|\bjs\b|program|code/, Braces], [/flow ?chart|algorithm/, Workflow], [/concept|map|tree|graph/, Network], [/device|hardware|computer/, Cpu], [/software|app/, AppWindow], [/business|plan|entrepreneur/, Briefcase], [/physic|motion|force|electric/, Atom], [/chemi|reaction|acid|salt/, FlaskConical], [/bio|cell|plant|animal/, Microscope], [/gene|dna/, Dna]];
 const iconFor = (title) => ICONS.find(([pattern]) => pattern.test(String(title).toLowerCase()))?.[1] || Sparkles;
-const accent = (index) => ({ "--accent": PALETTE[index % PALETTE.length][0], "--accent2": PALETTE[index % PALETTE.length][1] });
 
 // What the student has finished, kept on this device only.
 function useProgress(subjectId) {
@@ -44,11 +41,10 @@ function Actions({ title, videoUrl, notesUrl, onPlay }) {
 }
 
 function Ring({ value }) {
-  const r = 56; const c = 2 * Math.PI * r;
-  return <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
-    <defs><linearGradient id="pba-ring" x1="0" x2="1"><stop offset="0" stopColor="#a5f3fc" /><stop offset="1" stopColor="#c4b5fd" /></linearGradient></defs>
-    <circle cx="66" cy="66" r={r} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="11" />
-    <circle cx="66" cy="66" r={r} fill="none" stroke="url(#pba-ring)" strokeWidth="11" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} style={{ transition: "stroke-dashoffset .6s ease" }} />
+  const r = 32; const c = 2 * Math.PI * r;
+  return <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+    <circle cx="38" cy="38" r={r} fill="none" stroke="var(--app-bg-muted)" strokeWidth="7" />
+    <circle cx="38" cy="38" r={r} fill="none" stroke="var(--brand-primary)" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} style={{ transition: "stroke-dashoffset .5s ease" }} />
   </svg>;
 }
 
@@ -126,38 +122,32 @@ export default function PbaLab() {
       <Breadcrumbs items={[{ label: "Subjects", to: "/subjects" }, ...(subject ? [{ label: subject.name, to: chaptersLink }] : []), { label: "Prepare PBA" }]} />
 
       {view === "loading" && <div className="grid min-h-[40vh] place-items-center"><Spinner /></div>}
-      {view === "error" && <div className="pba-empty"><p role="alert" className="font-bold text-rose-600">The PBA lists could not be loaded right now.</p><button type="button" onClick={() => { setState("loading"); setRetry((n) => n + 1); }} className="pba-btn pba-btn-notes">Try again</button></div>}
+      {view === "error" && <div className="pba-empty"><p role="alert">The PBA lists could not be loaded right now.</p><button type="button" onClick={() => { setState("loading"); setRetry((n) => n + 1); }} className="pba-btn pba-btn-notes">Try again</button></div>}
       {(view === "none" || view === "off") && <div className="pba-empty">
         <FlaskConical size={34} />
-        <h1 className="text-xl font-black" style={{ color: "var(--pba-ink)" }}>{view === "off" ? "PBA preparation is not available for this subject yet" : "Choose a subject first"}</h1>
+        <h1>{view === "off" ? "PBA preparation is not available for this subject yet" : "Choose a subject first"}</h1>
         <p className="max-w-md">{view === "off" ? "Practical Based Assessment lists are added for science and practical subjects. Check back soon." : "Open a subject from your subjects page and use its Prepare PBA button."}</p>
         <Link to={view === "off" ? chaptersLink : "/subjects"} className="pba-btn pba-btn-notes">{view === "off" ? "Back to chapters" : "Browse subjects"}</Link>
       </div>}
 
       {view === "ready" && data && <>
-        <header className="pba-hero">
-          <div className="pba-hero-grid">
-            <div>
-              <span className="pba-kicker"><i />Practical Based Assessment</span>
-              <h1 className="pba-title">Prepare <span>PBA</span></h1>
-              <div className="pba-chips"><span><FlaskConical size={15} />{subject.name}</span>{subject.class && <span><GraduationCap size={15} />{subject.class}</span>}{subject.board && <span><Landmark size={15} />{subject.board}</span>}</div>
-              <p className="pba-intro">{data.setting.intro || "Learn every topic with short lectures and notes, then practise the exam-style practicals until you can do each one on your own."}</p>
-              {data.setting.facts.length > 0 && <dl className="pba-facts">{data.setting.facts.map((fact) => <div key={fact.label} className="pba-fact"><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>}
-              {data.setting.links.length > 0 && <div className="pba-links">{data.setting.links.map((link) => <a key={link.url} className="pba-link" href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} />{link.title}</a>)}</div>}
-            </div>
-            {items.length > 0 && <aside className="pba-progress" aria-label="Your preparation">
-              <div className="pba-ring"><Ring value={share} /><b><span>{Math.round(share * 100)}%<small>READY</small></span></b></div>
-              <div><p><strong className="text-white">{finished} of {items.length}</strong> lessons and practicals done</p><p className="mt-1 text-xs text-white/55">Saved on this device</p></div>
-              <button type="button" className="pba-continue" onClick={goNext} disabled={!next}>{next ? <><Rocket size={16} />{finished ? "Continue" : "Start preparing"}</> : <><Trophy size={16} />All done. Well prepared!</>}</button>
-            </aside>}
+        <header className="pba-header">
+          <div>
+            <span className="pba-eyebrow"><FlaskConical size={15} />Practical Based Assessment</span>
+            <h1 className="pba-title">Prepare PBA</h1>
+            <ul className="pba-context" aria-label="Course details"><li><FlaskConical size={16} />{subject.name}</li>{subject.class && <li><GraduationCap size={16} />{subject.class}</li>}{subject.board && <li><Landmark size={16} />{subject.board}</li>}</ul>
+            <p className="pba-intro">{data.setting.intro || "Learn each topic with its lecture and notes, then practise the exam-style practicals until you can do each one on your own."}</p>
+            {data.setting.facts.length > 0 && <dl className="pba-facts">{data.setting.facts.map((fact) => <div key={fact.label} className="pba-fact"><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>}
+            {data.setting.links.length > 0 && <div className="pba-links">{data.setting.links.map((link) => <a key={link.url} className="pba-link" href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} />{link.title}</a>)}</div>}
           </div>
+          {items.length > 0 && <aside className="pba-progress" aria-label="Your preparation">
+            <div className="pba-progress-top">
+              <div className="pba-ring"><Ring value={share} /><b>{Math.round(share * 100)}%</b></div>
+              <div><h2>Your preparation</h2><p>{finished} of {items.length} lessons and practicals done. Saved on this device.</p></div>
+            </div>
+            <button type="button" className="pba-continue" onClick={goNext} disabled={!next}>{next ? <><PlayCircle size={16} />{finished ? "Continue" : "Start preparing"}</> : <><Check size={16} />All done</>}</button>
+          </aside>}
         </header>
-
-        <nav className="pba-road" aria-label="How to prepare">
-          <a className="pba-step" href="#pba-topics"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#7c5cff,#a855f7)" }}>1</span><span><strong>Learn the topics</strong><small>{data.topics.length} topics with lectures and notes</small></span></a>
-          <a className="pba-step" href="#pba-practicals"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#0ea5e9,#22d3ee)" }}>2</span><span><strong>Practise the practicals</strong><small>{data.practicals.length} exam-style practicals</small></span></a>
-          <div className="pba-step"><span className="pba-step-num" style={{ background: "linear-gradient(135deg,#10b981,#34d399)" }}>3</span><span><strong>Ace the PBA</strong><small>Tick each one off as you finish</small></span></div>
-        </nav>
 
         <div className="pba-toolbar">
           <label className="pba-search"><Search size={17} />
@@ -167,25 +157,25 @@ export default function PbaLab() {
           <a className="pba-jump" href="#pba-practicals"><ListChecks size={16} />Practicals <em>{practicals.length}</em></a>
         </div>
 
-        <section id="pba-topics" aria-labelledby="pba-topics-title" className="grid scroll-mt-52 gap-4">
-          <div className="pba-head"><div><span className="pba-eyebrow">Step 1</span><h2 id="pba-topics-title">Learn the topics</h2><p>Open a topic, watch each lecture and download its notes. Tick a lesson when you have finished it.</p></div></div>
+        <section id="pba-topics" aria-labelledby="pba-topics-title" className="pba-section">
+          <div className="pba-head"><div><span className="pba-step">Step 1</span><h2 id="pba-topics-title">Learn the topics</h2><p>Open a topic, watch each lecture and download its notes. Tick a lesson when you have finished it.</p></div></div>
           {!topics.length ? <div className="pba-empty">{needle ? <><SearchX size={30} />No topics match "{query}".</> : <><Sparkles size={30} />Topics will be added soon.</>}</div> : <ol className="pba-topics">{topics.map((topic) => {
             const expanded = Boolean(needle) || open.has(topic._id);
             const Icon = iconFor(topic.title);
             const total = topic.subtopics.length;
             const complete = topic.subtopics.filter((s) => done.has(s._id)).length;
-            return <li key={topic._id} className={`pba-topic ${expanded ? "is-open" : ""}`} style={accent(topic.index)}>
+            return <li key={topic._id} className={`pba-topic ${expanded ? "is-open" : ""}`}>
               <button type="button" className="pba-topic-head" aria-expanded={expanded} aria-controls={`pba-${topic._id}`} onClick={() => toggle(topic._id)}>
-                <span className="pba-icon"><Icon size={24} /></span>
+                <span className="pba-icon"><Icon size={21} /></span>
                 <span className="min-w-0 flex-1"><span className="pba-topic-title">{topic.title}</span>
-                  <span className="pba-topic-meta block">{total} lesson{total === 1 ? "" : "s"}{complete ? ` · ${complete} done` : ""}{topic.summary ? ` · ${topic.summary}` : ""}</span>
-                  {total > 0 && <span className="pba-bar block"><i style={{ width: `${(complete / total) * 100}%` }} /></span>}</span>
+                  <span className="pba-topic-meta">{total} lesson{total === 1 ? "" : "s"}{complete ? ` · ${complete} done` : ""}{topic.summary ? ` · ${topic.summary}` : ""}</span>
+                  {total > 0 && <span className="pba-bar"><i style={{ width: `${(complete / total) * 100}%` }} /></span>}</span>
                 <span className="pba-chevron"><ChevronDown size={18} /></span>
               </button>
               {expanded && <div id={`pba-${topic._id}`} className="pba-topic-body">
-                {(topic.videoUrl || topic.notesUrl) && <div className="pba-whole"><span className="inline-flex items-center gap-2"><PlayCircle size={18} />Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} onPlay={setVideo} /></div>}
+                {(topic.videoUrl || topic.notesUrl) && <div className="pba-whole"><span>Complete {topic.title} lesson</span><Actions title={topic.title} videoUrl={topic.videoUrl} notesUrl={topic.notesUrl} onPlay={setVideo} /></div>}
                 {topic.shown.length === 0 ? <p className="pba-soon p-3 text-center">Lessons will be added soon.</p> : topic.shown.map((sub) => <div key={sub._id} id={`pba-item-${sub._id}`} className={`pba-row ${done.has(sub._id) ? "is-done" : ""} ${flash === sub._id ? "is-flash" : ""}`}>
-                  <button type="button" className="pba-check" aria-pressed={done.has(sub._id)} aria-label={`${done.has(sub._id) ? "Mark as not done" : "Mark as done"}: ${sub.title}`} onClick={() => toggleDone(sub._id)}><Check size={16} strokeWidth={3} /></button>
+                  <button type="button" className="pba-check" aria-pressed={done.has(sub._id)} aria-label={`${done.has(sub._id) ? "Mark as not done" : "Mark as done"}: ${sub.title}`} onClick={() => toggleDone(sub._id)}><Check size={14} strokeWidth={3} /></button>
                   <div className="pba-row-main"><p className="pba-row-title">{sub.title}</p>{sub.summary && <p className="pba-row-sub">{sub.summary}</p>}</div>
                   <Actions title={sub.title} videoUrl={sub.videoUrl} notesUrl={sub.notesUrl} onPlay={setVideo} />
                 </div>)}
@@ -194,8 +184,8 @@ export default function PbaLab() {
           })}</ol>}
         </section>
 
-        <section id="pba-practicals" aria-labelledby="pba-practicals-title" className="grid scroll-mt-52 gap-4">
-          <div className="pba-head"><div><span className="pba-eyebrow">Step 2</span><h2 id="pba-practicals-title">Practise the practicals</h2><p>The exam-style practicals to be ready for, each with its own lecture and notes.</p></div>
+        <section id="pba-practicals" aria-labelledby="pba-practicals-title" className="pba-section">
+          <div className="pba-head"><div><span className="pba-step">Step 2</span><h2 id="pba-practicals-title">Practise the practicals</h2><p>The exam-style practicals to be ready for, each with its own lecture and notes.</p></div>
             {data.practicals.some((p) => p.topic) && <div className="w-full sm:w-60"><CustomSelect value={topicFilter} onChange={setTopicFilter} placeholder="All topics" options={data.topics.filter((t) => data.practicals.some((p) => p.topic === t._id)).map((t) => ({ value: t._id, label: t.title }))} /></div>}</div>
           {usedCategories.length > 0 && <div className="pba-filters" role="group" aria-label="Filter by category">
             <button type="button" className="pba-chip" aria-pressed={!category} onClick={() => setCategory("")}>All <em>{data.practicals.length}</em></button>
@@ -206,19 +196,19 @@ export default function PbaLab() {
             const topic = data.topics[topicNo];
             const cat = data.categories[categoryIndex.get(p.category)];
             const TopicIcon = topic ? iconFor(topic.title) : Sparkles;
-            return <article key={p._id} id={`pba-item-${p._id}`} className={`pba-card ${done.has(p._id) ? "is-done" : ""} ${flash === p._id ? "is-flash" : ""}`} style={accent(topicNo ?? categoryIndex.get(p.category) ?? p.number)}>
+            return <article key={p._id} id={`pba-item-${p._id}`} className={`pba-card ${flash === p._id ? "is-flash" : ""}`}>
               <div className="pba-card-top"><span className="pba-num">P{p.number + 1}</span><div className="pba-tags">{cat && <span className="pba-tag pba-tag-cat">{cat.name}</span>}{p.label && <span className="pba-tag pba-tag-label">{p.label}</span>}</div></div>
               <h3>{p.title}</h3>
               {p.summary && <p>{p.summary}</p>}
-              {topic && <div><span className="pba-tag pba-tag-topic"><TopicIcon size={13} />{topic.title}</span></div>}
+              {topic && <span className="pba-tag pba-tag-topic"><TopicIcon size={14} />{topic.title}</span>}
               <div className="pba-card-foot">
-                <button type="button" className="pba-mark" aria-pressed={done.has(p._id)} onClick={() => toggleDone(p._id)}><span><Check size={13} strokeWidth={3} /></span>{done.has(p._id) ? "Practised" : "Mark practised"}</button>
+                <button type="button" className="pba-mark" aria-pressed={done.has(p._id)} onClick={() => toggleDone(p._id)}><span><Check size={12} strokeWidth={3} /></span>{done.has(p._id) ? "Practised" : "Mark practised"}</button>
                 <Actions title={p.title} videoUrl={p.videoUrl} notesUrl={p.notesUrl} onPlay={setVideo} />
               </div>
             </article>;
           })}</div>}
         </section>
-        <p className="pba-note"><Sparkles size={14} />Videos play right here. Notes open as PDF files. Your ticks stay on this device.</p>
+        <p className="pba-note">Videos play on this page. Notes open as PDF files. Your ticks are saved on this device.</p>
       </>}
     </div>
     {video && <PbaVideoModal video={video} onClose={() => setVideo(null)} />}

@@ -169,21 +169,9 @@ html.dark .chapter-actions a.action-exercise:hover { border-color: #78350f; back
   .topic-actions { padding-left: 0; }
 }
 
-/* Prepare PBA: the standout button for practical based assessment, with a glowing animated border. */
-.pba-cta { position: relative; isolation: isolate; display: inline-flex; min-height: 48px; align-items: center; gap: 10px; padding: 6px 14px 6px 7px; border-radius: 14px; color: #fff; font-weight: 800; white-space: nowrap; background: linear-gradient(135deg, #1b1450 0%, #0b1026 60%, #0a2233 100%); box-shadow: 0 14px 30px -14px rgba(91, 62, 230, .9), inset 0 1px 0 rgba(255,255,255,.12); overflow: hidden; transition: transform 180ms ease, box-shadow 180ms ease; }
-.pba-cta::before { content: ""; position: absolute; inset: -2px; z-index: -2; border-radius: inherit; background: conic-gradient(from var(--pba-angle, 0deg), #7c5cff, #22d3ee, #34d399, #f472b6, #7c5cff); animation: pba-cta-spin 4s linear infinite; }
-.pba-cta::after { content: ""; position: absolute; inset: 2px; z-index: -1; border-radius: 12px; background: linear-gradient(135deg, #1b1450 0%, #0b1026 60%, #0a2233 100%); }
-.pba-cta:hover { transform: translateY(-2px); box-shadow: 0 20px 36px -14px rgba(91, 62, 230, 1); }
-.pba-cta:active { transform: scale(.98); }
-.pba-cta-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: #0b1026; background: linear-gradient(135deg, #a5f3fc, #c4b5fd); box-shadow: 0 0 18px rgba(165, 243, 252, .55); }
-.pba-cta-text { display: grid; line-height: 1.1; text-align: left; }
-.pba-cta-text strong { font-size: 14.5px; font-weight: 900; letter-spacing: -.01em; }
-.pba-cta-text small { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.65); }
-.pba-cta-new { padding: 3px 7px; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .08em; color: #052e1f; background: #6ee7b7; box-shadow: 0 0 12px rgba(110, 231, 183, .6); }
-@property --pba-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
-@keyframes pba-cta-spin { to { --pba-angle: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .pba-cta::before { animation: none; } }
-@media (max-width: 767px) {
-  .resource-panel .pba-cta { grid-column: 1 / -1; justify-content: flex-start; min-height: 58px; padding: 8px 14px 8px 8px; }
-  .pba-cta-new { margin-left: auto; }
-}
+/* Prepare PBA: tinted with the brand colour so it stands out from the plain resource links. */
+.resource-link.is-pba { position: relative; border-color: var(--brand-primary-muted); background: var(--brand-primary-soft); color: var(--brand-primary-dark); }
+.resource-link.is-pba:hover { border-color: var(--brand-primary); }
+.pba-new { padding: 2px 7px; border-radius: 999px; background: var(--brand-primary); color: #fff; font-size: 10.5px; font-style: normal; font-weight: 800; letter-spacing: .04em; }
+html.dark .resource-link.is-pba { color: #e4dcff; }
+@media (max-width: 767px) { .pba-new { position: absolute; top: 6px; right: 6px; padding: 1px 6px; font-size: 9.5px; } }
