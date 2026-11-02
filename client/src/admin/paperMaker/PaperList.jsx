@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Code2, Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { AdminAlert, AdminLoader, AdminPageHeader } from "../components/AdminUI";
 
@@ -13,7 +13,7 @@ export default function PaperList() {
   const [query, setQuery] = useState("");
   const load = () => axiosInstance.get("/papers").then(({ data }) => setPapers(data.papers || [])).catch((err) => { setPapers([]); setNotice({ type: "error", text: err.response?.data?.message || "Could not load your papers." }); });
   useEffect(() => { load(); }, []);
-  const duplicate = async (id) => { try { const { data } = await axiosInstance.post(`/papers/${id}/duplicate`); navigate(`/admin/papers/${data.paper._id}`); } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not copy the paper." }); } };
+  const duplicate = async (paper) => { try { const { data } = await axiosInstance.post(`/papers/${paper._id}/duplicate`); navigate(paper.kind === "pba" ? `/admin/papers/pba/${data.paper._id}` : `/admin/papers/${data.paper._id}`); } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not copy the paper." }); } };
   const remove = async (paper) => {
     if (!window.confirm(`Delete "${paper.title}"? This cannot be undone.`)) return;
     try { await axiosInstance.delete(`/papers/${paper._id}`); setPapers((list) => list.filter((p) => p._id !== paper._id)); } catch (err) { setNotice({ type: "error", text: err.response?.data?.message || "Could not delete the paper." }); }
@@ -23,13 +23,14 @@ export default function PaperList() {
     {notice && <AdminAlert type={notice.type}>{notice.text}</AdminAlert>}
     <div className="flex flex-wrap items-center gap-3">
       <Link to="/admin/papers/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-white shadow-sm hover:brightness-110"><Plus className="h-4 w-4" />New paper</Link>
+      <Link to="/admin/papers/pba/new" className={btn}><Code2 className="h-4 w-4" />New PBA paper</Link>
       {papers?.length > 3 && <label className="relative min-w-56 flex-1 sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, subject or school" aria-label="Search papers" className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-primary" /></label>}
     </div>
     {!papers ? <AdminLoader label="Loading papers..." /> : !papers.length ? <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No papers yet. Create your first one.</p> :
       <ul className="space-y-3">{papers.filter((paper) => !query.trim() || [paper.title, paper.subject, paper.school, paper.exam].join(" ").toLowerCase().includes(query.trim().toLowerCase())).map((paper) => <li key={paper._id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="min-w-0 flex-1"><Link to={`/admin/papers/${paper._id}`} className="block truncate font-black text-slate-900 hover:text-primary">{paper.title}</Link><p className="text-xs text-slate-500">{[paper.subject, paper.school, paper.totalMarks ? `${paper.totalMarks} marks` : "", new Date(paper.updatedAt).toLocaleDateString()].filter(Boolean).join(" · ")}</p></div>
-        <Link to={`/admin/papers/${paper._id}`} className={btn}><Pencil className="h-4 w-4" />Open</Link>
-        <button type="button" className={btn} onClick={() => duplicate(paper._id)}><Copy className="h-4 w-4" />Copy</button>
+        <div className="min-w-0 flex-1"><Link to={paper.kind === "pba" ? `/admin/papers/pba/${paper._id}` : `/admin/papers/${paper._id}`} className="block truncate font-black text-slate-900 hover:text-primary">{paper.title}{paper.kind === "pba" && <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 align-middle text-[11px] font-black text-primary-dark">PBA</span>}</Link><p className="text-xs text-slate-500">{[paper.subject, paper.school, paper.totalMarks ? `${paper.totalMarks} marks` : "", new Date(paper.updatedAt).toLocaleDateString()].filter(Boolean).join(" · ")}</p></div>
+        <Link to={paper.kind === "pba" ? `/admin/papers/pba/${paper._id}` : `/admin/papers/${paper._id}`} className={btn}><Pencil className="h-4 w-4" />Open</Link>
+        <button type="button" className={btn} onClick={() => duplicate(paper)}><Copy className="h-4 w-4" />Copy</button>
         <button type="button" className={`${btn} hover:border-rose-300 hover:text-rose-600`} onClick={() => remove(paper)} aria-label={`Delete ${paper.title}`}><Trash2 className="h-4 w-4" /></button>
       </li>)}</ul>}
   </div>;

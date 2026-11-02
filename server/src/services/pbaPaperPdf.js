@@ -172,7 +172,10 @@ function drawHeader(ctx, fl, paper, logo, { compact = false } = {}) {
     const rollH = roll ? (14 + 14 + 10 * cell) * ctx.s / ctx.s : 0;
     const heightLeft = Math.max(fields.length, 1) * 25 * ctx.s;
     const midLines = [h.schoolName, h.examName, h.paperTitle, h.session].filter(Boolean);
-    const heightMid = (logo ? 46 : 0) * ctx.s + midLines.length * (ctx.body + 6 * ctx.s) + 10 * ctx.s;
+    // Long titles wrap inside the middle column, so each line is measured to keep the lines apart.
+    const midSize = i => (i === 0 ? ctx.body + 1.5 : ctx.body);
+    const midHeights = midLines.map((line, i) => { doc.font(ctx.fonts.b).fontSize(midSize(i)); return doc.heightOfString(latin(line), { width: midW - 12 }) + 4 * ctx.s; });
+    const heightMid = (logo ? 46 : 0) * ctx.s + midHeights.reduce((sum, value) => sum + value, 0) + 10 * ctx.s;
     const H = Math.max(heightLeft, heightMid, rollH + 8 * ctx.s, 70 * ctx.s);
     room(fl, H + 60 * ctx.s);
     const top = fl.y;
@@ -193,7 +196,7 @@ function drawHeader(ctx, fl, paper, logo, { compact = false } = {}) {
     // school, exam and paper title
     let y = top + 6 * ctx.s;
     if (logo) { try { doc.image(logo, fl.x + leftW + midW / 2 - 21 * ctx.s, y, { fit: [42 * ctx.s, 42 * ctx.s] }); } catch { /* skipped */ } y += 46 * ctx.s; }
-    midLines.forEach((line, i) => { const size = i === 0 ? ctx.body + 1.5 : ctx.body; write(ctx, line, fl.x + leftW + 6, y, midW - 12, { font: ctx.fonts.b, size, align: "center" }); y += size + 6 * ctx.s; });
+    midLines.forEach((line, i) => { write(ctx, line, fl.x + leftW + 6, y, midW - 12, { font: ctx.fonts.b, size: midSize(i), align: "center" }); y += midHeights[i]; });
     // roll number: boxes to write in, then a column of bubbles for each digit
     if (roll) {
         const rx = fl.x + leftW + midW;
