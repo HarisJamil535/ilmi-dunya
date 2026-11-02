@@ -433,4 +433,7 @@ async function renderKeyPdf(papers, { title = "Answer Key", logo = null } = {}) 
     return collect(doc);
 }
 
-module.exports = { renderPaperPdf, renderKeyPdf, measureLayout, latin, hasNonLatin };
+// Pieces the PBA paper renderer shares with this one.
+const internals = { SIZES, SCALES_SINGLE, FOOTER, INK, LINE, context, write, measure, flow, room, box, watermark, newDocument, collect, labelLine };
+
+module.exports = { renderPaperPdf, renderKeyPdf, measureLayout, latin, hasNonLatin, internals };

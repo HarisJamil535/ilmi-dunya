@@ -284,4 +284,7 @@ async function renderKeyDocx(papers, { logo = null } = {}) {
     return finishDocx(file, { layout: { watermark: {} }, dims, font: k.font, areas: [], embeds: fonts.length > 0 });
 }
 
-module.exports = { renderPaperDocx, renderKeyDocx };
+// Pieces the PBA paper renderer shares with this one.
+const internals = { kit, imageRun, markHeader, finishDocx, embedded, PAGES, FOOTER_TEXT, BORDER, BORDERS, NO_BORDERS, NONE };
+
+module.exports = { renderPaperDocx, renderKeyDocx, internals };
