@@ -14,7 +14,7 @@ export const newPbaConfig = (template = PBA_TEMPLATES[0]) => ({
   sections: template.sections.map((section) => ({ ...section, slots: section.slots.map((slot) => ({ ...slot })) })),
   layout: { paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, rollNumber: true, rollDigits: 7, spaceMode: "practical" },
   versions: ["A"],
-  options: { avoidRepeats: false },
+  options: { avoidRepeats: false, targetMarks: 30 },
 });
 
 export const newCustomId = () => `c_${Math.random().toString(36).slice(2, 10)}`;

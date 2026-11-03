@@ -105,25 +105,48 @@ const watermarkImage = async mark => {
     try { return fadeImage(await mediaStore.readImage(mark.imageUrl), mark.strength); } catch { return null; }
 };
 
-// A saved paper as a PDF or Word file. mode: paper, key (answer key) or esheet.
-async function exportPba(stored, query) {
+// Everything a render needs, loaded once: every version, the logo, the watermark and all pictures.
+async function exportContext(stored) {
     const config = pbaPaper.normalizePbaConfig(stored.config);
     const papers = await papersFor(config, stored.selection || {}, stored.custom || [], stored.seed);
     if (!papers.some(paper => paper.sections.some(section => section.questions.length))) fail("This paper has no questions yet. Pick the questions first.");
-    const letter = String(query.version || config.versions[0]).toUpperCase();
-    const paper = papers.find(item => item.version === letter) || papers[0];
-    const mode = query.key === "1" ? "key" : query.esheet === "1" ? "esheet" : "paper";
-    const format = query.format === "docx" ? "docx" : "pdf";
     const logo = config.header.logoUrl ? await mediaStore.readImage(config.header.logoUrl).catch(() => null) : null;
-    const mark = await watermarkImage(config.layout.watermark);
-    const images = await loadImages([paper]);
-    const title = stored.title;
-    let buffer;
-    if (format === "docx") {
-        const fit = mode === "paper" ? await measurePba(paper, { logo, images, mark, title }) : { scale: 1 };
-        buffer = await renderPbaDocx(paper, { logo, mark, images, scale: fit.scale, mode });
-    } else buffer = (await renderPbaPdf(paper, { logo, mark, images, mode, title })).buffer;
-    return { buffer, format, mode, paper, config };
+    return { config, papers, logo, mark: await watermarkImage(config.layout.watermark), images: await loadImages(papers), title: stored.title };
 }
 
-module.exports = { practicals, generate, preview, cleanCustom, cleanSelection, exportPba, papersFor };
+async function renderOne(context, paper, mode, format) {
+    const { logo, mark, images, title } = context;
+    if (format === "docx") {
+        const fit = mode === "paper" ? await measurePba(paper, { logo, images, mark, title }) : { scale: 1 };
+        return renderPbaDocx(paper, { logo, mark, images, scale: fit.scale, mode });
+    }
+    return (await renderPbaPdf(paper, { logo, mark, images, mode, title })).buffer;
+}
+
+// A saved paper as a PDF or Word file. mode: paper, key (answer key) or esheet.
+async function exportPba(stored, query) {
+    const context = await exportContext(stored);
+    const letter = String(query.version || context.config.versions[0]).toUpperCase();
+    const paper = context.papers.find(item => item.version === letter) || context.papers[0];
+    const mode = query.key === "1" ? "key" : query.esheet === "1" ? "esheet" : "paper";
+    const format = query.format === "docx" ? "docx" : "pdf";
+    return { buffer: await renderOne(context, paper, mode, format), format, mode, paper, config: context.config };
+}
+
+// One ZIP with the question paper, E-sheet and answer key of every version, so a teacher prints everything in one go.
+async function exportPbaBundle(stored, query) {
+    const JSZip = require("jszip");
+    const context = await exportContext(stored);
+    const format = query.format === "docx" ? "docx" : "pdf";
+    const zip = new JSZip();
+    const many = context.papers.length > 1;
+    for (const paper of context.papers) {
+        const tag = many ? `-Version-${paper.version}` : "";
+        zip.file(`1-Question-Paper${tag}.${format}`, await renderOne(context, paper, "paper", format));
+        zip.file(`2-E-Sheet${tag}.${format}`, await renderOne(context, paper, "esheet", format));
+        zip.file(`3-Answer-Key${tag}.${format}`, await renderOne(context, paper, "key", format));
+    }
+    return { buffer: await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }), config: context.config };
+}
+
+module.exports = { practicals, generate, preview, cleanCustom, cleanSelection, exportPba, exportPbaBundle, papersFor };

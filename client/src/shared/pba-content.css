@@ -21,3 +21,13 @@
 .pbc-table td.is-blank { height: 52px; }
 .pbc-table img { display: block; max-width: 120px; max-height: 90px; border-radius: 8px; }
 .pbc-mark { color: var(--app-text-muted); font-weight: 700; white-space: nowrap; }
+
+/* A row of one to four pictures; on a narrow screen they wrap two by two so they stay readable. */
+.pbc-gallery { display: grid; gap: 10px; align-items: end; }
+.pbc-gallery.n-1 { grid-template-columns: minmax(0, 1fr); } .pbc-gallery.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pbc-gallery.n-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .pbc-gallery.n-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pbc-gallery figure { margin: 0; text-align: center; }
+.pbc-gallery img { display: block; margin: 0 auto; max-width: 100%; width: auto; height: auto; border: 1px solid var(--app-border); border-radius: 10px; background: #fff; }
+.pbc-gallery.is-small img { max-height: 90px; } .pbc-gallery.is-medium img { max-height: 150px; } .pbc-gallery.is-large img { max-height: 220px; }
+.pbc-gallery figcaption { margin-top: 4px; color: var(--app-text-muted); font-size: 12.5px; }
+@media (max-width: 520px) { .pbc-gallery.n-3, .pbc-gallery.n-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pbc-gallery.is-large img { max-height: 160px; } }

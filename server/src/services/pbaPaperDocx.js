@@ -46,6 +46,16 @@ function blockElements(k, blocks, { indent, width, images, reveal = false, lead 
                 const buffer = images.get(block.url); const dims = buffer && imageSize(buffer);
                 if (dims) { const share = { small: 130, medium: 210, large: 320 }[block.size] || 210; const w = Math.min(share, dims.width * 0.75); const run = pic(buffer, w, w * dims.height / dims.width); if (run) out.push(new Paragraph({ indent: { left: indent }, spacing: { after: 60 }, children: [run] })); }
                 if (block.caption) out.push(new Paragraph({ indent: { left: indent }, children: [k.run(block.caption, { italics: true, size: k.cell - 2 })] }));
+            } else if (block.type === "gallery") {
+                const w = width - indent - 300; const n = block.images.length; const cw = Math.floor(w / n);
+                const maxH = { small: 70, medium: 110, large: 160 }[block.size] || 110;
+                const cells = block.images.map(item => {
+                    const buffer = images.get(item.url); const dims = buffer && imageSize(buffer);
+                    let run = null; if (dims) { const k = Math.min((cw / 20 - 8) / dims.width, maxH / dims.height, 1.4); run = pic(buffer, dims.width * k, dims.height * k); }
+                    return new TableCell({ borders: NO_BORDERS, width: { size: cw, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: run ? [run] : [] }), ...(item.caption ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [k.run(item.caption, { italics: true, size: k.cell - 2 })] })] : [])] });
+                });
+                out.push(new Table({ width: { size: cw * n, type: WidthType.DXA }, columnWidths: Array(n).fill(cw), indent: { size: indent, type: WidthType.DXA }, rows: [new TableRow({ cantSplit: true, children: cells })] }));
+                out.push(new Paragraph({ spacing: { after: 60 }, children: [] }));
             } else if (block.type === "table") {
                 const w = width - indent - 600; const cols = block.rows[0].length; const cw = Math.floor(w / cols);
                 out.push(new Table({ width: { size: cw * cols, type: WidthType.DXA }, columnWidths: Array(cols).fill(cw), indent: { size: indent, type: WidthType.DXA }, rows: block.rows.map((row, r) => new TableRow({ cantSplit: true, height: row.every(cell => !cell) ? { value: 560, rule: HeightRule.ATLEAST } : undefined, children: row.map(cell => new TableCell({ borders: BORDERS, width: { size: cw, type: WidthType.DXA }, margins: { top: 50, bottom: 50, left: 90, right: 90 }, children: [new Paragraph({ spacing: { after: 0 }, children: [k.run(cell, { bold: block.header && r === 0 })] })] })) })) }));

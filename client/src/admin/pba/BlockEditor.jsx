@@ -1,17 +1,17 @@
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Bold, Code2, Image as ImageIcon, Italic, List, ListOrdered, Minus, Plus, Table2, Tags, Trash2, Type, Underline, Upload } from "lucide-react";
+import { Columns3, ArrowDown, ArrowUp, Bold, Code2, Image as ImageIcon, Italic, List, ListOrdered, Minus, Plus, Table2, Tags, Trash2, Type, Underline, Upload } from "lucide-react";
 import CustomSelect from "../../shared/CustomSelect";
 import { RichText } from "../../shared/PbaContent";
 import { Button, input } from "../paperMaker/ui";
 
 const LANGS = [["javascript", "JavaScript"], ["html", "HTML"], ["css", "CSS"], ["python", "Python"], ["text", "Plain code"]].map(([value, label]) => ({ value, label }));
 const SIZES = [["small", "Small"], ["medium", "Medium"], ["large", "Large"]].map(([value, label]) => ({ value, label }));
-const KIND = { text: ["Text", Type], code: ["Code", Code2], image: ["Picture", ImageIcon], table: ["Table", Table2], labelling: ["Labelling pictures", Tags] };
+const KIND = { text: ["Text", Type], code: ["Code", Code2], image: ["Picture", ImageIcon], gallery: ["Picture row", Columns3], table: ["Table", Table2], labelling: ["Labelling pictures", Tags] };
 const move = (list, from, to) => { const next = [...list]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; };
-const BLANK = { text: () => ({ type: "text", text: "" }), code: () => ({ type: "code", language: "javascript", code: "", caption: "" }), image: () => ({ type: "image", url: "", caption: "", alt: "", size: "medium" }), table: () => ({ type: "table", header: true, rows: [["", ""], ["", ""]] }), labelling: () => ({ type: "labelling", columns: ["Item", "Name", "Purpose"], items: [{ image: "", name: "", purpose: "" }, { image: "", name: "", purpose: "" }] }) };
+const BLANK = { text: () => ({ type: "text", text: "" }), code: () => ({ type: "code", language: "javascript", code: "", caption: "" }), image: () => ({ type: "image", url: "", caption: "", alt: "", size: "medium" }), gallery: () => ({ type: "gallery", size: "medium", images: [{ url: "", caption: "" }, { url: "", caption: "" }] }), table: () => ({ type: "table", header: true, rows: [["", ""], ["", ""]] }), labelling: () => ({ type: "labelling", columns: ["Item", "Name", "Purpose"], items: [{ image: "", name: "", purpose: "" }, { image: "", name: "", purpose: "" }] }) };
 
 // A picture picker that uploads through the function it is given (admins and teachers use different addresses).
-function PictureField({ url, onChange, upload, label = "Picture" }) {
+function PictureField({ url, onChange, upload, label = "Picture", compact = false }) {
   const file = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -20,8 +20,8 @@ function PictureField({ url, onChange, upload, label = "Picture" }) {
     setBusy(true); setError("");
     try { onChange(await upload(selected)); } catch (e) { setError(e.message || "The picture could not be uploaded."); } finally { setBusy(false); if (file.current) file.current.value = ""; }
   };
-  return <div className="flex flex-wrap items-center gap-3">
-    {url ? <img src={url} alt="" className="h-16 w-24 rounded-lg border border-slate-200 bg-white object-contain" /> : <span className="grid h-16 w-24 place-items-center rounded-lg bg-slate-100 text-slate-400"><ImageIcon className="h-6 w-6" /></span>}
+  return <div className={compact ? "flex flex-col items-stretch gap-2" : "flex flex-wrap items-center gap-3"}>
+    {url ? <img src={url} alt="" className={`rounded-lg border border-slate-200 bg-white object-contain ${compact ? "h-20 w-full" : "h-16 w-24"}`} /> : <span className={`grid ${compact ? "h-20 w-full" : "h-16 w-24"} place-items-center rounded-lg bg-slate-100 text-slate-400`}><ImageIcon className="h-6 w-6" /></span>}
     <input ref={file} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => pick(e.target.files?.[0])} />
     <Button variant="secondary" icon={Upload} loading={busy} onClick={() => file.current?.click()}>{url ? `Change ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}</Button>
     {url && <Button variant="ghost" onClick={() => onChange("")} aria-label={`Remove ${label.toLowerCase()}`}><Trash2 className="h-4 w-4" /></Button>}
@@ -110,6 +110,25 @@ function LabellingEditor({ block, onChange, upload }) {
   </div>;
 }
 
+// One to four pictures in a single row. Each slot has its own upload and caption; the row is laid out evenly.
+function GalleryEditor({ block, onChange, upload }) {
+  const setImage = (i, patch) => onChange({ ...block, images: block.images.map((item, j) => (j === i ? { ...item, ...patch } : item)) });
+  const count = block.images.length;
+  return <div className="space-y-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <div role="radiogroup" aria-label="Pictures in the row" className="inline-flex gap-1 rounded-xl bg-slate-100 p-1">{[1, 2, 3, 4].map((n) => <button key={n} type="button" role="radio" aria-checked={count === n} onClick={() => onChange({ ...block, images: Array.from({ length: n }, (_, i) => block.images[i] || { url: "", caption: "" }) })} className={`h-9 min-w-9 rounded-lg px-3 text-sm font-black ${count === n ? "bg-white text-primary-dark shadow-sm" : "text-slate-600"}`}>{n}</button>)}</div>
+      <span className="text-xs font-bold text-slate-500">pictures in the row</span>
+      <div className="ml-auto w-36"><CustomSelect value={block.size} allowClear={false} onChange={(size) => onChange({ ...block, size })} options={SIZES} /></div>
+    </div>
+    <div className={`grid gap-2.5 ${count > 2 ? "sm:grid-cols-4 grid-cols-2" : count === 2 ? "grid-cols-2" : "grid-cols-1"}`}>{block.images.map((item, i) => <div key={i} className="space-y-2 rounded-xl border border-slate-200 p-2.5">
+      <span className="block text-[11px] font-black uppercase tracking-wide text-slate-500">Picture {i + 1}</span>
+      <PictureField url={item.url} upload={upload} onChange={(url) => setImage(i, { url })} label="picture" compact />
+      <input className={input} maxLength={120} value={item.caption} onChange={(e) => setImage(i, { caption: e.target.value })} placeholder="Caption (optional)" aria-label={`Picture ${i + 1} caption`} />
+    </div>)}</div>
+    <p className="text-xs text-slate-500">The pictures sit side by side on the paper. On a phone screen they wrap two by two.</p>
+  </div>;
+}
+
 // Builds a question out of text, code, pictures, tables and labelling pictures, in any order.
 export default function BlockEditor({ blocks, onChange, upload, label = "content" }) {
   const set = (i, block) => onChange(blocks.map((b, j) => (j === i ? block : b)));
@@ -124,6 +143,7 @@ export default function BlockEditor({ blocks, onChange, upload, label = "content
       {block.type === "code" && <CodeEditor block={block} onChange={(next) => set(i, next)} />}
       {block.type === "image" && <div className="space-y-2"><PictureField url={block.url} upload={upload} onChange={(url) => set(i, { ...block, url })} />
         <div className="grid gap-2 sm:grid-cols-[1fr_160px]"><input className={input} maxLength={120} value={block.caption} onChange={(e) => set(i, { ...block, caption: e.target.value })} placeholder="Caption (optional)" aria-label="Caption" /><CustomSelect value={block.size} allowClear={false} onChange={(size) => set(i, { ...block, size })} options={SIZES} /></div></div>}
+      {block.type === "gallery" && <GalleryEditor block={block} upload={upload} onChange={(next) => set(i, next)} />}
       {block.type === "table" && <TableEditor block={block} onChange={(next) => set(i, next)} />}
       {block.type === "labelling" && <LabellingEditor block={block} upload={upload} onChange={(next) => set(i, next)} />}
     </div>; })}

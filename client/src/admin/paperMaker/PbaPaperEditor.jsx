@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, FileDown, FileText, KeyRound, Library, PenLine, Plus, Save, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Archive, Check, FileDown, Lock, LockOpen, FileText, KeyRound, Library, PenLine, Plus, Save, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import CustomSelect from "../../shared/CustomSelect";
 import ModalViewport from "../../shared/ModalViewport";
@@ -32,7 +32,7 @@ function Heading({ number, title, hint, children }) {
 
 // A window with a title, a scrolling body and buttons at the bottom.
 function Dialog({ title, onClose, footer, children, wide }) {
-  return <ModalViewport onClose={onClose}><div className={`flex max-h-[92dvh] w-full ${wide ? "max-w-3xl" : "max-w-xl"} flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl`}>
+  return <ModalViewport onClose={onClose}><div className={`flex max-h-[96dvh] w-full ${wide ? "max-w-3xl" : "max-w-xl"} flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl`}>
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5"><h2 className="text-lg font-black text-slate-900">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">{children}</div>
     {footer && <div className="flex justify-end gap-2 border-t border-slate-100 p-4">{footer}</div>}
@@ -76,6 +76,30 @@ function Writer({ initial, upload, onSave, onClose }) {
   </Dialog>;
 }
 
+// Marks against the target, and how the marks are spread over topics and categories.
+function Balance({ config, selection, byId, data, total, onTarget }) {
+  const target = config.options.targetMarks || 0;
+  const by = { topic: new Map(), category: new Map() };
+  for (const section of config.sections) section.slots.forEach((_slot, i) => {
+    const entry = selection[section.id]?.[i]; const p = entry && byId.get(entry.id); if (!p) return;
+    const marks = entryMarks(entry, p);
+    for (const kind of ["topic", "category"]) { const key = p[kind] || ""; by[kind].set(key, (by[kind].get(key) || 0) + marks); }
+  });
+  const names = { topic: new Map(data.topics.map((t) => [t._id, t.name])), category: new Map(data.categories.map((c) => [c._id, c.name])) };
+  const rows = (kind) => [...by[kind]].map(([key, marks]) => [names[kind].get(key) || (key ? "Other" : "Written for this paper"), marks]).sort((a, b) => b[1] - a[1]);
+  const diff = Math.round((total - target) * 100) / 100;
+  return <div className={card}>
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="min-w-0 flex-1"><p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Total marks</p><p className="text-2xl font-black text-slate-900">{Math.round(total * 100) / 100}{target > 0 && <span className="text-base font-bold text-slate-400"> / {target}</span>}</p></div>
+      <label className="flex items-center gap-2 text-sm font-bold text-slate-600">Target <Stepper label="target marks" value={target} min={0} max={500} onChange={onTarget} /></label>
+    </div>
+    {target > 0 && <div className="mt-3"><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition-all ${diff === 0 ? "bg-emerald-500" : diff > 0 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${Math.min(100, (total / target) * 100)}%` }} /></div>
+      <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-bold ${diff === 0 ? "text-emerald-700" : "text-amber-700"}`}>{diff === 0 ? <><Check className="h-4 w-4" />Exactly on target.</> : diff > 0 ? `${diff} marks over the target.` : `${Math.abs(diff)} marks to reach the target.`}</p></div>}
+    {total > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{[["topic", "Marks by topic"], ["category", "Marks by category"]].map(([kind, label]) => <div key={kind}><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <ul className="space-y-1.5">{rows(kind).map(([name, marks]) => <li key={name} className="flex items-center gap-2 text-sm"><span className="w-28 shrink-0 truncate font-semibold text-slate-700 sm:w-36">{name}</span><span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${(marks / total) * 100}%` }} /></span><b className="w-10 text-right text-slate-800">{marks}</b></li>)}</ul></div>)}</div>}
+  </div>;
+}
+
 export default function PbaPaperEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -99,6 +123,8 @@ export default function PbaPaperEditor() {
   const [fit, setFit] = useState(null);
   const [version, setVersion] = useState("A");
   const [view, setView] = useState("paper");
+  const [locked, setLocked] = useState(() => new Set());
+  const [saved, setSaved] = useState("");
   const logoInput = useRef(null);
 
   const edit = (fn) => { setConfig(fn); setDirty(true); setPapers(null); };
@@ -155,12 +181,23 @@ export default function PbaPaperEditor() {
     setPaperId(res.paper._id); setSeed(res.paper.seed); setDirty(false); window.history.replaceState(window.history.state, "", `/admin/papers/pba/${res.paper._id}`); // the address changes without reloading the editor
     return res.paper._id;
   };
+  // A draft is saved on its own a few seconds after the last change, so nothing is lost if the page is closed.
+  const persistRef = useRef(persist);
+  useEffect(() => { persistRef.current = persist; });
+  useEffect(() => {
+    if (!dirty || !subjectId || !Object.values(selection).some((list) => list?.some(Boolean))) return undefined;
+    const timer = setTimeout(async () => {
+      setSaved("saving");
+      try { await persistRef.current(); setSaved("saved"); } catch { setSaved("failed"); }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [dirty, config, selection, custom, title, subjectId]);
   const saveNow = async () => { setBusy("save"); setNotice(null); try { await persist(); setNotice({ type: "success", text: "Paper saved." }); } catch (err) { fail(err, "Could not save the paper."); } finally { setBusy(""); } };
 
   const autoPick = async (keepAll) => {
     setBusy("pick"); setNotice(null);
     try {
-      const keep = keepAll ? selection : Object.fromEntries(Object.entries(selection).map(([key, list]) => [key, list.map((e) => (e && e.id.startsWith("c_") ? e : null))]));
+      const keep = keepAll ? selection : Object.fromEntries(Object.entries(selection).map(([key, list]) => [key, list.map((e) => (e && (e.id.startsWith("c_") || locked.has(e.id)) ? e : null))]));
       const { data: res } = await axiosInstance.post("/papers/pba/generate", { config, custom, keep, seed });
       setSelection(res.selection); setWarnings(res.warnings || []); setSeed(res.seed); touch();
     } catch (err) { fail(err, "Could not pick the practicals."); } finally { setBusy(""); }
@@ -180,6 +217,14 @@ export default function PbaPaperEditor() {
 
   const setEntry = (sectionId, index, entry) => { setSelection((current) => { const list = [...(current[sectionId] || [])]; list[index] = entry; return { ...current, [sectionId]: list }; }); touch(); };
   const pickPractical = (p) => { setEntry(chooser.sectionId, chooser.index, { id: p._id }); setChooser(null); };
+  // Moves a question up or down inside its section; its topic filter travels with it.
+  const moveSlot = (section, index, delta) => {
+    const to = index + delta;
+    if (to < 0 || to >= section.slots.length) return;
+    const swapped = (list) => { const next = [...list]; [next[index], next[to]] = [next[to], next[index]]; return next; };
+    edit((c) => ({ ...c, sections: c.sections.map((s) => (s.id === section.id ? { ...s, slots: swapped(s.slots) } : s)) }));
+    setSelection((current) => { const list = [...(current[section.id] || [])]; while (list.length < section.slots.length) list.push(null); return { ...current, [section.id]: swapped(list) }; });
+  };
   const swap = (section, index) => {
     const slot = section.slots[index];
     const pool = data.practicals.filter((p) => !usedIds.has(p._id) && (!slot.topics.length || slot.topics.includes(p.topic)) && (!slot.categories.length || slot.categories.includes(p.category)));
@@ -200,7 +245,7 @@ export default function PbaPaperEditor() {
     setBusy(`${kind}-${format}`); setNotice(null);
     try {
       const savedId = await persist();
-      const response = await axiosInstance.get(`/papers/${savedId}/export`, { params: { format, key: kind === "key" ? 1 : 0, esheet: kind === "esheet" ? 1 : 0, version }, responseType: "blob", timeout: 120000 });
+      const response = await axiosInstance.get(`/papers/${savedId}/export`, { params: { format, key: kind === "key" ? 1 : 0, esheet: kind === "esheet" ? 1 : 0, bundle: kind === "all" ? 1 : 0, version }, responseType: "blob", timeout: 120000 });
       save(response.data, /filename="([^"]+)"/.exec(response.headers["content-disposition"] || "")?.[1] || `paper.${format}`);
     } catch (err) { setNotice({ type: "error", text: await blobMessage(err, "The file could not be created. Please try again.") }); } finally { setBusy(""); }
   };
@@ -271,16 +316,20 @@ export default function PbaPaperEditor() {
     </>}
 
     {step === 1 && <>
-      <div className="flex flex-wrap items-center gap-3"><Button icon={Wand2} loading={busy === "pick"} onClick={() => autoPick(true)}>Fill empty questions</Button><Button variant="secondary" icon={Shuffle} loading={busy === "pick"} onClick={() => autoPick(false)}>Pick everything again</Button><Pill tone="violet">{Math.round(total * 100) / 100} marks</Pill></div>
+      <div className="flex flex-wrap items-center gap-3"><Button icon={Wand2} loading={busy === "pick"} onClick={() => autoPick(true)}>Fill empty questions</Button><Button variant="secondary" icon={Shuffle} loading={busy === "pick"} onClick={() => autoPick(false)}>Pick again (keeps locked)</Button><Pill tone="violet">{Math.round(total * 100) / 100} marks</Pill></div>
+      <Balance config={config} selection={selection} byId={byId} data={data} total={total} onTarget={(value) => edit((c) => ({ ...c, options: { ...c.options, targetMarks: value } }))} />
       {warnings.length > 0 && <Warning>{warnings.map((w, i) => <span key={i} className="block">{w.message}</span>)}</Warning>}
       {config.sections.map((section) => <div key={section.id} className="space-y-3"><h2 className="text-lg font-black text-slate-900">{section.name}</h2>
         {section.slots.map((slot, index) => { const entry = selection[section.id]?.[index]; const p = entry && byId.get(entry.id); const mine = entry?.id.startsWith("c_");
           return <div key={slot.id} className={card}>
             <div className="mb-3 flex flex-wrap items-center gap-2"><span className="text-base font-black text-slate-900">Question {index + 1}</span>{p && <><Pill tone="violet">{entryMarks(entry, p)} marks</Pill>{mine ? <Pill tone="amber">Written for this paper</Pill> : <Pill>{p.title}</Pill>}</>}
-              <span className="ml-auto flex flex-wrap gap-1.5">
+              <span className="flex w-full flex-wrap gap-1.5 sm:ml-auto sm:w-auto">
+                <Button variant="ghost" icon={ArrowUp} className="!min-h-9 !px-2" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => moveSlot(section, index, -1)} />
+                <Button variant="ghost" icon={ArrowDown} className="!min-h-9 !px-2" disabled={index === section.slots.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => moveSlot(section, index, 1)} />
                 <Button variant="secondary" icon={Shuffle} className="!min-h-9 !px-3" onClick={() => swap(section, index)}>Swap</Button>
                 <Button variant="secondary" icon={Library} className="!min-h-9 !px-3" onClick={() => setChooser({ sectionId: section.id, index, slot })}>Choose</Button>
                 <Button variant="secondary" icon={PenLine} className="!min-h-9 !px-3" onClick={() => setWriter({ sectionId: section.id, index, initial: p ? (mine ? p : { title: `${p.title} (edited)`, blocks: p.blocks, parts: p.parts }) : {} })}>{p ? (mine ? "Edit" : "Customize copy") : "Write own"}</Button>
+                {p && <Button variant={locked.has(entry.id) ? "primary" : "ghost"} icon={locked.has(entry.id) ? Lock : LockOpen} className="!min-h-9 !px-2" aria-pressed={locked.has(entry.id)} aria-label={locked.has(entry.id) ? `Unlock question ${index + 1}` : `Lock question ${index + 1} so Pick again keeps it`} onClick={() => setLocked((current) => { const next = new Set(current); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} />}
                 {p && <Button variant="danger" icon={Trash2} className="!min-h-9 !px-3" aria-label={`Remove question ${index + 1}`} onClick={() => setEntry(section.id, index, null)} />}
               </span></div>
             {!p ? <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">No question yet. Swap, choose one, or write your own.</p> : <>
@@ -302,6 +351,7 @@ export default function PbaPaperEditor() {
         <div className="overflow-x-auto"><PbaPaperPreview paper={papers.find((p) => p.version === version) || papers[0]} mode={view} logoUrl={h.logoUrl} /></div>
         <div className={card}><h2 className="mb-3 text-lg font-black text-slate-900">Download</h2>
           <div className="grid gap-3 sm:grid-cols-3">{[["paper", "Question paper", FileDown], ["esheet", "E-sheet (answer sheet)", Sparkles], ["key", "Answer key", KeyRound]].map(([kind, name, Icon]) => <div key={kind} className="rounded-2xl border border-slate-200 p-3"><p className="mb-2 font-black text-slate-900">{name}</p><div className="flex gap-2"><Button icon={Icon} loading={busy === `${kind}-pdf`} onClick={() => download(kind, "pdf")}>PDF</Button><Button variant="secondary" loading={busy === `${kind}-docx`} onClick={() => download(kind, "docx")}>Word</Button></div></div>)}</div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-primary-soft/40 p-3"><div className="min-w-0 flex-1"><p className="font-black text-slate-900">Complete set</p><p className="text-xs text-slate-600">Question paper, E-sheet and answer key{papers.length > 1 ? " for every version" : ""} in one ZIP.</p></div><Button icon={Archive} loading={busy === "all-pdf"} onClick={() => download("all", "pdf")}>ZIP of PDFs</Button><Button variant="secondary" loading={busy === "all-docx"} onClick={() => download("all", "docx")}>ZIP of Word files</Button></div>
           <p className="mt-3 text-xs text-slate-500">The PDF is exact and ready to print. Word can be edited. The answer key is for teachers only. Downloads save the paper first.</p></div>
       </>}
     </>}
@@ -309,6 +359,7 @@ export default function PbaPaperEditor() {
     <div className="sticky bottom-0 z-30 -mx-1 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur"><div className="flex items-center gap-2">
       <Button variant="secondary" icon={ArrowLeft} disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
       <Button variant="secondary" icon={Save} loading={busy === "save"} onClick={saveNow}>{dirty ? "Save" : "Saved"}</Button>
+      {saved && <span aria-live="polite" className="hidden text-xs font-bold text-slate-500 sm:inline">{saved === "saving" ? "Saving draft..." : saved === "saved" && !dirty ? "Draft saved" : saved === "failed" ? "Could not save the draft" : ""}</span>}
       <span className="ml-auto" />
       {step < 2 && <Button onClick={step === 0 ? goQuestions : goDownload}>{step === 0 ? "Questions" : "Preview"}<ArrowRight className="h-4 w-4" /></Button>}
     </div></div>

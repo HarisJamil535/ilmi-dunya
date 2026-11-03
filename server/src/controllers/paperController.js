@@ -282,6 +282,12 @@ const exportPaper = (req, res, next) => renderTurn(async () => {
         const stored = await loadOwned(req);
         if (!exportAllowed(id(req.admin._id))) fail("You have exported many papers in the last hour. Please try again a little later.", 429);
         if (stored.config?.kind === "pba") {
+            if (req.query.bundle === "1") {
+                const bundle = await pbaController.exportPbaBundle(stored, req.query);
+                await QuestionPaper.updateOne({ _id: stored._id }, { $inc: { exports: 1 } });
+                const zipName = [safeName(bundle.config.header.subjectTitle || stored.title), safeName(bundle.config.header.examName), "Complete-Set"].filter(Boolean).join("_");
+                return res.set({ "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${zipName}.zip"`, "Content-Length": String(bundle.buffer.length), "Cache-Control": "private, no-store" }).send(bundle.buffer);
+            }
             const out = await pbaController.exportPba(stored, req.query);
             await QuestionPaper.updateOne({ _id: stored._id }, { $inc: { exports: 1 } });
             const label = { paper: `Version-${out.paper.version}`, key: "Answer-Key", esheet: "E-Sheet" }[out.mode];
