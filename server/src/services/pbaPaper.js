@@ -50,7 +50,7 @@ function normalizePbaConfig(input = {}) {
         sections,
         layout: { ...styleOf(layout), rollNumber: layout.rollNumber !== false, rollDigits: Math.min(Math.max(Number(layout.rollDigits) || 7, 4), 10), spaceMode: layout.spaceMode === "none" ? "none" : "practical" },
         versions: versions.length ? versions : ["A"],
-        options: { avoidRepeats: Boolean(input.options?.avoidRepeats) },
+        options: { avoidRepeats: Boolean(input.options?.avoidRepeats), targetMarks: Math.min(Math.max(Number(input.options?.targetMarks) || 0, 0), 500) },
     };
 }
 
