@@ -21,13 +21,13 @@ const practicals = async (req, res) => {
     const subject = await Subject.findById(req.query.subject).select("name").lean();
     if (!subject) fail("Subject not found.", 404);
     const [topics, categories, rows] = await Promise.all([
-        PbaTopic.find({ subject: subject._id }).sort({ order: 1 }).select("name order").lean(),
+        PbaTopic.find({ subject: subject._id }).sort({ order: 1 }).select("title order").lean(),
         PbaCategory.find({ subject: subject._id }).sort({ order: 1 }).select("name order").lean(),
         PbaPractical.find({ subject: subject._id }).sort({ order: 1 }).lean(),
     ]);
     res.json({
         success: true, subject: { _id: subject._id, name: subject.name },
-        topics: topics.map(row => ({ _id: id(row), name: row.name })), categories: categories.map(row => ({ _id: id(row), name: row.name })),
+        topics: topics.map(row => ({ _id: id(row), name: row.title })), categories: categories.map(row => ({ _id: id(row), name: row.name })),
         practicals: rows.filter(pbaPaper.hasContent).map(row => ({ _id: id(row), title: row.title, label: row.label || "", topic: id(row.topic), category: id(row.category), marks: row.marks || 0, blocks: row.blocks || [], parts: row.parts || [] })),
     });
 };
@@ -36,7 +36,7 @@ const practicals = async (req, res) => {
 function cleanCustom(list) {
     return (Array.isArray(list) ? list : []).slice(0, MAX_CUSTOM).filter(item => /^c_[a-z0-9]{4,16}$/.test(String(item?._id))).map(item => {
         const parts = content.cleanParts(item.parts);
-        return { _id: String(item._id), title: String(item.title || "").replace(/\s+/g, " ").trim().slice(0, 200), blocks: content.cleanBlocks(item.blocks), parts, marks: parts.length ? content.totalOf(parts) : Math.min(Math.max(Number(item.marks) || 0, 0), 100) };
+        return { _id: String(item._id), topic: mongoose.isValidObjectId(item.topic) ? String(item.topic) : "", category: mongoose.isValidObjectId(item.category) ? String(item.category) : "", title: String(item.title || "").replace(/\s+/g, " ").trim().slice(0, 200), blocks: content.cleanBlocks(item.blocks), parts, marks: parts.length ? content.totalOf(parts) : Math.min(Math.max(Number(item.marks) || 0, 0), 100) };
     });
 }
 
