@@ -1,9 +1,9 @@
 const { fail } = require("./publishing");
 const { mediaPath } = require("./mediaStore");
 
-// Formatted content for PBA questions: a list of blocks (text, code, image, table, labelling) and the parts of a question.
+// Formatted content for PBA questions: a list of blocks (text, code, image, picture row, table, labelling) and the parts of a question.
 // The same shapes feed the admin editor, the student page and the PDF and Word papers.
-const LIMITS = { blocks: 24, parts: 12, text: 4000, code: 6000, rows: 14, cols: 6, cell: 200, labelItems: 10, caption: 120 };
+const LIMITS = { blocks: 24, parts: 12, text: 4000, code: 6000, rows: 14, cols: 6, cell: 200, labelItems: 10, gallery: 4, caption: 120 };
 const LANGUAGES = ["javascript", "html", "css", "python", "text"];
 const SIZES = ["small", "medium", "large"];
 
@@ -35,6 +35,11 @@ function cleanBlock(block, label) {
         case "image": {
             const url = image(block.url, label);
             return url ? { type: "image", url, caption: line(block.caption, LIMITS.caption, `${label} caption`), alt: line(block.alt, 160, `${label} description`), size: SIZES.includes(block.size) ? block.size : "medium" } : null;
+        }
+        case "gallery": {
+            // One to four pictures side by side in a single row.
+            const images = (Array.isArray(block.images) ? block.images : []).slice(0, LIMITS.gallery).map((item, i) => ({ url: image(item?.url, `${label} picture ${i + 1}`), caption: line(item?.caption, LIMITS.caption, `${label} caption`) })).filter(item => item.url);
+            return images.length ? { type: "gallery", images, size: SIZES.includes(block.size) ? block.size : "medium" } : null;
         }
         case "table": {
             const rows = (Array.isArray(block.rows) ? block.rows : []).slice(0, LIMITS.rows).map(row => (Array.isArray(row) ? row : []).slice(0, LIMITS.cols).map(cell => line(cell, LIMITS.cell, `${label} cell`)));

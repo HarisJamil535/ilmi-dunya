@@ -36,3 +36,20 @@ test("the Word file keeps code spacing and shows the answer only in the key", as
     assert.ok(!normal.includes("ok();"));
     assert.ok(key.includes("ok();") && key.includes("ANSWER KEY"));
 });
+
+test("a row of one to four pictures is cleaned, drawn in the PDF and placed in the Word file", async () => {
+    const { PNG } = require("pngjs");
+    const { cleanBlocks } = require("../src/services/pbaContent");
+    const url = n => `/api/media/images/${String(n).repeat(24)}`;
+    const png = (() => { const p = new PNG({ width: 40, height: 30 }); p.data.fill(180); return PNG.sync.write(p); })();
+    const blocks = cleanBlocks([{ type: "gallery", size: "large", images: [1, 2, 3, 4, 5].map(n => ({ url: url(n), caption: `Pic ${n}` })) }]);
+    assert.equal(blocks[0].images.length, 4);
+    assert.equal(cleanBlocks([{ type: "gallery", images: [{ url: "" }] }]).length, 0);
+    assert.throws(() => cleanBlocks([{ type: "gallery", images: [{ url: "https://evil.example/a.png" }] }]));
+    const withRow = { ...practical, blocks: [...blocks], parts: [] };
+    const doc = pbaPaper.buildPbaPaper(config, { S1: [{ id: practical._id }] }, new Map([[practical._id, withRow]]), "A");
+    const images = new Map([1, 2, 3, 4].map(n => [url(n), png]));
+    assert.equal((await renderPbaPdf(doc, { images })).buffer.subarray(0, 4).toString(), "%PDF");
+    const zip = await JSZip.loadAsync(await renderPbaDocx(doc, { images }));
+    assert.equal((await zip.file("word/document.xml").async("string")).split("<w:drawing>").length - 1, 4);
+});

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, FileDown, FileText, KeyRound, Library, PenLine, Plus, Save, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, FileDown, FileText, KeyRound, Library, PenLine, Plus, Save, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import CustomSelect from "../../shared/CustomSelect";
 import ModalViewport from "../../shared/ModalViewport";
@@ -32,7 +32,7 @@ function Heading({ number, title, hint, children }) {
 
 // A window with a title, a scrolling body and buttons at the bottom.
 function Dialog({ title, onClose, footer, children, wide }) {
-  return <ModalViewport onClose={onClose}><div className={`flex max-h-[92dvh] w-full ${wide ? "max-w-3xl" : "max-w-xl"} flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl`}>
+  return <ModalViewport onClose={onClose}><div className={`flex max-h-[96dvh] w-full ${wide ? "max-w-3xl" : "max-w-xl"} flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl`}>
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5"><h2 className="text-lg font-black text-slate-900">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">{children}</div>
     {footer && <div className="flex justify-end gap-2 border-t border-slate-100 p-4">{footer}</div>}
@@ -180,6 +180,14 @@ export default function PbaPaperEditor() {
 
   const setEntry = (sectionId, index, entry) => { setSelection((current) => { const list = [...(current[sectionId] || [])]; list[index] = entry; return { ...current, [sectionId]: list }; }); touch(); };
   const pickPractical = (p) => { setEntry(chooser.sectionId, chooser.index, { id: p._id }); setChooser(null); };
+  // Moves a question up or down inside its section; its topic filter travels with it.
+  const moveSlot = (section, index, delta) => {
+    const to = index + delta;
+    if (to < 0 || to >= section.slots.length) return;
+    const swapped = (list) => { const next = [...list]; [next[index], next[to]] = [next[to], next[index]]; return next; };
+    edit((c) => ({ ...c, sections: c.sections.map((s) => (s.id === section.id ? { ...s, slots: swapped(s.slots) } : s)) }));
+    setSelection((current) => { const list = [...(current[section.id] || [])]; while (list.length < section.slots.length) list.push(null); return { ...current, [section.id]: swapped(list) }; });
+  };
   const swap = (section, index) => {
     const slot = section.slots[index];
     const pool = data.practicals.filter((p) => !usedIds.has(p._id) && (!slot.topics.length || slot.topics.includes(p.topic)) && (!slot.categories.length || slot.categories.includes(p.category)));
@@ -277,7 +285,9 @@ export default function PbaPaperEditor() {
         {section.slots.map((slot, index) => { const entry = selection[section.id]?.[index]; const p = entry && byId.get(entry.id); const mine = entry?.id.startsWith("c_");
           return <div key={slot.id} className={card}>
             <div className="mb-3 flex flex-wrap items-center gap-2"><span className="text-base font-black text-slate-900">Question {index + 1}</span>{p && <><Pill tone="violet">{entryMarks(entry, p)} marks</Pill>{mine ? <Pill tone="amber">Written for this paper</Pill> : <Pill>{p.title}</Pill>}</>}
-              <span className="ml-auto flex flex-wrap gap-1.5">
+              <span className="flex w-full flex-wrap gap-1.5 sm:ml-auto sm:w-auto">
+                <Button variant="ghost" icon={ArrowUp} className="!min-h-9 !px-2" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => moveSlot(section, index, -1)} />
+                <Button variant="ghost" icon={ArrowDown} className="!min-h-9 !px-2" disabled={index === section.slots.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => moveSlot(section, index, 1)} />
                 <Button variant="secondary" icon={Shuffle} className="!min-h-9 !px-3" onClick={() => swap(section, index)}>Swap</Button>
                 <Button variant="secondary" icon={Library} className="!min-h-9 !px-3" onClick={() => setChooser({ sectionId: section.id, index, slot })}>Choose</Button>
                 <Button variant="secondary" icon={PenLine} className="!min-h-9 !px-3" onClick={() => setWriter({ sectionId: section.id, index, initial: p ? (mine ? p : { title: `${p.title} (edited)`, blocks: p.blocks, parts: p.parts }) : {} })}>{p ? (mine ? "Edit" : "Customize copy") : "Write own"}</Button>

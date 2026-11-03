@@ -95,3 +95,5 @@
 .pbp-body > :first-child { margin-top: 0; }
 .pbp-lines i { display: block; height: 1.6em; border-bottom: 1px solid #000; }
 .pbp-box { border: 1px solid #000; margin: 4px 0; min-height: 3em; }
+/* The preview is a fixed-width page, so the picture row keeps its real layout even on a phone. */
+.pbp .pbc-gallery.n-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .pbp .pbc-gallery.n-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -10,7 +10,7 @@ const MONO_BOLD = "Courier-Bold";
 
 const imageUrlsOf = papers => {
     const urls = new Set();
-    const scan = blocks => { for (const block of blocks || []) { if (block.type === "image" && block.url) urls.add(block.url); if (block.type === "labelling") for (const item of block.items) if (item.image) urls.add(item.image); } };
+    const scan = blocks => { for (const block of blocks || []) { if (block.type === "image" && block.url) urls.add(block.url); if (block.type === "gallery") for (const item of block.images) urls.add(item.url); if (block.type === "labelling") for (const item of block.items) if (item.image) urls.add(item.image); } };
     for (const paper of papers) for (const section of paper.sections) for (const question of section.questions) { scan(question.stem); for (const part of question.parts) { scan(part.blocks); scan(part.answer); } }
     return [...urls];
 };
@@ -92,6 +92,29 @@ function drawImage(ctx, fl, block, x, width, images) {
     fl.y += 4 * ctx.s;
 }
 
+// One to four pictures side by side; each is fitted into an equal column, with its caption underneath.
+function drawGallery(ctx, fl, block, x, width, images) {
+    const count = block.images.length;
+    const gap = 10 * ctx.s;
+    const colW = (width - gap * (count - 1)) / count;
+    const maxH = { small: 70, medium: 110, large: 160 }[block.size] * ctx.s || 110 * ctx.s;
+    const fitted = block.images.map(item => {
+        const buffer = images.get(item.url); const dims = buffer && imageSize(buffer);
+        if (!dims) return { item, w: 0, h: 0 };
+        const k = Math.min(colW / dims.width, maxH / dims.height, 1.4);
+        return { item, buffer, w: dims.width * k, h: dims.height * k };
+    });
+    const tallest = Math.max(...fitted.map(f => f.h), 0);
+    const captionH = block.images.some(item => item.caption) ? (ctx.cell + 3) * ctx.s : 0;
+    room(fl, tallest + captionH + 10 * ctx.s);
+    fitted.forEach((f, i) => {
+        const left = x + i * (colW + gap);
+        if (f.buffer) { try { ctx.doc.image(f.buffer, left + (colW - f.w) / 2, fl.y + (tallest - f.h) / 2, { width: f.w, height: f.h }); } catch { /* skipped */ } }
+        if (f.item.caption) write(ctx, f.item.caption, left, fl.y + tallest + 3 * ctx.s, colW, { font: ctx.fonts.i, size: ctx.cell - 1, align: "center" });
+    });
+    fl.y += tallest + captionH + 8 * ctx.s;
+}
+
 function drawTable(ctx, fl, block, x, width) {
     const cols = block.rows[0].length;
     const cellWidth = width / cols;
@@ -137,6 +160,7 @@ function drawBlocks(ctx, fl, blocks, x, width, images, reveal = false) {
         if (block.type === "text") drawText(ctx, fl, block, x, width);
         else if (block.type === "code") drawCode(ctx, fl, block, x, width);
         else if (block.type === "image") drawImage(ctx, fl, block, x, width, images);
+        else if (block.type === "gallery") drawGallery(ctx, fl, block, x, width, images);
         else if (block.type === "table") drawTable(ctx, fl, block, x, width);
         else if (block.type === "labelling") drawLabelling(ctx, fl, block, x, width, images, reveal);
     }
