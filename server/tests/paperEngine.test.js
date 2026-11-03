@@ -108,7 +108,7 @@ test("formulas print as readable text", () => {
 
 test("layout options are validated, and two groups on a sheet always mean versions A and B", () => {
     const single = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { pages: 9, paper: "Legal", font: "comic" }, versions: ["A", "C"] }));
-    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, bubbles: true, cutLine: "back", subjectiveNewPage: false });
+    assert.deepEqual(single.layout, { mode: "single", paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", credit: true, watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, bubbles: true, cutLine: "back", subjectiveNewPage: false });
     assert.deepEqual(single.versions, ["A", "C"]);
     const tear = normalizeConfig(base([{ kind: "mcq", total: 5, marksEach: 1 }], { layout: { mode: "tear", paper: "Letter", pages: 2, font: "serif", bubbles: false, cutLine: "both" }, versions: ["A"] }));
     assert.equal(tear.layout.mode, "tear");

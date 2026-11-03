@@ -308,7 +308,8 @@ function drawSingle(doc, size, paper, { logo = null, mark = null } = {}, scale) 
     const count = doc.bufferedPageRange().count;
     for (let i = 0; i < count; i++) {
         doc.switchToPage(i);
-        write(ctx, `${FOOTER}${count > 1 ? `  ·  Page ${i + 1} of ${count}` : ""}`, 0, size.height - margin + 2, size.width, { font: ctx.fonts.i, size: 7.5, align: "center" });
+        const line = [layout.credit !== false ? FOOTER : "", count > 1 ? `Page ${i + 1} of ${count}` : ""].filter(Boolean).join("  ·  ");
+        if (line) write(ctx, line, 0, size.height - margin + 2, size.width, { font: ctx.fonts.i, size: 7.5, align: "center" });
     }
     return { pages: count, overflow: 0 };
 }
@@ -324,7 +325,7 @@ function drawSide(doc, size, papers, { logo = null, mark = null } = {}, scale, s
     doc.addPage();
     for (const index of [0, 1]) watermark(ctx, { x: 0, y: index * half, w: size.width, h: half }, layout, mark);
     papers.slice(0, 2).forEach((paper, index) => {
-        write(ctx, FOOTER, 0, (index + 1) * half - 11, size.width, { font: ctx.fonts.i, size: 6.5, align: "center" });
+        if (layout.credit !== false) write(ctx, FOOTER, 0, (index + 1) * half - 11, size.width, { font: ctx.fonts.i, size: 6.5, align: "center" });
         const fl = flow(margin, size.width - margin * 2, index * half + 14 * scale, (index + 1) * half - 16, null);
         const group = `Group ${paper.version}`;
         if (side === "front") header(ctx, fl, paper, { group, logo });
@@ -429,7 +430,7 @@ async function renderKeyPdf(papers, { title = "Answer Key", logo = null } = {}) 
         fl.y += 10;
     }
     const count = doc.bufferedPageRange().count;
-    for (let i = 0; i < count; i++) { doc.switchToPage(i); write(ctx, FOOTER, 0, height - 28, width, { font: ctx.fonts.i, size: 7.5, align: "center" }); }
+    for (let i = 0; i < count && first.layout.credit !== false; i++) { doc.switchToPage(i); write(ctx, FOOTER, 0, height - 28, width, { font: ctx.fonts.i, size: 7.5, align: "center" }); }
     return collect(doc);
 }
 

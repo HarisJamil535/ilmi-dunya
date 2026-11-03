@@ -59,17 +59,23 @@ function Chooser({ data, slot, usedIds, onPick, onClose }) {
 }
 
 // Write a question for this paper only, or change a copy of a practical. It never changes the practical list.
-function Writer({ initial, upload, onSave, onClose }) {
+function Writer({ initial, data, upload, onSave, onClose }) {
+  const [topic, setTopic] = useState(initial.topic || "");
+  const [category, setCategory] = useState(initial.category || "");
   const [title, setTitle] = useState(initial.title || "");
   const [blocks, setBlocks] = useState(initial.blocks || []);
   const [parts, setParts] = useState(initial.parts?.length ? initial.parts : [newPart()]);
   const [error, setError] = useState("");
   const done = () => {
     if (!blocks.length && !parts.some((p) => p.blocks?.length)) return setError("Write the question first.");
-    onSave({ _id: initial._id || newCustomId(), title: title.trim() || "My question", blocks, parts, marks: marksOfParts(parts) });
+    onSave({ _id: initial._id || newCustomId(), topic, category, title: title.trim() || "My question", blocks, parts, marks: marksOfParts(parts) });
   };
   return <Dialog title={initial._id ? "Edit your question" : "Write a question"} onClose={onClose} wide footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={done}>Use in paper</Button></>}>
     <Field label="Name (only you see this)"><input className={input} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Debug the JavaScript loop" /></Field>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Topic (optional)"><CustomSelect value={topic} onChange={setTopic} options={data.topics.map((t) => ({ value: t._id, label: t.name }))} placeholder="No topic" /></Field>
+      <Field label="Type of question (optional)"><CustomSelect value={category} onChange={setCategory} options={data.categories.map((c) => ({ value: c._id, label: c.name }))} placeholder="e.g. Error correction" /></Field>
+    </div>
     <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Question (shown before the parts)</p><BlockEditor blocks={blocks} onChange={setBlocks} upload={upload} label="question" /></div>
     <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Parts, marks and answer space · {marksOfParts(parts)} marks</p><PartsEditor parts={parts} onChange={setParts} upload={upload} /></div>
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
@@ -328,7 +334,7 @@ export default function PbaPaperEditor() {
                 <Button variant="ghost" icon={ArrowDown} className="!min-h-9 !px-2" disabled={index === section.slots.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => moveSlot(section, index, 1)} />
                 <Button variant="secondary" icon={Shuffle} className="!min-h-9 !px-3" onClick={() => swap(section, index)}>Swap</Button>
                 <Button variant="secondary" icon={Library} className="!min-h-9 !px-3" onClick={() => setChooser({ sectionId: section.id, index, slot })}>Choose</Button>
-                <Button variant="secondary" icon={PenLine} className="!min-h-9 !px-3" onClick={() => setWriter({ sectionId: section.id, index, initial: p ? (mine ? p : { title: `${p.title} (edited)`, blocks: p.blocks, parts: p.parts }) : {} })}>{p ? (mine ? "Edit" : "Customize copy") : "Write own"}</Button>
+                <Button variant="secondary" icon={PenLine} className="!min-h-9 !px-3" onClick={() => setWriter({ sectionId: section.id, index, initial: p ? (mine ? p : { title: `${p.title} (edited)`, blocks: p.blocks, parts: p.parts, topic: p.topic, category: p.category }) : {} })}>{p ? (mine ? "Edit" : "Customize copy") : "Write own"}</Button>
                 {p && <Button variant={locked.has(entry.id) ? "primary" : "ghost"} icon={locked.has(entry.id) ? Lock : LockOpen} className="!min-h-9 !px-2" aria-pressed={locked.has(entry.id)} aria-label={locked.has(entry.id) ? `Unlock question ${index + 1}` : `Lock question ${index + 1} so Pick again keeps it`} onClick={() => setLocked((current) => { const next = new Set(current); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} />}
                 {p && <Button variant="danger" icon={Trash2} className="!min-h-9 !px-3" aria-label={`Remove question ${index + 1}`} onClick={() => setEntry(section.id, index, null)} />}
               </span></div>
@@ -365,6 +371,6 @@ export default function PbaPaperEditor() {
     </div></div>
 
     {chooser && <Chooser data={data} slot={chooser.slot} usedIds={usedIds} onPick={pickPractical} onClose={() => setChooser(null)} />}
-    {writer && <Writer initial={writer.initial} upload={upload} onSave={saveWritten} onClose={() => setWriter(null)} />}
+    {writer && <Writer initial={writer.initial} data={data} upload={upload} onSave={saveWritten} onClose={() => setWriter(null)} />}
   </div>;
 }

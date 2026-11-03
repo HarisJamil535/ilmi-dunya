@@ -136,7 +136,7 @@ function sectionBlocks(k, section, width, layout, newPage = false) {
     return blocks;
 }
 
-const footer = (k, pages = true) => new Footer({ children: [k.para([k.run(FOOTER_TEXT, { size: 15, italics: true }), ...(pages ? [k.run("  ·  Page ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.CURRENT], font: k.font, size: 15, italics: true }), k.run(" of ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: k.font, size: 15, italics: true })] : [])], { alignment: AlignmentType.CENTER })] });
+const footer = (k, pages = true, credit = true) => new Footer({ children: [k.para([...(credit ? [k.run(FOOTER_TEXT, { size: 15, italics: true })] : []), ...(pages ? [k.run(credit ? "  ·  Page " : "Page ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.CURRENT], font: k.font, size: 15, italics: true }), k.run(" of ", { size: 15, italics: true }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: k.font, size: 15, italics: true })] : [])], { alignment: AlignmentType.CENTER })] });
 
 // Header paragraphs take no height, so the page body (and each half of a shared sheet) starts where it should.
 const TINY = { before: 0, after: 0, line: 20, lineRule: "exact" };
@@ -219,7 +219,7 @@ async function renderPaperDocx(sheet, { logo = null, mark = null, scale = 1 } = 
                 for (const section of paper.sections.filter(entry => (entry.kind === "mcq") === (name === "front"))) blocks.push(...sectionBlocks(k, section, inner, layout));
                 const cut = index === 1 && (layout.cutLine === "both" || (layout.cutLine === "back" && name === "back"));
                 const borders = { ...NO_BORDERS, ...(cut ? { top: DASHED } : {}) };
-                blocks.push(k.para([k.run(FOOTER_TEXT, { size: 13, italics: true })], { alignment: AlignmentType.CENTER, spacing: { before: 120 } }));
+                if (layout.credit !== false) blocks.push(k.para([k.run(FOOTER_TEXT, { size: 13, italics: true })], { alignment: AlignmentType.CENTER, spacing: { before: 120 } }));
                 return new TableRow({ height: { value: rowHeight, rule: HeightRule.EXACT }, cantSplit: true, children: [new TableCell({ borders, width: { size: width, type: WidthType.DXA }, margins: { top: 60, bottom: 0, left: 120, right: 120 }, children: blocks })] });
             });
             return [new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: [width], rows }), new Paragraph({ spacing: { after: 0, line: 20 }, children: [new TextRun({ text: "", size: 2 })] })];
@@ -243,7 +243,7 @@ async function renderPaperDocx(sheet, { logo = null, mark = null, scale = 1 } = 
     const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } };
     const page = [{ top: 0, height: dims.height }];
     const headers = { default: markHeader(k, layout, dims, mark, page) };
-    const file = await Packer.toBuffer(new Document({ ...meta, sections: [{ properties, headers, footers: { default: footer(k, true) }, children }] }));
+    const file = await Packer.toBuffer(new Document({ ...meta, sections: [{ properties, headers, footers: { default: footer(k, true, layout.credit !== false) }, children }] }));
     return finishDocx(file, { layout, dims, font: k.font, areas: page, embeds: meta.fonts.length > 0 });
 }
 
@@ -280,7 +280,7 @@ async function renderKeyDocx(papers, { logo = null } = {}) {
     });
     const properties = { page: { size: { width: dims.width, height: dims.height }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } };
     const fonts = embedded(layout.font);
-    const file = await Packer.toBuffer(new Document({ creator: "IlmiDunya Paper Maker", title: "Answer Key", fonts, styles: { default: { document: { run: { font: k.font, size: k.cell } } } }, sections: [{ properties, footers: { default: footer(k, false) }, children }] }));
+    const file = await Packer.toBuffer(new Document({ creator: "IlmiDunya Paper Maker", title: "Answer Key", fonts, styles: { default: { document: { run: { font: k.font, size: k.cell } } } }, sections: [{ properties, footers: { default: footer(k, false, layout.credit !== false) }, children }] }));
     return finishDocx(file, { layout: { watermark: {} }, dims, font: k.font, areas: [], embeds: fonts.length > 0 });
 }
 

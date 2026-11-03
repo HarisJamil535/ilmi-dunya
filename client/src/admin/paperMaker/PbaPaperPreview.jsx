@@ -42,7 +42,7 @@ export default function PbaPaperPreview({ paper, mode = "paper", logoUrl }) {
           </Fragment>)}
         </div>)}
       </section>)}
-      <p className="pp-made">{MADE}</p>
+      {layout.credit !== false && <p className="pp-made">{MADE}</p>}
     </article>
   </div>;
 }
