@@ -123,6 +123,7 @@ function normalizeConfig(input = {}) {
             spacing: ["compact", "normal", "relaxed"].includes(input.layout?.spacing) ? input.layout.spacing : "normal",
             titleStyle: ["bold", "underline", "boxed"].includes(input.layout?.titleStyle) ? input.layout.titleStyle : "bold",
             watermark: watermarkOf(input.layout?.watermark),
+            credit: input.layout?.credit !== false,
             bubbles: input.layout?.bubbles !== false,
             cutLine: ["back", "both", "none"].includes(input.layout?.cutLine) ? input.layout.cutLine : "back",
             subjectiveNewPage: Boolean(input.layout?.subjectiveNewPage),
@@ -365,6 +366,7 @@ const styleOf = (layout = {}) => ({
     spacing: ["compact", "normal", "relaxed"].includes(layout.spacing) ? layout.spacing : "normal",
     titleStyle: ["bold", "underline", "boxed"].includes(layout.titleStyle) ? layout.titleStyle : "bold",
     watermark: watermarkOf(layout.watermark),
+    credit: layout.credit !== false,
 });
 
 module.exports = { styleOf, hashSeed, normalizeConfig, generateSelection, buildPaper, allocate, plainMath, rng, shuffled, totalMarks, sectionMarks, KINDS, VERSION_LETTERS, MAX_QUESTIONS };

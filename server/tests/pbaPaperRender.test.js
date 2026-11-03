@@ -53,3 +53,14 @@ test("a row of one to four pictures is cleaned, drawn in the PDF and placed in t
     const zip = await JSZip.loadAsync(await renderPbaDocx(doc, { images }));
     assert.equal((await zip.file("word/document.xml").async("string")).split("<w:drawing>").length - 1, 4);
 });
+
+test("the credit line can be switched off in every format", async () => {
+    const off = pbaPaper.buildPbaPaper({ ...config, layout: { ...config.layout, credit: false } }, { S1: [{ id: practical._id }] }, new Map([[practical._id, practical]]), "A");
+    assert.equal(pbaPaper.normalizePbaConfig({ ...config, layout: { credit: false } }).layout.credit, false);
+    assert.equal(config.layout.credit, true);
+    const xml = async doc => { const zip = await JSZip.loadAsync(await renderPbaDocx(doc, {})); return Object.values(zip.files).filter(f => /word\/footer/.test(f.name)); };
+    const footers = async doc => (await Promise.all((await xml(doc)).map(f => f.async("string")))).join("");
+    assert.ok((await footers(paper)).includes("IlmiDunya"));
+    assert.ok(!(await footers(off)).includes("IlmiDunya"));
+    assert.ok((await renderPbaPdf(off, {})).buffer.length > 1000);
+});

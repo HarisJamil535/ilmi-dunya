@@ -347,7 +347,7 @@ function drawPaper(doc, size, paper, assets, scale, mode) {
         if (h.className && mode !== "key") write(ctx, `Class: ${h.className}`, margin, y, size.width / 3, { font: ctx.fonts.b, size: ctx.cell - 1 });
         write(ctx, `Page ${i + 1} of ${count}`, 0, y, size.width, { font: ctx.fonts.b, size: ctx.cell - 1, align: "center" });
         if (h.subjectTitle && mode !== "key") write(ctx, `Subject: ${h.subjectTitle}`, size.width - margin - size.width / 3, y, size.width / 3, { font: ctx.fonts.b, size: ctx.cell - 1, align: "right" });
-        write(ctx, FOOTER, 0, y + ctx.cell + 1, size.width, { font: ctx.fonts.i, size: 6.5, align: "center" });
+        if (paper.layout.credit !== false) write(ctx, FOOTER, 0, y + ctx.cell + 1, size.width, { font: ctx.fonts.i, size: 6.5, align: "center" });
     }
     return { pages: count };
 }

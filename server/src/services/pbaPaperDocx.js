@@ -117,7 +117,7 @@ function pbaFooter(k, paper, mode) {
     const bold = { bold: true, size: 15 };
     return new Footer({ children: [
         new Paragraph({ tabStops: [{ type: TabStopType.CENTER, position: Math.round(width / 2) }, { type: TabStopType.RIGHT, position: width }], children: [k.run(h.className && mode !== "key" ? `Class: ${h.className}` : "", bold), k.run("\tPage ", bold), new TextRun({ children: [PageNumber.CURRENT], font: k.font, ...bold }), k.run(" of ", bold), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: k.font, ...bold }), k.run(h.subjectTitle && mode !== "key" ? `\tSubject: ${h.subjectTitle}` : "", bold)] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, children: [k.run(FOOTER_TEXT, { size: 13, italics: true })] }),
+        ...(paper.layout.credit !== false ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [k.run(FOOTER_TEXT, { size: 13, italics: true })] })] : []),
     ] });
 }
 

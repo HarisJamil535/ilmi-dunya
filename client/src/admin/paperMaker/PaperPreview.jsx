@@ -57,7 +57,7 @@ export default function PaperPreview({ papers, version, showAnswers, logoUrl }) 
           <Mark layout={layout} tilt={-20} />
           {side === "front" ? <Head paper={paper} logoUrl={logoUrl} group={`Group ${paper.version}`} /> : <u className="pp-group pp-group-back">Group {paper.version}</u>}
           {paper.sections.filter((s) => (s.kind === "mcq") === (side === "front")).map((s) => <Section key={s.id} section={s} paper={paper} showAnswers={showAnswers} />)}
-          <p className="pp-made">{MADE}</p>
+          {layout.credit !== false && <p className="pp-made">{MADE}</p>}
         </div>
       </Fragment>)}
     </article>)}</div>;
@@ -70,6 +70,6 @@ export default function PaperPreview({ papers, version, showAnswers, logoUrl }) 
       {layout.subjectiveNewPage && s.kind !== "mcq" && paper.sections.slice(0, i).every((p) => p.kind === "mcq") && i > 0 && <div className="pp-break" role="separator"><span>New page: subjective part</span></div>}
       <Section section={s} paper={paper} showAnswers={showAnswers} />
     </Fragment>)}
-    <p className="pp-made">{MADE}</p>
+    {layout.credit !== false && <p className="pp-made">{MADE}</p>}
   </article></div>;
 }

@@ -12,7 +12,7 @@ export const newPbaConfig = (template = PBA_TEMPLATES[0]) => ({
   header: { schoolName: "", logoUrl: "", examName: "FIRST TERM EXAMINATIONS", paperTitle: "PBA COMPUTER", session: "", date: "", timeAllowed: "2 hours", className: "", subjectTitle: "", note: template.paperNote, candidateFields: ["Candidate Name", "Class & Section", "School Name", "Date", "Sign of Invigilator"] },
   scope: { board: "", class: "", group: "", subject: "" },
   sections: template.sections.map((section) => ({ ...section, slots: section.slots.map((slot) => ({ ...slot })) })),
-  layout: { paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, rollNumber: true, rollDigits: 7, spaceMode: "practical" },
+  layout: { paper: "A4", pages: 0, font: "arial", fontSize: "normal", spacing: "normal", titleStyle: "bold", watermark: { kind: "none", text: "", imageUrl: "", strength: "light" }, credit: true, rollNumber: true, rollDigits: 7, spaceMode: "practical" },
   versions: ["A"],
   options: { avoidRepeats: false, targetMarks: 30 },
 });

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Droplets, ImagePlus, Type, X } from "lucide-react";
-import { Button, input } from "./ui";
+import { Button, Toggle, input } from "./ui";
 
 const FONT_CHOICES = [
   ["arial", "Arial", "Clean and clear"], ["times", "Times New Roman", "Classic exam look"], ["garamond", "Garamond", "Elegant, bookish"],
@@ -35,6 +35,10 @@ export default function PaperStyle({ layout, setLayout, onUpload, uploading }) {
       <Segmented label="Text size" value={layout.fontSize || "normal"} options={SIZES} onChange={(value) => setLayout({ fontSize: value })} />
       <Segmented label="Spacing" value={layout.spacing || "normal"} options={SPACING} onChange={(value) => setLayout({ spacing: value })} />
       <Segmented label="Section titles" value={layout.titleStyle || "bold"} options={TITLES} onChange={(value) => setLayout({ titleStyle: value })} />
+    </div>
+    <div className="rounded-2xl border border-slate-200 p-4">
+      <Toggle checked={layout.credit !== false} onChange={(value) => setLayout({ credit: value })} label="Show “Prepared by IlmiDunya” at the bottom of each page" />
+      <p className="mt-1 text-xs text-slate-500">Untick it for a clean footer. Page numbers stay.</p>
     </div>
     <div className="rounded-2xl border border-slate-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-2 text-base font-black text-slate-900"><Droplets className="h-5 w-5 text-primary" />Watermark</p>
