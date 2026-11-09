@@ -1,7 +1,7 @@
 import { usePageLoading } from "../../shared/pageLoading";
 import Spinner from "../../shared/Spinner";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronDown, ClipboardCheck, Download, FileCheck2, FileText, FlaskConical, GraduationCap, Landmark, Layers, ListOrdered, MousePointerClick, NotebookPen, SearchX } from "lucide-react";
+import { BookOpen, ChevronDown, ClipboardCheck, Download, FileCheck2, FileText, FlaskConical, GraduationCap, Landmark, Layers, NotebookPen, SearchX } from "lucide-react";
 import YouTubeIcon from "../components/YouTubeIcon";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axios";
@@ -187,14 +187,13 @@ const Chapters = () => {
         ]} />
         <header className="chapters-hero">
           <div className="hero-copy">
-            <h1 className="capitalize">{hasRequiredContext ? pageContext.subject : "Select a subject to view its chapters"}</h1>
             {hasRequiredContext && <ul className="chapter-context" aria-label="Course details">
-              <li><GraduationCap aria-hidden="true" size={16} />Class {pageContext.grade}</li>
-              <li className="capitalize"><Landmark aria-hidden="true" size={16} />{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</li>
-              {pageContext.group && <li className="capitalize"><Layers aria-hidden="true" size={16} />{pageContext.group}</li>}
-              {chapters.length > 0 && <li><ListOrdered aria-hidden="true" size={16} />{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</li>}
+              <li><GraduationCap aria-hidden="true" size={14} />Class {pageContext.grade}</li>
+              <li className="capitalize"><Landmark aria-hidden="true" size={14} />{pageContext.board}{/board/i.test(pageContext.board) ? "" : " Board"}</li>
+              {pageContext.group && <li className="capitalize"><Layers aria-hidden="true" size={14} />{pageContext.group}</li>}
             </ul>}
-            <p>Video lectures, notes, exercise solutions, important questions and MCQ tests for every chapter.</p>
+            <h1 className="capitalize">{hasRequiredContext ? pageContext.subject : "Select a subject to view its chapters"}</h1>
+            <p>Lectures, notes and tests for every chapter.</p>
           </div>
           <nav className="resource-panel" aria-label="Subject resources">
             <Link to={buildResourceLink({ path: "/book", ...resourceLinks })} className="resource-link is-primary">
@@ -234,15 +233,9 @@ const Chapters = () => {
           </div>
         ) : (
           <div className="chapters-body">
-            <ol className="how-it-works" aria-label="How to use this page">
-              <li><span className="step-icon"><MousePointerClick aria-hidden="true" size={18} /></span><div><strong>Open a chapter</strong><small>See all of its topics</small></div></li>
-              <li><span className="step-icon"><ListOrdered aria-hidden="true" size={18} /></span><div><strong>Pick a topic</strong><small>Read important long & short questions</small></div></li>
-              <li><span className="step-icon"><ClipboardCheck aria-hidden="true" size={18} /></span><div><strong>Watch, then test</strong><small>Video lecture and MCQ test</small></div></li>
-            </ol>
-
             <section className="curriculum" aria-labelledby="curriculum-title">
               <div className="curriculum-head">
-                <div><h2 id="curriculum-title">Course content</h2><p>{chapters.length} {chapters.length === 1 ? "chapter" : "chapters"}</p></div>
+                <div><h2 id="curriculum-title">Chapters<span className="chapter-count">{chapters.length}</span></h2><p>Open a chapter to see its topics.</p></div>
                 <button type="button" className="expand-all" onClick={toggleAll}>{allOpen ? "Collapse all" : "Expand all"}</button>
               </div>
               <div className="chapter-list">
@@ -260,18 +253,17 @@ const Chapters = () => {
                   <article key={chapter._id || chapter.chapterNumber} className={`chapter-item ${open ? "is-expanded" : ""}`}>
                     <div className="chapter-heading-row">
                       <button type="button" aria-expanded={open} aria-controls={`chapter-${chapter._id}`} onClick={() => toggleChapter(chapter._id)} className="chapter-toggle">
-                        <ChevronDown className="chapter-chevron" aria-hidden="true" size={20} />
-                        <span className="chapter-number">{chapter.chapterNumber || 1}</span>
+                        <span className="chapter-number" aria-hidden="true">{String(chapter.chapterNumber || 1).padStart(2, "0")}</span>
                         <span className="chapter-title-block">
-                          <span className="chapter-overline">Chapter {chapter.chapterNumber || 1}</span>
-                          <h2>{chapterTitle}</h2>
+                          <h3><span className="sr-only">Chapter {chapter.chapterNumber || 1}: </span>{chapterTitle}</h3>
                           {chapter.description && <span className="chapter-description">{chapter.description}</span>}
                         </span>
+                        <ChevronDown className="chapter-chevron" aria-hidden="true" size={18} />
                       </button>
                       <div className="chapter-actions">
-                        <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><YouTubeIcon size={22} />Video</Link>
+                        <Link to={videoLink} title={`Watch videos for the complete ${chapterTitle}`} className="action-video"><YouTubeIcon size={20} />Video</Link>
                         <Link to={`/notes?${notesParams.toString()}`} title={`Open notes for the complete ${chapterTitle}`} className="action-notes"><NotebookPen aria-hidden="true" />Notes</Link>
-                        <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise<span className="label-extra"> notes</span></Link>
+                        <Link to={`/notes?${notesParams.toString()}&type=exercise`} title={`View exercise notes for ${chapterTitle}`} className="action-exercise"><FileText aria-hidden="true" />Exercise<span className="label-extra">notes</span></Link>
                         <Link to={`/tests/start?chapter=${chapter._id}&type=chapter_test`} title={`Take an MCQ test covering all topics in ${chapterTitle}`} className="action-test"><ClipboardCheck aria-hidden="true" />Test</Link>
                       </div>
                     </div>
