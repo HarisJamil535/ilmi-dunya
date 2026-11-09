@@ -127,7 +127,11 @@ function labels(cat, subject) {
     return { board, cls, className, classAlt, boardName: board?.name || "", boardFull: boardFull(board), short: boardShort(board), subjectName: subject?.name || "", group: cat.groupName.get(id(subject?.group)) || "" };
 }
 
-const pageMeta = (title, description, path, indexable) => ({ title, description: description.replace(/\s+/g, " ").trim().slice(0, 165), path, indexable });
+// Descriptions stop at a word boundary inside the ~160 characters search results show.
+const shorten = (text, max = 160) => { const clean = text.replace(/\s+/g, " ").trim(); if (clean.length <= max) return clean; const cut = clean.slice(0, max - 1); return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), max - 30)).replace(/[,;:.\s]+$/, "")}…`; };
+const pageMeta = (title, description, path, indexable) => ({ title, description: shorten(description), path, indexable });
+// Textbooks call a chapter a "unit", and students search both ways.
+const unitLabel = chapter => `Chapter ${chapter.chapterNumber} (Unit ${chapter.chapterNumber})`;
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 // Board hub: every class of the board with its subjects.
@@ -164,6 +168,7 @@ async function boardPage(cat, board) {
 async function boardClassPage(cat, board, cls) {
     const u = urls(cat);
     const subjects = cat.subjects.filter(subject => id(subject.board) === id(board) && id(subject.class) === id(cls)).sort((a, b) => a.name.localeCompare(b.name));
+    const withPapers = new Set((await PastPaper.distinct("subject", { subject: { $in: subjects.map(subject => subject._id) } })).map(String));
     const { alt } = classNames(cls);
     const full = boardFull(board);
     const names = subjects.map(subject => subject.name).join(", ");
@@ -178,6 +183,7 @@ async function boardClassPage(cat, board, cls) {
             { title: `${cls.name} subjects`, links: subjects.map(subject => ({ title: `${cls.name} ${subject.name}`, href: u.subject(subject), summary: `Chapter-wise notes, MCQs and past papers` })) },
             { title: `${cls.name} MCQs by subject`, links: subjects.map(subject => ({ title: `${cls.name} ${subject.name} MCQs`, href: `${u.subject(subject)}/mcqs`, summary: `Chapter-wise MCQs with answers` })) },
             { title: `${cls.name} notes by subject`, links: subjects.map(subject => ({ title: `${cls.name} ${subject.name} Notes`, href: `${u.subject(subject)}/notes`, summary: `Notes and exercise solutions for every chapter` })) },
+            { title: `${cls.name} past papers by subject`, links: subjects.filter(subject => withPapers.has(id(subject))).map(subject => ({ title: `${cls.name} ${subject.name} Past Papers`, href: `${u.subject(subject)}/past-papers`, summary: `${board.name} past papers, year by year` })) },
         ].filter(section => section.links.length),
         breadcrumbs: [{ title: "Home", href: "/" }, { title: board.name, href: u.board(board) }, { title: cls.name, href: u.boardClass(board, cls) }],
         faqs: subjects.length ? [{ question: `Which ${board.name} ${cls.name} subjects are available?`, answer: `${names}. Each subject has chapter-wise notes, MCQs with answers and online tests.` }] : [],
@@ -257,11 +263,47 @@ async function subjectPage(cat, subject, view) {
         };
     }
     const [books, papers] = await Promise.all([
-        Book.find({ subject: subject._id }).select("title slug summary sourceName edition").lean(),
-        PastPaper.find({ subject: subject._id }).sort({ year: -1, session: 1 }).select("title slug year session examType isNewPattern").limit(40).lean(),
+        Book.find({ subject: subject._id }).select("title slug summary sourceName edition updatedAt").lean(),
+        PastPaper.find({ subject: subject._id }).sort({ year: -1, session: 1 }).select("title slug year session examType isNewPattern updatedAt").limit(view === "past-papers" ? 300 : 40).lean(),
     ]);
     const { pagePath } = require("./publicPages");
     const copyLabels = labelsFrom(l.board, l.cls, subject);
+    const paperLink = paper => ({ title: resourceCopy("past-paper", paper, copyLabels).title.replace(/ – .*$/, ""), href: pagePath("past-paper", paper), summary: [paper.year, titleCase(paper.session), titleCase(paper.examType), paper.isNewPattern && "New pattern"].filter(Boolean).join(" · ") });
+    const bookLink = book => ({ title: resourceCopy("book", book, copyLabels).title, href: pagePath("book", book), summary: book.summary || [book.sourceName, book.edition].filter(Boolean).join(", ") || `${l.boardName} ${who} textbook to read online` });
+    if (view === "past-papers") {
+        const years = [...new Set(papers.map(paper => paper.year).filter(Boolean))].sort((a, b) => b - a);
+        const byYear = years.map(year => ({ title: `${who} past paper ${year}`, links: papers.filter(paper => paper.year === year).map(paperLink) }));
+        return {
+            kind: "seo-subject-papers", title: `${who} Past Papers – ${l.boardName}`,
+            scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}`,
+            intro: [
+                `${l.boardName} ${who} past papers (${l.classAlt} ${l.subjectName})${years.length ? ` from ${years[years.length - 1]} to ${years[0]}` : ""}: ${plural(papers.length, "paper")} with the real exam pattern and the questions asked each year.`,
+                `Solve them chapter by chapter with the ${who} notes and MCQs, and check which questions repeat across years.`,
+            ],
+            sections: byYear.length ? byYear : [{ title: `${who} past papers`, links: papers.map(paperLink) }],
+            quickLinks: [{ title: `${who} Notes`, href: `${base}/notes`, note: "All chapters" }, { title: `${who} MCQs`, href: `${base}/mcqs`, note: totalMcqs ? plural(totalMcqs, "MCQ") : "Chapter wise" }],
+            breadcrumbs: [...crumbs, { title: "Past Papers", href: `${base}/past-papers` }],
+            faqs: years.length ? [{ question: `Which years of ${l.boardName} ${who} past papers are available?`, answer: `IlmiDunya has ${plural(papers.length, `${who} past paper`)} for ${years.join(", ")}.` }] : [],
+            meta: pageMeta(`${who} Past Papers${years.length ? ` ${years[years.length - 1]}-${years[0]}` : ""} – ${l.boardFull}`, `${l.boardFull} ${who} (${l.classAlt}) past papers${years.length ? ` ${years.join(", ")}` : ""}: annual and supplementary exam papers with solved notes and MCQs for every chapter.`, `${base}/past-papers`, papers.length > 0),
+            updatedAt: papers.reduce((latest, paper) => (paper.updatedAt > latest ? paper.updatedAt : latest), subject.updatedAt),
+        };
+    }
+    if (view === "books") {
+        return {
+            kind: "seo-subject-books", title: `${who} Textbook – ${l.boardName}`,
+            scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}`,
+            intro: [
+                `Read the ${l.boardName} ${who} textbook (${l.classAlt} ${l.subjectName} book) online${books[0]?.sourceName ? `, published by ${books[0].sourceName}` : ""}, chapter by chapter.`,
+                `Every chapter links to its notes, short and long questions, exercise solutions and MCQs with answers.`,
+            ],
+            sections: [{ title: `${who} textbook`, links: books.map(bookLink) }, { title: `Chapters of the ${who} book`, links: inventory.map(item => ({ title: `Chapter ${item.chapter.chapterNumber}: ${item.chapter.name}`, href: u.chapter(subject, item.chapter), summary: chapterLine(item) || "Notes and MCQs" })) }].filter(section => section.links.length),
+            quickLinks: [{ title: `${who} Notes`, href: `${base}/notes`, note: "All chapters" }, { title: `${who} MCQs`, href: `${base}/mcqs`, note: totalMcqs ? plural(totalMcqs, "MCQ") : "Chapter wise" }],
+            breadcrumbs: [...crumbs, { title: "Textbook", href: `${base}/books` }],
+            faqs: inventory.length ? [{ question: `How many chapters does the ${l.boardName} ${who} book have?`, answer: `The ${who} textbook has ${plural(inventory.length, "chapter")}: ${inventory.map(item => `${item.chapter.chapterNumber}. ${item.chapter.name}`).join("; ")}.` }] : [],
+            meta: pageMeta(`${who} Book – ${l.boardFull} Textbook Online`, `${l.boardFull} ${who} (${l.classAlt}) textbook${books[0]?.sourceName ? ` by ${books[0].sourceName}` : ""} to read online, with chapter-wise notes, exercise solutions and MCQs with answers.`, `${base}/books`, books.length > 0),
+            updatedAt: books.reduce((latest, book) => (book.updatedAt > latest ? book.updatedAt : latest), subject.updatedAt),
+        };
+    }
     return {
         kind: "seo-subject", title: `${who} Notes, MCQs & Past Papers`,
         scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}${l.group ? ` · ${l.group}` : ""}`,
@@ -273,16 +315,18 @@ async function subjectPage(cat, subject, view) {
         quickLinks: [
             { title: `${who} MCQs`, href: `${base}/mcqs`, note: totalMcqs ? plural(totalMcqs, "MCQ") : "Chapter wise" },
             { title: `${who} Notes`, href: `${base}/notes`, note: "All chapters" },
+            ...(papers.length ? [{ title: `${who} Past Papers`, href: `${base}/past-papers`, note: plural(papers.length, "paper") }] : []),
+            ...(books.length ? [{ title: `${who} Textbook`, href: `${base}/books`, note: "Read online" }] : []),
         ],
         sections: [
             { title: `${who} chapters`, links: inventory.map(item => ({ title: `Chapter ${item.chapter.chapterNumber}: ${item.chapter.name}`, href: u.chapter(subject, item.chapter), summary: chapterLine(item) || "Topics and study material" })) },
-            { title: "Textbooks", links: books.map(book => ({ title: resourceCopy("book", book, copyLabels).title, href: pagePath("book", book), summary: book.summary || `${l.boardName} ${who} textbook to read online` })) },
-            { title: `${who} past papers`, links: papers.map(paper => ({ title: resourceCopy("past-paper", paper, copyLabels).title.replace(/ – .*$/, ""), href: pagePath("past-paper", paper), summary: [paper.year, titleCase(paper.session), titleCase(paper.examType)].filter(Boolean).join(" · ") })) },
+            { title: "Textbooks", hub: books.length ? { title: `${who} textbook page`, href: `${base}/books` } : undefined, links: books.map(bookLink) },
+            { title: `${who} past papers`, hub: papers.length ? { title: `All ${who} past papers`, href: `${base}/past-papers` } : undefined, links: papers.map(paperLink) },
         ].filter(section => section.links.length),
         actions: [{ title: "Open chapter study tools", href: `/chapters?boardId=${id(subject.board)}&classId=${id(subject.class)}${subject.group ? `&groupId=${id(subject.group)}` : ""}&subjectId=${id(subject)}` }],
         breadcrumbs: crumbs,
         faqs: inventory.length ? [{ question: `How many chapters are in ${l.boardName} ${who}?`, answer: `${who} has ${plural(inventory.length, "chapter")}: ${inventory.map(item => `${item.chapter.chapterNumber}. ${item.chapter.name}`).join("; ")}.` }] : [],
-        meta: pageMeta(`${who} Notes, MCQs & Past Papers – ${l.boardFull}`, `${l.boardFull} ${who} (${l.classAlt} ${l.subjectName}): chapter-wise notes, MCQs with answers, exercise solutions and past papers${inventory.length ? ` for all ${inventory.length} chapters` : ""}.`, base, inventory.length > 0),
+        meta: pageMeta(`${who} Notes, MCQs & Past Papers – ${l.boardFull}`, `${l.boardFull} ${who} (${l.classAlt} ${l.subjectName}): chapter-wise notes, short and long questions, MCQs with answers, exercise solutions and past papers${inventory.length ? ` for all ${inventory.length} chapters (units)` : ""}.`, base, inventory.length > 0),
         updatedAt: subject.updatedAt,
     };
 }
@@ -309,6 +353,9 @@ async function chapterPage(cat, subject, chapter, view) {
     });
     const topicLinks = mcqCount => topics.map(topic => ({ title: `${topic.topicNumber} ${topic.name}`, href: u.topic(subject, chapter, topic), summary: mcqCount?.get(id(topic)) ? plural(mcqCount.get(id(topic)), "MCQ") : "Questions and practice" }));
     const short = `${l.short || l.boardName}`;
+    const unit = unitLabel(chapter);
+    // Every chapter of the subject, so each page links to all the others (the same view, e.g. notes to notes).
+    const allChapters = { title: `All ${who} chapters${view ? ` – ${view === "mcqs" ? "MCQs" : "notes"}` : ""}`, hub: { title: `${who} ${view === "mcqs" ? "MCQs" : view === "notes" ? "notes" : "overview"}`, href: `${u.subject(subject)}${view ? `/${view}` : ""}` }, links: siblings.filter(item => id(item) !== id(chapter)).map(item => ({ title: `Chapter ${item.chapterNumber}: ${item.name}${view ? ` ${view === "mcqs" ? "MCQs" : "Notes"}` : ""}`, href: u.chapter(subject, item) + (view ? `/${view}` : "") })) };
 
     if (view === "mcqs") {
         const mcqs = await liveMcqs({ chapter: chapter._id }, PUBLIC_MCQS.chapter);
@@ -316,35 +363,38 @@ async function chapterPage(cat, subject, chapter, view) {
             kind: "seo-chapter-mcqs", title: `${who} ${chapterTitle} MCQs with Answers`,
             scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}`,
             intro: [
-                `${mcqs.total ? `${mcqs.total} ` : ""}multiple choice questions (MCQs) for ${l.boardName} ${who} Chapter ${chapter.chapterNumber}, ${chapter.name} (${l.classAlt} ${l.subjectName}), with the correct answer and an explanation for each.`,
+                `${mcqs.total ? `${mcqs.total} ` : ""}multiple choice questions (MCQs) for ${l.boardName} ${who} ${unit}, ${chapter.name} (${l.classAlt} ${l.subjectName}), with the correct answer and an explanation for each.`,
                 mcqs.total > mcqs.items.length ? `Here are ${mcqs.items.length} of them. Take the online test to practise the full set against the clock.` : `Read them here, then take the timed online test to check yourself.`,
             ],
             mcqs: mcqs.items, mcqTotal: mcqs.total,
             actions: mcqs.total ? [{ title: `Take the Chapter ${chapter.chapterNumber} MCQ test`, href: `/tests/start?chapter=${id(chapter)}` }] : [],
-            sections: [{ title: "MCQs by topic", links: topicLinks(mcqs.byTopic).filter((_, i) => mcqs.byTopic.get(id(topics[i]))) }, { title: "More for this chapter", links: [{ title: `${chapterTitle} Notes`, href: `${base}/notes`, summary: "Short and long questions, exercise solutions" }, { title: `${chapterTitle}`, href: base, summary: "All topics of this chapter" }] }].filter(section => section.links.length),
+            sections: [{ title: "MCQs by topic", links: topicLinks(mcqs.byTopic).filter((_, i) => mcqs.byTopic.get(id(topics[i]))) }, { title: "More for this chapter", links: [{ title: `${chapterTitle} Notes`, href: `${base}/notes`, summary: "Short and long questions, exercise solutions" }, { title: `${chapterTitle}`, href: base, summary: "All topics of this chapter" }] }, allChapters].filter(section => section.links.length),
             neighbours,
             breadcrumbs: [...crumbs, { title: "MCQs", href: `${base}/mcqs` }],
             faqs: mcqs.total ? [{ question: `How many MCQs are in ${who} Chapter ${chapter.chapterNumber}?`, answer: `IlmiDunya has ${plural(mcqs.total, "published MCQ")} for Chapter ${chapter.chapterNumber}, ${chapter.name}, each with the correct answer.` }] : [],
-            meta: pageMeta(`${who} Chapter ${chapter.chapterNumber} MCQs with Answers – ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} Chapter ${chapter.chapterNumber} ${chapter.name} MCQs with answers and explanations.${mcqs.total ? ` ${mcqs.total} MCQs` : ""} Free online test.`, `${base}/mcqs`, mcqs.total > 0),
+            meta: pageMeta(`${who} Chapter ${chapter.chapterNumber} MCQs with Answers – ${chapter.name} | ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} ${unit} ${chapter.name} MCQs with answers and explanations${mcqs.total ? `: ${mcqs.total} solved MCQs` : ""}. Free chapter-wise online MCQ test.`, `${base}/mcqs`, mcqs.total > 0),
             updatedAt: chapter.updatedAt,
         };
     }
     if (view === "notes") {
         const questions = await writtenQuestions({ chapter: chapter._id }, 60);
         const hasExercise = notes.some(note => note.noteType === "exercise");
+        const shortCount = questions.filter(question => question.contentType === "short_question").length;
+        const longCount = questions.length - shortCount;
+        const kinds = [shortCount && plural(shortCount, "short question"), longCount && plural(longCount, "long question"), hasExercise && "exercise solutions"].filter(Boolean).join(", ");
         return {
             kind: "seo-chapter-notes", title: `${who} ${chapterTitle} Notes`,
             scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}`,
             intro: [
-                `${l.boardName} ${who} Chapter ${chapter.chapterNumber} (${chapter.name}) notes: short questions, long questions, MCQs${hasExercise ? " and exercise solutions" : ""} for ${l.classAlt} ${l.subjectName}.`,
-                `Open any notes below to read or download them, and revise the chapter's important questions listed on this page.`,
+                `${l.boardName} ${who} ${unit}, ${chapter.name}, notes for ${l.classAlt} ${l.subjectName}: short questions, long questions, MCQs${hasExercise ? " and exercise solutions" : ""}${kinds ? ` (${kinds})` : ""}.`,
+                `Open any notes below to read or download them, and revise the chapter's important short and long questions listed on this page.`,
             ],
-            notes: noteCards, questions,
-            sections: [{ title: "More for this chapter", links: [{ title: `${chapterTitle} MCQs`, href: `${base}/mcqs`, summary: "MCQs with answers and an online test" }, { title: chapterTitle, href: base, summary: "All topics of this chapter" }] }],
+            notes: noteCards, questions, questionLabel: `${who} Chapter ${chapter.chapterNumber}`,
+            sections: [{ title: "More for this chapter", links: [{ title: `${chapterTitle} MCQs`, href: `${base}/mcqs`, summary: "MCQs with answers and an online test" }, { title: chapterTitle, href: base, summary: "All topics of this chapter" }] }, allChapters].filter(section => section.links.length),
             neighbours,
             breadcrumbs: [...crumbs, { title: "Notes", href: `${base}/notes` }],
             faqs: hasExercise ? [{ question: `Are ${who} Chapter ${chapter.chapterNumber} exercise solutions available?`, answer: `Yes. The exercise solutions for Chapter ${chapter.chapterNumber}, ${chapter.name}, are in the notes on this page.` }] : [],
-            meta: pageMeta(`${who} Chapter ${chapter.chapterNumber} Notes${hasExercise ? " & Exercise Solutions" : ""} – ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} Chapter ${chapter.chapterNumber} ${chapter.name} notes: short and long questions, MCQs${hasExercise ? " and exercise solutions" : ""}.`, `${base}/notes`, notes.length > 0 || questions.length > 0),
+            meta: pageMeta(`${who} Chapter ${chapter.chapterNumber} Notes – Short & Long Questions${hasExercise ? ", Exercise" : ""} | ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} ${unit} ${chapter.name} notes: short questions, long questions, MCQs${hasExercise ? " and exercise solutions" : ""} for the ${short} exam. Read online or download.`, `${base}/notes`, notes.length > 0 || questions.length > 0),
             updatedAt: notes.reduce((latest, note) => (note.updatedAt > latest ? note.updatedAt : latest), chapter.updatedAt),
         };
     }
@@ -354,20 +404,20 @@ async function chapterPage(cat, subject, chapter, view) {
         scope: `${l.classAlt} ${l.subjectName} · ${l.boardFull}`,
         summary: chapter.summary || chapter.description || "",
         intro: [
-            `${l.boardName} ${who} Chapter ${chapter.chapterNumber}, ${chapter.name}: ${plural(topics.length, "topic")}${mcqs.total ? `, ${plural(mcqs.total, "MCQ")} with answers` : ""}${notes.length ? `, notes${notes.some(note => note.noteType === "exercise") ? " and exercise solutions" : ""}` : ""}.`,
+            `${l.boardName} ${who} ${unit}, ${chapter.name}: ${plural(topics.length, "topic")}${mcqs.total ? `, ${plural(mcqs.total, "MCQ")} with answers` : ""}${notes.length ? `, notes with short and long questions${notes.some(note => note.noteType === "exercise") ? " and exercise solutions" : ""}` : ""}.`,
             ...(!(chapter.summary || chapter.description) && topics.length ? [`This chapter covers ${topics.slice(0, 12).map(topic => `${topic.topicNumber} ${topic.name}`).join(", ")}${topics.length > 12 ? " and more" : ""}. Read the notes, revise the short and long questions, and practise the MCQs to prepare it fully.`] : []),
         ],
         quickLinks: [
             { title: `Chapter ${chapter.chapterNumber} MCQs`, href: `${base}/mcqs`, note: mcqs.total ? plural(mcqs.total, "MCQ") : "With answers" },
             { title: `Chapter ${chapter.chapterNumber} Notes`, href: `${base}/notes`, note: notes.some(note => note.noteType === "exercise") ? "Incl. exercise solutions" : "Short & long questions" },
         ],
-        sections: [{ title: `Topics in Chapter ${chapter.chapterNumber}`, links: topicLinks(mcqs.byTopic) }],
+        sections: [{ title: `Topics in Chapter ${chapter.chapterNumber}`, links: topicLinks(mcqs.byTopic) }, allChapters].filter(section => section.links.length),
         mcqs: mcqs.items, mcqHeading: mcqs.items.length ? `Sample MCQs from Chapter ${chapter.chapterNumber}` : "", mcqMore: mcqs.total ? { title: `All ${plural(mcqs.total, "MCQ")} for Chapter ${chapter.chapterNumber}`, href: `${base}/mcqs` } : null,
         actions: mcqs.total ? [{ title: `Take the Chapter ${chapter.chapterNumber} MCQ test`, href: `/tests/start?chapter=${id(chapter)}` }] : [],
         neighbours,
         breadcrumbs: crumbs,
         faqs: topics.length ? [{ question: `What topics are in ${who} Chapter ${chapter.chapterNumber}?`, answer: topics.map(topic => `${topic.topicNumber} ${topic.name}`).join("; ") + "." }] : [],
-        meta: pageMeta(`${who} Chapter ${chapter.chapterNumber}: ${chapter.name} – Notes & MCQs | ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} Chapter ${chapter.chapterNumber} ${chapter.name}: topics, notes, MCQs with answers and exercise solutions.`, base, topics.length > 0 || mcqs.total > 0 || notes.length > 0),
+        meta: pageMeta(`${who} Chapter ${chapter.chapterNumber}: ${chapter.name} – Notes & MCQs | ${short}`, `${l.boardFull} ${l.classAlt} ${l.subjectName} ${unit} ${chapter.name}: topics, notes, short and long questions, MCQs with answers and exercise solutions.`, base, topics.length > 0 || mcqs.total > 0 || notes.length > 0),
         updatedAt: chapter.updatedAt,
     };
 }
@@ -393,7 +443,7 @@ async function topicPage(cat, subject, chapter, topic) {
         scope: `${who} · Chapter ${chapter.chapterNumber}: ${chapter.name} · ${l.boardFull}`,
         summary: topic.summary || topic.description || "",
         intro: [`${topic.topicNumber} ${topic.name} from ${l.boardName} ${who} (${l.classAlt}) Chapter ${chapter.chapterNumber}, ${chapter.name}${questions.length ? `: ${plural(questions.length, "short and long question")}` : ""}${mcqs.total ? `${questions.length ? " and" : ":"} ${plural(mcqs.total, "MCQ")} with answers` : ""}.`],
-        questions, mcqs: mcqs.items, mcqTotal: mcqs.total, mcqHeading: mcqs.items.length ? `${topic.name} MCQs` : "",
+        questions, questionLabel: topic.name, mcqs: mcqs.items, mcqTotal: mcqs.total, mcqHeading: mcqs.items.length ? `${topic.name} MCQs` : "",
         actions, neighbours,
         sections: [{ title: `Chapter ${chapter.chapterNumber} study material`, links: [{ title: `Chapter ${chapter.chapterNumber} MCQs`, href: `${u.chapter(subject, chapter)}/mcqs`, summary: "All chapter MCQs with answers" }, { title: `Chapter ${chapter.chapterNumber} Notes`, href: `${u.chapter(subject, chapter)}/notes`, summary: "Short and long questions, exercise solutions" }] }],
         breadcrumbs: [...subjectCrumbs(cat, subject, l), { title: `Chapter ${chapter.chapterNumber}`, href: u.chapter(subject, chapter) }, { title: `${topic.topicNumber} ${topic.name}`, href: base }],
@@ -433,6 +483,7 @@ function resourceCopy(kind, doc, l, { chapters = [], chapter = null } = {}) {
     return { title: title.trim(), summary };
 }
 
+const SUBJECT_VIEWS = ["mcqs", "notes", "past-papers", "books"];
 const RESERVED = new Set(["learn", "news", "api", "admin", "assets", "uploads", "sitemaps", "subjects", "chapters", "topics", "videos", "book", "notes", "past-papers", "answer-sheet", "topic-questions", "login", "register", "forgot-password", "dashboard", "leaderboard", "tests", "assessments", "verify"]);
 
 // Whether a path could be one of these pages (its first part is a board's address).
@@ -490,7 +541,7 @@ async function buildSeoPage(path) {
     const subject = cat.subjects.find(item => id(item.board) === id(board) && id(item.class) === id(cls) && cat.subjectSeg.get(id(item)) === parts[2]);
     if (!subject) fail("Page not found.", 404);
     if (parts.length === 3) return subjectPage(cat, subject);
-    if (parts.length === 4 && ["mcqs", "notes"].includes(parts[3])) return subjectPage(cat, subject, parts[3]);
+    if (parts.length === 4 && SUBJECT_VIEWS.includes(parts[3])) return subjectPage(cat, subject, parts[3]);
     const chapterMatch = parts[3].match(/^chapter-(\d+)(?:-|$)/);
     if (!chapterMatch || parts.length > 5) fail("Page not found.", 404);
     const chapter = await Chapter.findOne({ subject: subject._id, chapterNumber: Number(chapterMatch[1]) }).lean();
@@ -545,12 +596,17 @@ async function seoSitemapEntries() {
     for (const subject of pairs.values()) entries.push({ path: u.boardClass(subject.board, subject.class) });
     const chapters = await Chapter.find({ subject: { $in: subjects.map(subject => subject._id) } }).select("name chapterNumber subject updatedAt").lean();
     const chapterIds = chapters.map(chapter => chapter._id);
-    const [tests, notes, written, topics] = await Promise.all([
+    const subjectIds = subjects.map(subject => subject._id);
+    const [tests, notes, written, topics, paperSubjects, bookSubjects] = await Promise.all([
         Assessment.find({ ...openNow(), type: "topic_test", isAutoGenerated: { $ne: true }, createdBy: { $exists: true }, chapter: { $in: chapterIds } }).select("chapter topic").lean(),
         ChapterNote.find({ chapter: { $in: chapterIds } }).select("chapter updatedAt").lean(),
         Question.aggregate([{ $match: { chapter: { $in: chapterIds }, status: "published", contentType: { $in: ["short_question", "long_question"] } } }, { $group: { _id: { chapter: "$chapter", topic: "$topic" } } }]),
         Topic.find({ chapterId: { $in: chapterIds } }).select("name topicNumber chapterId updatedAt").lean(),
+        PastPaper.distinct("subject", { subject: { $in: subjectIds } }),
+        Book.distinct("subject", { subject: { $in: subjectIds } }),
     ]);
+    const hasPapers = new Set(paperSubjects.map(String));
+    const hasBooks = new Set(bookSubjects.map(String));
     const mcqChapters = new Set(tests.map(test => id(test.chapter)));
     const mcqTopics = new Set(tests.map(test => id(test.topic)));
     const noteChapters = new Set([...notes.map(note => id(note.chapter)), ...written.map(row => id(row._id.chapter))]);
@@ -563,6 +619,8 @@ async function seoSitemapEntries() {
         entries.push({ path: u.subject(subject), updatedAt: subject.updatedAt });
         if (own.some(chapter => mcqChapters.has(id(chapter)))) entries.push({ path: `${u.subject(subject)}/mcqs` });
         if (own.some(chapter => noteChapters.has(id(chapter)))) entries.push({ path: `${u.subject(subject)}/notes` });
+        if (hasPapers.has(id(subject))) entries.push({ path: `${u.subject(subject)}/past-papers` });
+        if (hasBooks.has(id(subject))) entries.push({ path: `${u.subject(subject)}/books` });
     }
     const topicChapters = new Set(topics.map(topic => id(topic.chapterId)));
     for (const chapter of chapters) {

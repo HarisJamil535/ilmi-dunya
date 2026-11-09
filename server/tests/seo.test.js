@@ -44,15 +44,36 @@ test('clean canonical, educational schemas, and JSON-LD appear in initial head',
     assert.doesNotMatch(xml, /filter|other.test|lastmod/);
 });
 
-test('every AI crawler group allows public pages while preserving private and filter exclusions', () => {
+test('robots.txt blocks only the API, so crawlers can see the noindex tag on private pages', () => {
     const { robotsText } = require('../src/services/robots');
     const robots = robotsText('https://example.com');
-    for (const name of ['OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'GPTBot', 'Google-Extended']) {
+    for (const name of ['*', 'OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'GPTBot', 'Google-Extended']) {
         const group = robots.split(`User-agent: ${name}\n`)[1].split('\n\n')[0];
-        assert.match(group, /Allow: \//);
-        assert.ok(group.includes('Disallow: /*?filter=*'));
-        assert.ok(group.includes('Disallow: /admin'));
+        assert.ok(group.includes('Disallow: /api/'));
+        assert.ok(group.includes('Allow: /api/media/images/'), 'question pictures may be indexed');
+        // Login, dashboard, tests and admin answer with noindex; blocking them here would hide that tag from Google.
+        assert.doesNotMatch(group, /Disallow: \/(admin|login|dashboard|tests|register)/);
     }
+    assert.match(robots, /Sitemap: https:\/\/example\.com\/sitemap\.xml/);
+});
+
+test('every page is served from the one address in SITE_URL', () => {
+    const { canonicalHost } = require('../src/middleware/canonicalHost');
+    const run = (options, request) => {
+        const res = { status: null, location: null, redirect(status, location) { this.status = status; this.location = location; } };
+        let passed = false;
+        canonicalHost(options)({ method: 'GET', path: request.path || '/', originalUrl: request.url || request.path || '/', protocol: request.protocol || 'https', get: () => request.host, ...request }, res, () => { passed = true; });
+        return passed ? 'next' : `${res.status} ${res.location}`;
+    };
+    const site = { siteUrl: 'https://ilmidunya.org', trustProxy: 1 };
+    assert.equal(run(site, { host: 'www.ilmidunya.org', path: '/federal-board', url: '/federal-board?x=1' }), '301 https://ilmidunya.org/federal-board?x=1');
+    assert.equal(run(site, { host: 'ilmidunya.org', protocol: 'http', path: '/' }), '301 https://ilmidunya.org/');
+    assert.equal(run(site, { host: 'ilmidunya.org', path: '/news' }), 'next');
+    assert.equal(run({ ...site, trustProxy: false }, { host: 'ilmidunya.org', protocol: 'http', path: '/' }), 'next', 'without a trusted proxy the protocol is unknown, so no https redirect');
+    assert.equal(run(site, { host: 'www.ilmidunya.org', path: '/api/papers' }), 'next', 'API calls are never redirected');
+    assert.equal(run(site, { host: '127.0.0.1:5000', path: '/' }), 'next', 'health checks by address are left alone');
+    assert.equal(run(site, { host: 'www.ilmidunya.org', method: 'POST', path: '/x' }), 'next');
+    assert.equal(run({ siteUrl: '' }, { host: 'anything.test', path: '/' }), 'next');
 });
 
 test('private pages are noindex; sitemap queries exclude drafts and thin resources', () => {

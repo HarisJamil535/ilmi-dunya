@@ -10,7 +10,9 @@ import StructuredSEO from "../../seo/StructuredSEO";
 import StudyPathSelector from '../components/StudyPathSelector';
 import MathText from "../../shared/MathText";
 
-const QUICK_ICONS = [ListChecks, FileText];
+const QUICK_ICONS = [ListChecks, FileText, ClipboardList, BookOpen];
+// Links into the study tools (tests, note downloads, chapter tools) carry "nofollow": those screens are not for search engines.
+const TOOL = { rel: "nofollow" };
 
 // One MCQ with its options; the answer and explanation open on demand but are part of the page for search engines.
 function McqCard({ item, number }) {
@@ -73,7 +75,7 @@ export default function PublicStudyPage({ initialData }) {
       <div className="study-notes">{data.notes.map(note => <div key={note.type} className={`study-note ${note.available ? "" : "is-missing"}`}>
         <FileText size={22} />
         <div><h3>{note.label}</h3><p>{note.title}</p></div>
-        {note.available ? <Link to={note.href}>Read notes <ArrowRight size={15} /></Link> : <span className="study-note-soon">Coming soon</span>}
+        {note.available ? <Link to={note.href} {...TOOL}>Read notes <ArrowRight size={15} /></Link> : <span className="study-note-soon">Coming soon</span>}
       </div>)}</div>
       <p className="study-note-hint"><Lock size={14} /> Sign in for free to download notes as PDF.</p>
     </section>}
@@ -84,9 +86,9 @@ export default function PublicStudyPage({ initialData }) {
       {data.mcqMore && <Link className="study-more" to={data.mcqMore.href}>{data.mcqMore.title} <ArrowRight size={16} /></Link>}
     </section>}
 
-    {data.actions?.length > 0 && <nav className="study-actions" aria-label="Study tools">{data.actions.map(action => <Link key={action.href} to={action.href}>{/test/i.test(action.title) ? <PlayCircle size={17} /> : null}{action.title}<ArrowRight size={16} /></Link>)}</nav>}
+    {data.actions?.length > 0 && <nav className="study-actions" aria-label="Study tools">{data.actions.map(action => <Link key={action.href} to={action.href} {...TOOL}>{/test/i.test(action.title) ? <PlayCircle size={17} /> : null}{action.title}<ArrowRight size={16} /></Link>)}</nav>}
 
-    {written.map(([type, questions]) => questions.length ? <section key={type}><h2>{type === "short_question" ? "Short questions" : "Long questions"}</h2><ol className="study-questions">{questions.map(question => <li key={question._id}><div className="question-with-importance"><p><MathText text={question.questionText} /></p>{question.isImportant && <ImportantBadge />}</div></li>)}</ol></section> : null)}
+    {written.map(([type, questions]) => questions.length ? <section key={type}><h2>{data.questionLabel ? `${data.questionLabel} ${type === "short_question" ? "short questions" : "long questions"}` : type === "short_question" ? "Short questions" : "Long questions"}</h2><ol className="study-questions">{questions.map(question => <li key={question._id}><div className="question-with-importance"><p><MathText text={question.questionText} /></p>{question.isImportant && <ImportantBadge />}</div></li>)}</ol></section> : null)}
 
     {data.kind === 'directory' ? <details className="study-directory-links"><summary>Browse all boards and classes</summary>{data.sections.map(section => <section key={section.title}><h2>{section.title}</h2><div className="study-link-grid">{section.links.map(item => <Link key={item.href} to={item.href} className="study-resource-link"><h3>{item.title}</h3><ArrowRight size={18} /></Link>)}</div></section>)}</details> : data.sections.map(section => <section key={section.title}><div className="study-section-head"><h2>{section.title}</h2>{section.hub && <Link to={section.hub.href}>{section.hub.title} <ArrowRight size={15} /></Link>}</div><div className="study-link-grid">{section.links.map(item => <Link key={item.href} to={item.href} className="study-resource-link"><div><h3>{item.title}</h3>{item.summary && <p>{item.summary}</p>}</div><ArrowRight size={18} /></Link>)}</div></section>)}
 

@@ -32,6 +32,7 @@ const mongoose = require('mongoose');
 const app = express();
 const { publicRoutes, frontendRoutes, invalidatePublicPages } = require('./src/routes/publicPagesRoutes');
 const { requestSafety, errorHandler } = require('./src/middleware/requestSafety');
+const { canonicalHost } = require('./src/middleware/canonicalHost');
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
     .split(",")
@@ -53,6 +54,7 @@ app.use(helmet({
     } },
 }));
 app.use(compression());
+if (process.env.NODE_ENV === 'production') app.use(canonicalHost({ trustProxy: app.get('trust proxy') }));
 // A page served by this very server is never cross-origin, so its own host (for example the www and
 // non-www versions of the site) is always allowed; other origins must be listed in CLIENT_ORIGIN.
 const corsOptions = (req, callback) => {
