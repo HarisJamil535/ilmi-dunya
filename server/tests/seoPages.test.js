@@ -19,7 +19,7 @@ const chain = value => ({ select() { return this; }, sort() { return this; }, li
 afterEach(() => { mock.restoreAll(); clearCatalog(); });
 
 const ids = { fed: oid(), c9: oid(), sci: oid(), arts: oid(), cs: oid(), mathSci: oid(), mathArts: oid(), ch3: oid(), t1: oid(), q1: oid() };
-function seed({ tests = [], mcqs = [] } = {}) {
+function seed({ tests = [], mcqs = [], books = [], papers = [] } = {}) {
     mock.method(Board, "find", () => chain([{ _id: ids.fed, name: "Federal Board" }]));
     mock.method(ClassModel, "find", () => chain([{ _id: ids.c9, name: "Class 9" }]));
     mock.method(Group, "find", () => chain([{ _id: ids.sci, name: "Science" }, { _id: ids.arts, name: "Arts" }]));
@@ -37,8 +37,10 @@ function seed({ tests = [], mcqs = [] } = {}) {
     mock.method(Assessment, "find", () => chain(tests));
     mock.method(Question, "find", filter => chain(filter.contentType?.$in ? [] : mcqs));
     mock.method(Question, "aggregate", async () => []);
-    mock.method(Book, "find", () => chain([]));
-    mock.method(PastPaper, "find", () => chain([]));
+    mock.method(Book, "find", () => chain(books));
+    mock.method(Book, "distinct", async () => (books.length ? [ids.cs] : []));
+    mock.method(PastPaper, "find", () => chain(papers));
+    mock.method(PastPaper, "distinct", async () => (papers.length ? [ids.cs] : []));
 }
 
 test("addresses read like searches and tell same-named subjects apart by group", async () => {
@@ -65,7 +67,9 @@ test("titles, headings and descriptions use the words students search with", asy
     assert.match(subject.meta.description, /9th Class Computer Science/);
     assert.ok(subject.meta.indexable);
     const notes = await seoPage("/federal-board/class-9/computer-science/chapter-3-programming-fundamentals/notes", "https://ilmidunya.org");
-    assert.match(notes.meta.title, /Class 9 Computer Science Chapter 3 Notes & Exercise Solutions/);
+    assert.equal(notes.meta.title, "Class 9 Computer Science Chapter 3 Notes – Short & Long Questions, Exercise | FBISE");
+    assert.match(notes.meta.description, /Chapter 3 \(Unit 3\) Programming Fundamentals notes: short questions, long questions/);
+    assert.equal(notes.questionLabel, "Class 9 Computer Science Chapter 3");
     assert.ok(notes.notes.find(note => note.type === "exercise").available);
     assert.deepEqual(notes.breadcrumbs.map(item => item.title), ["Home", "Federal Board", "Class 9", "Computer Science", "Chapter 3"], "the page itself is added after its parents when rendered");
 });
@@ -74,7 +78,7 @@ test("MCQ pages show only live, published MCQs with their answers, marked up as 
     const mcq = { _id: ids.q1, questionText: "Which symbol starts a flowchart?", options: [{ key: "A", text: "Oval" }, { key: "B", text: "Diamond" }], correctOption: "A", explanation: "Ovals mark start and end.", topic: ids.t1 };
     seed({ tests: [{ topic: ids.t1, questions: [{ question: ids.q1, order: 1 }] }], mcqs: [mcq] });
     const page = await seoPage("/federal-board/class-9/computer-science/chapter-3-programming-fundamentals/mcqs", "https://ilmidunya.org");
-    assert.equal(page.meta.title, "Class 9 Computer Science Chapter 3 MCQs with Answers – FBISE");
+    assert.equal(page.meta.title, "Class 9 Computer Science Chapter 3 MCQs with Answers – Programming Fundamentals | FBISE");
     assert.equal(page.mcqs.length, 1);
     assert.equal(page.mcqs[0].correctOption, "A");
     const quiz = page.structuredData.find(item => item["@type"] === "Quiz");
@@ -115,4 +119,37 @@ test("books, past papers and tests get search-friendly titles and summaries when
     const test = resourceCopy("mcqs", { type: "subject_test", questions: new Array(40), durationMinutes: 45 }, l);
     assert.equal(test.title, "Class 9 Computer Science Full Book MCQ Test – Federal Board");
     assert.match(test.summary, /40 MCQs in 45 minutes/);
+});
+
+test("a subject has readable past-paper and textbook pages, listed in the sitemap only when they have content", async () => {
+    const { seoSitemapEntries } = require("../src/services/seoPages");
+    seed();
+    assert.ok(!(await seoSitemapEntries()).some(entry => /past-papers|books/.test(entry.path)), "nothing to list yet");
+    const empty = await seoPage("/federal-board/class-9/computer-science/past-papers", "https://ilmidunya.org");
+    assert.equal(empty.meta.indexable, false);
+    mock.restoreAll(); clearCatalog();
+    seed({ papers: [{ _id: oid(), year: 2024, session: "annual", examType: "morning", slug: "p1" }, { _id: oid(), year: 2023, session: "annual", slug: "p2" }], books: [{ _id: oid(), title: "CS 9", sourceName: "National Book Foundation", slug: "b" }] });
+    const papers = await seoPage("/federal-board/class-9/computer-science/past-papers", "https://ilmidunya.org");
+    assert.equal(papers.meta.title, "Class 9 Computer Science Past Papers 2023-2024 – Federal Board (FBISE)");
+    assert.deepEqual(papers.sections.map(section => section.title), ["Class 9 Computer Science past paper 2024", "Class 9 Computer Science past paper 2023"]);
+    assert.equal(papers.meta.indexable, true);
+    const books = await seoPage("/federal-board/class-9/computer-science/books", "https://ilmidunya.org");
+    assert.match(books.meta.title, /^Class 9 Computer Science Book – Federal Board \(FBISE\) Textbook Online$/);
+    assert.match(books.meta.description, /by National Book Foundation/);
+    const paths = (await seoSitemapEntries()).map(entry => entry.path);
+    assert.ok(paths.includes("/federal-board/class-9/computer-science/past-papers") && paths.includes("/federal-board/class-9/computer-science/books"));
+    const subject = await seoPage("/federal-board/class-9/computer-science", "https://ilmidunya.org");
+    assert.ok(subject.quickLinks.some(link => link.href.endsWith("/past-papers")) && subject.quickLinks.some(link => link.href.endsWith("/books")));
+});
+
+test("chapter pages link to every other chapter of the subject and cut descriptions at a word", async () => {
+    seed();
+    mock.method(Chapter, "find", () => chain([{ _id: ids.ch3, name: "Programming Fundamentals", chapterNumber: 3, subject: ids.cs }, { _id: oid(), name: "Data Types", chapterNumber: 4, subject: ids.cs }]));
+    const page = await seoPage("/federal-board/class-9/computer-science/chapter-3-programming-fundamentals/notes", "https://ilmidunya.org");
+    const all = page.sections.find(section => section.title.startsWith("All Class 9 Computer Science chapters"));
+    assert.ok(all, "the all-chapters block exists");
+    assert.equal(all.hub.href, "/federal-board/class-9/computer-science/notes");
+    assert.deepEqual(all.links.map(link => link.href), ["/federal-board/class-9/computer-science/chapter-4-data-types/notes"]);
+    assert.ok(page.meta.description.length <= 160);
+    assert.doesNotMatch(page.meta.description, /\s…$/);
 });
