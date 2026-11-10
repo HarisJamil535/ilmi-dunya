@@ -64,7 +64,7 @@ const TimingDialog = ({ target, current, mcqCount, onClose, onConfirm, busy }) =
   const tab = (key, label, icon) => <button type="button" role="radio" aria-checked={mode === key} onClick={() => setMode(key)}
     className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition ${mode === key ? "bg-white text-primary shadow-sm dark:bg-slate-800" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"}`}>{icon}{label}</button>;
   const chips = mode === "per_question" ? [[30, "30s"], [45, "45s"], [60, "1 min"], [90, "1.5 min"], [120, "2 min"]] : [[10, "10 min"], [20, "20 min"], [30, "30 min"], [45, "45 min"], [60, "1 hour"]];
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="timing-title" onKeyDown={(event) => event.key === "Escape" && onClose()}>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="timing-title" onKeyDown={(event) => event.key === "Escape" && onClose()}>
     <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -117,7 +117,7 @@ const ScheduleDialog = ({ target, onClose, onConfirm, busy }) => {
   const [value, setValue] = useState(() => localInput(choices[1][1]));
   const minimum = localInput(new Date(openedAt + 60000));
   const valid = value && new Date(value).getTime() > openedAt;
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="schedule-title" onKeyDown={(event) => event.key === "Escape" && onClose()}>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="schedule-title" onKeyDown={(event) => event.key === "Escape" && onClose()}>
     <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
         <div>

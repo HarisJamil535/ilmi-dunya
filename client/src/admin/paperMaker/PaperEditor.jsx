@@ -1,3 +1,4 @@
+import LinkImageButton from "../../shared/LinkImageButton";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, FileDown, FileText, ImagePlus, KeyRound, Library, PenLine, Plus, RefreshCw, Save, Scissors, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
@@ -342,6 +343,7 @@ export default function PaperEditor() {
           <div className="min-w-0 flex-1"><p className="text-sm font-black text-slate-800">School logo (optional)</p><p className="text-xs text-slate-500">PNG or JPG, up to 2 MB.</p></div>
           <input ref={logoInput} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => { uploadLogo(e.target.files?.[0]); e.target.value = ""; }} />
           <Button variant="secondary" loading={busy === "logo"} onClick={() => logoInput.current?.click()}>{config.header.logoUrl ? "Change" : "Upload"}</Button>
+          <LinkImageButton label="school logo" accept={["image/png", "image/jpeg"]} onFile={uploadLogo} disabled={busy === "logo"} />
           {config.header.logoUrl && <Button variant="ghost" onClick={() => setHeader({ logoUrl: "" })} aria-label="Remove logo"><X className="h-4 w-4" /></Button>}
         </div>
       </Section>
@@ -480,7 +482,7 @@ export default function PaperEditor() {
       {busy === "preview" || !papers ? <AdminLoader label="Building the preview..." /> : <div className="overflow-x-auto pb-2"><PaperPreview papers={papers} version={version} showAnswers={showAnswers} logoUrl={config.header.logoUrl} /></div>}
     </section>}
 
-    <div className="sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+    <div className="sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg">
       <Button variant="secondary" icon={ArrowLeft} onClick={() => (step === 0 ? navigate("/admin/papers") : goTo(step - 1))}>{step === 0 ? "My papers" : "Back"}</Button>
       <div className="flex items-center gap-2">
         <span className="hidden text-xs font-bold text-slate-400 sm:inline" aria-live="polite">{autoState === "saving" ? "Saving…" : dirty ? "Unsaved changes" : autoState === "saved" ? "Saved automatically" : autoState === "failed" ? "Auto-save failed" : paperId ? "Saved" : ""}</span>

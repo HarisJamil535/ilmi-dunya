@@ -1,6 +1,7 @@
 import InlineEditor from "./InlineEditor";
 import React, { useState, useEffect, useContext } from "react";
 import { X, Loader2, AlertCircle, BookOpen } from "lucide-react";
+import ImagePicker from "../../shared/ImagePicker";
 import axiosInstance from "../../api/axios";
 import { AppContext } from "../../context/AppContext";
 
@@ -32,23 +33,14 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
 
     if (!isOpen) return null;
 
-    const uploadImage = async (event) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (!file) return;
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 1024 * 1024) {
-            setFormError("Choose a JPG, PNG or WebP image under 1 MB.");
-            return;
-        }
+    const uploadImage = async (file) => {
         setUploadingImage(true);
-        setFormError("");
         try {
             const data = new FormData();
             data.append("image", file);
             const response = await axiosInstance.post("/subjects/upload-image", data, { headers: { "Content-Type": "multipart/form-data" } });
-            setCardImage(response.data.imageUrl);
-        } catch (error) { setFormError(error.response?.data?.message || "Unable to upload image. Please try again."); }
-        finally { setUploadingImage(false); }
+            return response.data.imageUrl;
+        } finally { setUploadingImage(false); }
     };
 
     const handleSubmit = async (e) => {
@@ -146,7 +138,7 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             maxLength={maxNameLength}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             required
                             autoFocus
                         />
@@ -163,19 +155,14 @@ const SubjectModal = ({ isOpen, onClose, editingSubject, onSaveSuccess }) => {
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
                             maxLength={maxCodeLength}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="subject-card-image" className="mb-2 block text-sm font-semibold text-slate-600">Subject image <span className="font-normal">(optional)</span></label>
+                        <p className="mb-2 block text-sm font-semibold text-slate-600">Subject image <span className="font-normal">(optional)</span></p>
                         <p id="subject-image-help" className="mb-3 text-sm leading-6 text-slate-500">Use a square 256 × 256 px image or illustration. Keep it centered with some space around it. Transparent PNG or WebP works best; aim for under 100 KB (maximum 1 MB).</p>
-                        <div className="flex flex-wrap items-center gap-4">
-                            {cardImage && <img src={cardImage} alt="Subject image preview" width="80" height="80" className="h-20 w-20 rounded-md border border-slate-200 object-contain p-2" />}
-                            <input id="subject-card-image" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="subject-image-help" onChange={uploadImage} disabled={uploadingImage || isSubmitting} className="min-w-0 max-w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary-soft file:px-3 file:py-2 file:font-semibold file:text-primary" />
-                            {uploadingImage && <span role="status" className="text-sm text-primary">Uploading image...</span>}
-                            {cardImage && <button type="button" disabled={isSubmitting || uploadingImage} onClick={() => setCardImage("")} className="text-sm font-semibold text-primary">Remove image</button>}
-                        </div>
+                        <ImagePicker value={cardImage} onChange={setCardImage} upload={uploadImage} label="Subject image" maxMb={1} disabled={isSubmitting} previewClass="max-w-[9rem] mx-auto" />
                     </div>
 
                     {formError && (

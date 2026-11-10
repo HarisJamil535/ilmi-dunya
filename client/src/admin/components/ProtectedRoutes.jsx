@@ -6,7 +6,12 @@ import Loader from "../../shared/Loader";
 const ProtectedRoutes = () => {
     const token = localStorage.getItem("adminToken");
     // "checking" | "allowed" | "denied" | "unreachable"
-    const [state, setState] = useState(() => token ? "checking" : "denied");
+    // A signed-in admin whose details are saved sees the page at once; the session is confirmed in the
+    // background and a rejected session still signs them out. This saves a full server round trip on every load.
+    const [state, setState] = useState(() => {
+        if (!token) return "denied";
+        try { return JSON.parse(localStorage.getItem("adminUser") || "null")?.id ? "allowed" : "checking"; } catch { return "checking"; }
+    });
     const [check, setCheck] = useState(0);
     const location = useLocation();
 
@@ -33,7 +38,8 @@ const ProtectedRoutes = () => {
                     localStorage.removeItem("adminUser");
                     setState("denied");
                 } else {
-                    setState("unreachable");
+                    // Already showing the page: keep it, the page's own requests show any connection problem.
+                    setState((current) => (current === "allowed" ? current : "unreachable"));
                 }
             }
         };

@@ -131,7 +131,7 @@ const EntityManager = ({
 
         {/* Page Header */}
         <div className="flex items-center gap-4 bg-gradient-to-br from-primary-dark via-primary to-primary-muted p-6 rounded-2xl shadow-md text-white">
-          <div className="p-3 rounded-xl bg-white/10 backdrop-blur-md">
+          <div className="p-3 rounded-xl bg-white/10">
             {React.createElement(Icon || Layers, { className: "w-6 h-6 stroke-[2]" })}
           </div>
           <div>
@@ -148,7 +148,7 @@ const EntityManager = ({
 
           {/* Success Banner */}
           {successMsg && (
-            <div className="flex items-center gap-2 p-3.5 mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl transition-all">
+            <div className="flex items-center gap-2 p-3.5 mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl transition">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{successMsg}</span>
             </div>
@@ -167,7 +167,7 @@ const EntityManager = ({
                     if (successMsg) setSuccessMsg("");
                   }}
                   disabled={isSubmitting}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:bg-white transition-all disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:bg-white transition disabled:opacity-50"
                 />
                 {error && <p className="text-xs font-semibold text-rose-500 mt-1.5 pl-1">{error}</p>}
               </div>

@@ -1,3 +1,4 @@
+import LinkImageButton from "../../shared/LinkImageButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Archive, Check, FileDown, Lock, LockOpen, FileText, KeyRound, Library, PenLine, Plus, Save, Shuffle, Sparkles, Trash2, Wand2, X } from "lucide-react";
@@ -99,7 +100,7 @@ function Balance({ config, selection, byId, data, total, onTarget }) {
       <div className="min-w-0 flex-1"><p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Total marks</p><p className="text-2xl font-black text-slate-900">{Math.round(total * 100) / 100}{target > 0 && <span className="text-base font-bold text-slate-400"> / {target}</span>}</p></div>
       <label className="flex items-center gap-2 text-sm font-bold text-slate-600">Target <Stepper label="target marks" value={target} min={0} max={500} onChange={onTarget} /></label>
     </div>
-    {target > 0 && <div className="mt-3"><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition-all ${diff === 0 ? "bg-emerald-500" : diff > 0 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${Math.min(100, (total / target) * 100)}%` }} /></div>
+    {target > 0 && <div className="mt-3"><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition ${diff === 0 ? "bg-emerald-500" : diff > 0 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${Math.min(100, (total / target) * 100)}%` }} /></div>
       <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-bold ${diff === 0 ? "text-emerald-700" : "text-amber-700"}`}>{diff === 0 ? <><Check className="h-4 w-4" />Exactly on target.</> : diff > 0 ? `${diff} marks over the target.` : `${Math.abs(diff)} marks to reach the target.`}</p></div>}
     {total > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{[["topic", "Marks by topic"], ["category", "Marks by category"]].map(([kind, label]) => <div key={kind}><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{label}</p>
       <ul className="space-y-1.5">{rows(kind).map(([name, marks]) => <li key={name} className="flex items-center gap-2 text-sm"><span className="w-28 shrink-0 truncate font-semibold text-slate-700 sm:w-36">{name}</span><span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${(marks / total) * 100}%` }} /></span><b className="w-10 text-right text-slate-800">{marks}</b></li>)}</ul></div>)}</div>}
@@ -288,6 +289,7 @@ export default function PbaPaperEditor() {
           <input ref={logoInput} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => { uploadTo(e.target.files?.[0], (url) => setHeader({ logoUrl: url }), "logo"); e.target.value = ""; }} />
           {h.logoUrl && <img src={h.logoUrl} alt="School logo" className="h-14 w-14 rounded-lg border border-slate-200 object-contain" />}
           <Button variant="secondary" icon={Plus} loading={busy === "logo"} onClick={() => logoInput.current?.click()}>{h.logoUrl ? "Change logo" : "Add school logo"}</Button>
+          <LinkImageButton label="school logo" accept={["image/png", "image/jpeg"]} onFile={(f) => uploadTo(f, (url) => setHeader({ logoUrl: url }), "logo")} disabled={busy === "logo"} />
           {h.logoUrl && <Button variant="ghost" onClick={() => setHeader({ logoUrl: "" })}>Remove</Button>}
           <Toggle checked={config.layout.rollNumber} onChange={(value) => setLayout({ rollNumber: value })} label="Roll number boxes and bubbles" />
           {config.layout.rollNumber && <span className="flex items-center gap-2 text-sm font-bold text-slate-600">Digits <Stepper label="roll number digits" value={config.layout.rollDigits} min={4} max={10} onChange={(value) => setLayout({ rollDigits: value })} /></span>}
@@ -362,7 +364,7 @@ export default function PbaPaperEditor() {
       </>}
     </>}
 
-    <div className="sticky bottom-0 z-30 -mx-1 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur"><div className="flex items-center gap-2">
+    <div className="sticky bottom-0 z-30 -mx-1 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg"><div className="flex items-center gap-2">
       <Button variant="secondary" icon={ArrowLeft} disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
       <Button variant="secondary" icon={Save} loading={busy === "save"} onClick={saveNow}>{dirty ? "Save" : "Saved"}</Button>
       {saved && <span aria-live="polite" className="hidden text-xs font-bold text-slate-500 sm:inline">{saved === "saving" ? "Saving draft..." : saved === "saved" && !dirty ? "Draft saved" : saved === "failed" ? "Could not save the draft" : ""}</span>}

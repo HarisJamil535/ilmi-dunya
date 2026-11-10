@@ -19,7 +19,7 @@ const ActionDialog = ({ action, busy, onCancel, onConfirm }) => {
     unblock: { title: `Unblock ${student.name}?`, confirm: "Unblock student", tone: "bg-emerald-600 hover:bg-emerald-700", points: ["They can sign in again with their existing password.", "Their email and number can be used again."] },
     delete: { title: `Delete ${student.name}'s account?`, confirm: mode === "block-delete" && !blocked ? "Block and delete" : "Delete account", tone: "bg-rose-600 hover:bg-rose-700", points: ["The account, its test attempts and results are removed permanently. This cannot be undone."] },
   }[type];
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="student-action-title" onKeyDown={(event) => event.key === "Escape" && !busy && onCancel()}>
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-labelledby="student-action-title" onKeyDown={(event) => event.key === "Escape" && !busy && onCancel()}>
     <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
       <div className="flex items-start justify-between gap-3">
         <h2 id="student-action-title" className="text-lg font-black text-slate-950">{copy.title}</h2>

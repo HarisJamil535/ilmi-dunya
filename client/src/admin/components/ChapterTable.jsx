@@ -51,7 +51,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                         placeholder="Search chapters by name or number..."
                         value={searchTerm}
                         onChange={handleSearchChange}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all shadow-2xs"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition shadow-2xs"
                     />
                     {searchTerm && (
                         <button
@@ -138,7 +138,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                         <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => navigate(`/admin/chapters/${chapter._id}/topics`)}
-                                                className="inline-flex items-center gap-1.5 bg-primary-soft text-primary hover:bg-primary hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+                                                className="inline-flex items-center gap-1.5 bg-primary-soft text-primary hover:bg-primary hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
                                             >
                                                 Manage Topics <ArrowRight className="w-3.5 h-3.5" />
                                             </button>
@@ -166,7 +166,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                             type="button"
                             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                             disabled={effectivePage === 1}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs cursor-pointer"
                         >
                             <ChevronLeft className="w-4 h-4" /> Previous
                         </button>
@@ -177,7 +177,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                                     key={page}
                                     type="button"
                                     onClick={() => setCurrentPage(page)}
-                                    className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer ${
                                         effectivePage === page
                                             ? "bg-primary text-white shadow-sm"
                                             : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
@@ -192,7 +192,7 @@ export const ChapterTable = ({ chapters, onEdit, onDelete }) => {
                             type="button"
                             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                             disabled={effectivePage === totalPages}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs cursor-pointer"
                         >
                             Next <ChevronRight className="w-4 h-4" />
                         </button>

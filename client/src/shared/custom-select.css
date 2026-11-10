@@ -1,0 +1,29 @@
+/* The site-wide dropdown */
+.cs-trigger { border-color: var(--app-border, #e2e8f0); box-shadow: 0 1px 2px rgba(16, 24, 40, .04); transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease; }
+.cs-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--app-border, #e2e8f0)); }
+.cs-trigger:focus-visible, .cs-trigger.is-open { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 16%, transparent); }
+.cs-chevron { transition: transform 200ms cubic-bezier(.2, .8, .2, 1), color 150ms ease; }
+.cs-trigger.is-open .cs-chevron { transform: rotate(180deg); color: var(--brand-primary); }
+.cs-skeleton { background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%); background-size: 200% 100%; animation: cs-shimmer 1.2s ease-in-out infinite; }
+
+.cs-menu { position: fixed; z-index: 300; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--app-border, #e2e8f0); border-radius: 14px; background: var(--app-bg-card, #fff); box-shadow: 0 18px 40px -12px rgba(15, 23, 42, .25), 0 4px 10px -4px rgba(15, 23, 42, .08); animation: cs-in 150ms cubic-bezier(.2, .8, .2, 1) both; }
+.cs-menu.is-closing { animation: cs-out 120ms ease-in both; pointer-events: none; }
+.cs-search { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--app-border, #e2e8f0); padding: 10px 12px; }
+.cs-search input { min-width: 0; flex: 1; border: 0; background: transparent; color: var(--app-text-primary, #0f172a); font-size: 14px; outline: none; }
+.cs-search input::-webkit-search-cancel-button { cursor: pointer; }
+.cs-list { overflow-y: auto; overscroll-behavior: contain; padding: 6px; }
+.cs-option { display: flex; min-height: 40px; cursor: pointer; align-items: center; justify-content: space-between; gap: 10px; border-radius: 9px; padding: 0 12px; color: var(--app-text-primary, #334155); font-size: 14px; transition: background-color 100ms ease, color 100ms ease; user-select: none; }
+.cs-option.is-active { background: color-mix(in srgb, var(--brand-primary) 8%, transparent); }
+.cs-option.is-selected { color: var(--brand-primary-dark, #4d2faf); font-weight: 700; }
+.cs-option.is-selected svg { color: var(--brand-primary); }
+.cs-option.is-clear { color: var(--app-text-muted, #94a3b8); }
+.cs-empty { padding: 14px 12px; color: var(--app-text-muted, #94a3b8); font-size: 14px; text-align: center; }
+
+html.dark .cs-trigger { background: var(--app-bg-card); color: var(--app-text-primary); }
+html.dark .cs-option.is-selected { color: #c4b5fd; }
+html.dark .cs-skeleton { background: linear-gradient(90deg, #1e1b2e 0%, #2a2640 50%, #1e1b2e 100%); background-size: 200% 100%; }
+
+@keyframes cs-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes cs-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-3px) scale(.98); } }
+@keyframes cs-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .cs-menu, .cs-menu.is-closing, .cs-skeleton { animation: none; } .cs-chevron { transition: none; } }

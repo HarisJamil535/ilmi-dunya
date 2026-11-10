@@ -839,3 +839,19 @@ html.dark .home-text-link, html.dark .chapter-context span,
 html.dark .admin-table tbody > tr:nth-child(even):not([data-tone]) > td { background-color: rgba(255, 255, 255, 0.035); }
 html.dark .admin-table tbody > tr:not([data-tone]):hover > td { background-color: rgba(139, 108, 240, 0.12); }
 html.dark .admin-table .admin-sno { color: #9a93b8; }
+
+/* ===== Admin motion: short, calm and only on opacity/transform (cheap for the browser) ===== */
+.admin-page-enter { animation: admin-page-in 220ms cubic-bezier(.2, .8, .2, 1) both; }
+.admin-modal-viewport, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed { animation: admin-fade-in 160ms ease-out both; }
+.admin-modal-viewport > *, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed > * { animation: admin-pop-in 200ms cubic-bezier(.2, .9, .3, 1.1) both; }
+[data-admin-workspace] .admin-theme-root button, [data-admin-workspace] .admin-theme-root a { -webkit-tap-highlight-color: transparent; }
+[data-admin-workspace] .admin-theme-root button:not(:disabled):active { transform: scale(.98); }
+[data-admin-workspace] .admin-theme-root :is(button, a, input, textarea):focus-visible { outline: 2px solid color-mix(in srgb, var(--brand-primary) 60%, transparent); outline-offset: 2px; }
+.ip-field .ip-img, .ip-link { animation: admin-fade-in 180ms ease-out both; }
+@keyframes admin-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes admin-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes admin-pop-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-enter, .admin-modal-viewport, .admin-modal-viewport > *, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed > *, .ip-field .ip-img, .ip-link { animation: none; }
+  [data-admin-workspace] .admin-theme-root button:not(:disabled):active { transform: none; }
+}
