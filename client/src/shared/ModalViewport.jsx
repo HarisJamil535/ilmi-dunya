@@ -37,5 +37,5 @@ export default function ModalViewport({ children, onClose, busy = false }) {
       if (previous?.isConnected) previous.focus();
     };
   }, []);
-  return createPortal(<div ref={root} role="dialog" aria-modal="true" className="admin-modal-viewport fixed inset-x-0 z-[100] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm sm:p-5" style={{ top: viewport?.top || 0, height: viewport?.height || "100dvh" }}>{children}</div>, document.body);
+  return createPortal(<div ref={root} role="dialog" aria-modal="true" className="admin-modal-viewport fixed inset-x-0 z-[100] flex items-center justify-center bg-slate-900/40 p-3 sm:p-5" style={{ top: viewport?.top || 0, height: viewport?.height || "100dvh" }}>{children}</div>, document.body);
 }

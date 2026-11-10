@@ -24,7 +24,7 @@ export default function CustomQuestionModal({ section, chapters, existing, onClo
     });
   };
 
-  return <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Write your own question" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+  return <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Write your own question" onKeyDown={(e) => e.key === "Escape" && onClose()}>
     <div className="flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 sm:rounded-3xl">
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary"><PenLine className="h-5 w-5" /></span><div><h2 className="text-lg font-black text-slate-900">{existing ? "Edit your question" : "Write your own question"}</h2><p className="text-sm text-slate-500">For {section.name} only. It is saved with this paper, not in the question bank.</p></div></div>
         <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>

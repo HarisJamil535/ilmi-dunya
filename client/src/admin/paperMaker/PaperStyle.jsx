@@ -1,3 +1,4 @@
+import LinkImageButton from "../../shared/LinkImageButton";
 import { useRef } from "react";
 import { Droplets, ImagePlus, Type, X } from "lucide-react";
 import { Button, Toggle, input } from "./ui";
@@ -45,11 +46,12 @@ export default function PaperStyle({ layout, setLayout, onUpload, uploading }) {
         <Segmented label="Watermark type" value={mark.kind} options={[["none", "None"], ["text", "Text"], ["image", "Logo"]]} onChange={(kind) => setMark({ kind })} /></div>
       {mark.kind === "text" && <div className="mt-4 flex flex-wrap items-end gap-4"><label className="block min-w-56 flex-1"><span className="mb-1.5 block text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Watermark text</span>
         <span className="relative block"><Type className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input className={`${input} pl-9`} maxLength={40} value={mark.text} onChange={(e) => setMark({ text: e.target.value })} placeholder="e.g. CONFIDENTIAL or your school's name" /></span></label></div>}
-      {mark.kind === "image" && <div className="mt-4 flex items-center gap-4 rounded-2xl border border-dashed border-slate-300 p-3">
+      {mark.kind === "image" && <div className="mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-slate-300 p-3">
         {mark.imageUrl ? <img src={mark.imageUrl} alt="Watermark" className="h-14 w-14 rounded-lg border border-slate-200 object-contain opacity-60 grayscale" /> : <span className="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 text-slate-400"><ImagePlus className="h-6 w-6" /></span>}
         <div className="min-w-0 flex-1"><p className="text-sm font-black text-slate-800">Watermark logo</p><p className="text-xs text-slate-500">PNG or JPG. It prints pale and grey behind the questions.</p></div>
         <input ref={file} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => { onUpload(e.target.files?.[0], (url) => setMark({ imageUrl: url })); e.target.value = ""; }} />
         <Button variant="secondary" loading={uploading} onClick={() => file.current?.click()}>{mark.imageUrl ? "Change" : "Upload"}</Button>
+        <LinkImageButton label="watermark logo" accept={["image/png", "image/jpeg"]} onFile={(f) => onUpload(f, (url) => setMark({ imageUrl: url }))} disabled={uploading} />
         {mark.imageUrl && <Button variant="ghost" onClick={() => setMark({ imageUrl: "" })} aria-label="Remove watermark logo"><X className="h-4 w-4" /></Button>}
       </div>}
       {mark.kind !== "none" && <div className="mt-4"><Segmented label="Strength" value={mark.strength || "light"} options={STRENGTH} onChange={(strength) => setMark({ strength })} /></div>}

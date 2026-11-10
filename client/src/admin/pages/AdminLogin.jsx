@@ -171,7 +171,7 @@ export default function AdminLogin() {
               required
               disabled={isSubmitting}
               autoComplete="email"
-              className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition-all duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
+              className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
             />
           </div>
 
@@ -194,7 +194,7 @@ export default function AdminLogin() {
                 minLength={mode === 'reset' ? 8 : undefined}
                 disabled={isSubmitting}
                 autoComplete="current-password"
-                className="w-full pl-4 pr-12 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition-all duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
+                className="w-full pl-4 pr-12 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
               />
               <button
                 type="button"
@@ -222,7 +222,7 @@ export default function AdminLogin() {
                 placeholder="6-digit code"
                 required
                 inputMode="numeric"
-                className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition-all duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
+                className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg outline-none text-slate-900 placeholder-slate-400 transition duration-200 focus:border-primary focus:ring-4 focus:ring-primary/15"
               />
             </div>
           )}

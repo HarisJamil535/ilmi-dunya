@@ -123,7 +123,7 @@ const AdminDashboard = () => {
                 <span className="text-slate-950">{Number(item.value || 0).toLocaleString()}</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${item.color} transition-all duration-700 ease-out`} style={{ width: `${Math.max(((Number(item.value) || 0) / max) * 100, item.value ? 8 : 0)}%` }} />
+                <div className={`h-full rounded-full ${item.color} transition duration-700 ease-out`} style={{ width: `${Math.max(((Number(item.value) || 0) / max) * 100, item.value ? 8 : 0)}%` }} />
               </div>
             </div>
           ))}
@@ -162,7 +162,7 @@ const AdminDashboard = () => {
                       </span>
                     </div>
                     <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-primary transition-all duration-700 ease-out" style={{ width: `${Math.max(((Number(card.value) || 0) / maxCardValue) * 100, card.value ? 10 : 0)}%` }} />
+                      <div className="h-full rounded-full bg-primary transition duration-700 ease-out" style={{ width: `${Math.max(((Number(card.value) || 0) / maxCardValue) * 100, card.value ? 10 : 0)}%` }} />
                     </div>
                   </article>
                 );

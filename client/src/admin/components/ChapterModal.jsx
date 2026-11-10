@@ -122,7 +122,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             maxLength={maxNameLength}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             required
                             autoFocus
                         />
@@ -139,7 +139,7 @@ const ChapterModal = ({ isOpen, onClose, editingChapter, selectedSubjectObj, onS
                             placeholder="e.g. 1" 
                             value={chapterNumber}
                             onChange={(e) => setChapterNumber(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                         />
                     </div>
 

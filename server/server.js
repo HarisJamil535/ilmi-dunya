@@ -135,6 +135,7 @@ app.use("/api/student-dashboard", studentDashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/news", newsRoutes);
+app.use("/api/media", require("./src/routes/mediaRoutes"));
 app.use("/api/schools", schoolRoutes);
 // Open-licence fonts used by the Paper Maker, so the on-screen preview matches the printed paper.
 app.use("/api/paper-fonts", express.static(path.join(__dirname, "assets/fonts"), { maxAge: "30d", immutable: true, index: false, fallthrough: false }));

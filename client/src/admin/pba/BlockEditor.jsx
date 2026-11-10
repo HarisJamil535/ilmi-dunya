@@ -1,3 +1,4 @@
+import ImagePicker from "../../shared/ImagePicker";
 import { useRef, useState } from "react";
 import { Columns3, ArrowDown, ArrowUp, Bold, Code2, Image as ImageIcon, Italic, List, ListOrdered, Minus, Plus, Table2, Tags, Trash2, Type, Underline, Upload } from "lucide-react";
 import CustomSelect from "../../shared/CustomSelect";
@@ -12,21 +13,7 @@ const BLANK = { text: () => ({ type: "text", text: "" }), code: () => ({ type: "
 
 // A picture picker that uploads through the function it is given (admins and teachers use different addresses).
 function PictureField({ url, onChange, upload, label = "Picture", compact = false }) {
-  const file = useRef(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const pick = async (selected) => {
-    if (!selected) return;
-    setBusy(true); setError("");
-    try { onChange(await upload(selected)); } catch (e) { setError(e.message || "The picture could not be uploaded."); } finally { setBusy(false); if (file.current) file.current.value = ""; }
-  };
-  return <div className={compact ? "flex flex-col items-stretch gap-2" : "flex flex-wrap items-center gap-3"}>
-    {url ? <img src={url} alt="" className={`rounded-lg border border-slate-200 bg-white object-contain ${compact ? "h-20 w-full" : "h-16 w-24"}`} /> : <span className={`grid ${compact ? "h-20 w-full" : "h-16 w-24"} place-items-center rounded-lg bg-slate-100 text-slate-400`}><ImageIcon className="h-6 w-6" /></span>}
-    <input ref={file} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => pick(e.target.files?.[0])} />
-    <Button variant="secondary" icon={Upload} loading={busy} onClick={() => file.current?.click()}>{url ? `Change ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}</Button>
-    {url && <Button variant="ghost" onClick={() => onChange("")} aria-label={`Remove ${label.toLowerCase()}`}><Trash2 className="h-4 w-4" /></Button>}
-    {error && <p role="alert" className="w-full text-xs font-bold text-rose-600">{error}</p>}
-  </div>;
+  return <ImagePicker value={url} onChange={onChange} upload={upload} label={label} compact={compact} maxMb={5} />;
 }
 
 function TextEditor({ block, onChange }) {

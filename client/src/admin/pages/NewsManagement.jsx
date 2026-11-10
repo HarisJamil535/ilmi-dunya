@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import PublishingFields from "../components/PublishingFields";
 import { ImagePlus, Loader2, Newspaper, Plus, Save, Upload } from "lucide-react";
 import Spinner from "../../shared/Spinner";
+import ImagePicker from "../../shared/ImagePicker";
 import axiosInstance from "@/api/axios";
 import SmartSelect from "../../shared/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -32,7 +33,6 @@ const NewsManagement = () => {
   const [editing, setEditing] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -58,25 +58,11 @@ const NewsManagement = () => {
 
   const update = (key, value) => setForm({ ...form, [key]: value });
 
-  const uploadCoverImage = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setError("");
-    setUploadingImage(true);
-    try {
-      const data = new FormData();
-      data.append("image", file);
-      const response = await axiosInstance.post("/news/upload-image", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      update("coverImage", response.data.imageUrl);
-    } catch (err) {
-      setError(err.response?.data?.message || "Unable to upload image. Please use JPG, PNG or WebP under 3MB.");
-    } finally {
-      setUploadingImage(false);
-      event.target.value = "";
-    }
+  const uploadCoverImage = async (file) => {
+    const data = new FormData();
+    data.append("image", file);
+    const response = await axiosInstance.post("/news/upload-image", data, { headers: { "Content-Type": "multipart/form-data" } });
+    return response.data.imageUrl;
   };
 
   const submit = async (event) => {
@@ -152,28 +138,8 @@ const NewsManagement = () => {
               <input className="input" value={form.author} onChange={(event) => update("author", event.target.value)} />
             </Field>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">Cover Image</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">Upload from computer or paste an image URL.</p>
-                </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-primary">
-                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Upload
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadCoverImage} className="hidden" disabled={uploadingImage} />
-                </label>
-              </div>
-              <input className="input mt-3" value={form.coverImage} onChange={(event) => update("coverImage", event.target.value)} placeholder="Optional image URL" />
-              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                {form.coverImage ? (
-                  <img src={form.coverImage} alt="News cover preview" className="h-44 w-full object-cover transition duration-500 hover:scale-105" />
-                ) : (
-                  <div className="flex h-44 flex-col items-center justify-center text-slate-400">
-                    <ImagePlus className="h-8 w-8" />
-                    <span className="mt-2 text-xs font-bold">No cover selected</span>
-                  </div>
-                )}
-              </div>
+              <p className="mb-3 text-xs font-black uppercase tracking-wider text-slate-500">Cover image</p>
+              <ImagePicker value={form.coverImage} onChange={(url) => update("coverImage", url)} upload={uploadCoverImage} label="Cover image" maxMb={3} previewClass="object-cover p-0" />
             </div>
           </div>
 

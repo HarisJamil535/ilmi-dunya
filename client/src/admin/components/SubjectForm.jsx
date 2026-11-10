@@ -91,7 +91,7 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
                             placeholder="e.g. Computer Science" 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             autoFocus
                         />
                     </div>
@@ -102,7 +102,7 @@ export const SubjectForm = ({ editingSubject, onSaveSuccess, onCancel }) => {
                             placeholder="e.g. CS-101" 
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
-                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                         />
                     </div>
                     <div className="flex gap-3 pt-6 w-full md:w-auto">

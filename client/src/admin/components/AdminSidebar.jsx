@@ -103,7 +103,7 @@ const AdminSidebar = () => {
       {/* ================= 2. MOBILE BACKDROP OVERLAY ================= */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+          className="md:hidden fixed inset-0 bg-slate-900/40 z-40"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -161,11 +161,11 @@ const AdminSidebar = () => {
             onClick={() => handleItemClick("dashboard")}
             className={`group relative w-full flex items-center ${
               collapsed ? "md:justify-center" : "justify-between"
-            } rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer ${
+            } rounded-lg px-3 py-2 transition duration-200 cursor-pointer ${
               location.pathname.endsWith("/admin/dashboard") ? "bg-primary-soft" : "hover:bg-slate-50"
             }`}
           >
-            <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition-all ${
+            <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition ${
               location.pathname.endsWith("/admin/dashboard") ? "bg-primary" : "bg-transparent group-hover:bg-slate-200"
             }`} />
 
@@ -187,7 +187,7 @@ const AdminSidebar = () => {
               onClick={handleAcademicToggle}
               className={`group relative w-full flex items-center ${
                 collapsed ? "md:justify-center" : "justify-between"
-              } rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer ${
+              } rounded-lg px-3 py-2 transition duration-200 cursor-pointer ${
                 ["classes", "boards", "groups"].includes(activeItem) ? "bg-primary-soft/50" : "hover:bg-slate-50"
               }`}
             >
@@ -210,7 +210,7 @@ const AdminSidebar = () => {
 
             {/* Sub-menu Dropdown List */}
             {academicDropdownOpen && !collapsed && (
-              <div className="mt-1 ml-6 pl-5 border-l border-slate-200 space-y-1 transition-all">
+              <div className="mt-1 ml-6 pl-5 border-l border-slate-200 space-y-1 transition">
                 {[
                   { id: "classes", label: "Classes", path:'academic-structure/add-class'},
                   { id: "groups", label: "Groups",path:'academic-structure/add-group' },
@@ -220,7 +220,7 @@ const AdminSidebar = () => {
                   <button
                     onClick={() => handleItemClick(subItem.id)}
                    
-                    className={`w-full cursor-pointer text-left px-3 py-1.5 text-sm rounded-md transition-all ${
+                    className={`w-full cursor-pointer text-left px-3 py-1.5 text-sm rounded-md transition ${
                       activeItem === subItem.id || isPathActive(subItem.path)
                         ? "text-primary font-semibold bg-primary-soft"
                         : "text-slate-500 font-medium hover:text-slate-900 hover:bg-slate-50"
@@ -245,12 +245,12 @@ const AdminSidebar = () => {
                 onClick={() => handleItemClick(item.id)}
                 className={`group relative w-full flex items-center ${
                   collapsed ? "md:justify-center" : "justify-between"
-                } rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer ${
+                } rounded-lg px-3 py-2 transition duration-200 cursor-pointer ${
                   active ? "bg-primary-soft" : "hover:bg-slate-50"
                 }`}
               >
                 
-                <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition-all ${
+                <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition ${
                   active ? "bg-primary" : "bg-transparent group-hover:bg-slate-200"
                 }`} />
 
@@ -266,7 +266,7 @@ const AdminSidebar = () => {
                   </span>
                 </div>
 
-                <HiOutlineChevronRight className={`w-4 h-4 transition-all ${collapsed ? "md:hidden" : "block"} ${
+                <HiOutlineChevronRight className={`w-4 h-4 transition ${collapsed ? "md:hidden" : "block"} ${
                   active ? "text-primary" : "text-slate-300 opacity-0 group-hover:opacity-100"
                 }`} />
                 
@@ -280,11 +280,11 @@ const AdminSidebar = () => {
                 onClick={() => handleItemClick("admin-management")}
                 className={`group relative w-full flex items-center ${
                   collapsed ? "md:justify-center" : "justify-between"
-                } rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer ${
+                } rounded-lg px-3 py-2 transition duration-200 cursor-pointer ${
                   isPathActive("admin-management") ? "bg-primary-soft" : "hover:bg-slate-50"
                 }`}
               >
-                <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition-all ${
+                <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full transition ${
                   isPathActive("admin-management") ? "bg-primary" : "bg-transparent group-hover:bg-slate-200"
                 }`} />
                 <div className={`flex items-center ${collapsed ? "md:justify-center md:w-full" : "gap-3"}`}>
@@ -297,7 +297,7 @@ const AdminSidebar = () => {
                     Admins
                   </span>
                 </div>
-                <HiOutlineChevronRight className={`w-4 h-4 transition-all ${collapsed ? "md:hidden" : "block"} ${
+                <HiOutlineChevronRight className={`w-4 h-4 transition ${collapsed ? "md:hidden" : "block"} ${
                   isPathActive("admin-management") ? "text-primary" : "text-slate-300 opacity-0 group-hover:opacity-100"
                 }`} />
               </button>

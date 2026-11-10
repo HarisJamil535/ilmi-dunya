@@ -128,7 +128,7 @@ const SubjectManagement = () => {
                 <button 
                     onClick={handleOpenAddModal}
                     disabled={!isContextSelected}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition duration-200 ${
                         isContextSelected 
                         ? "bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"

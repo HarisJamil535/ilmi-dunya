@@ -9,6 +9,46 @@ const axiosInstance = axios.create({
     },
 });
 
+// Lists the admin forms reload again and again (boards, classes, groups, subjects, chapters, topics) are kept
+// for a minute in the admin, so switching pages and filters does not wait on the server each time. Any change
+// the admin saves (a POST, PUT, PATCH or DELETE) clears the copies, so edits always show at once.
+const LIST_CACHE_MS = 60 * 1000;
+const cachedLists = new Map();
+const listPattern = /^\/?(study-options|boards|classes|groups|subjects|chapters|topics\/chapter)(\/|\?|$)/;
+const baseAdapter = axios.getAdapter(axios.defaults.adapter);
+const clone = (value) => (typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value)));
+axiosInstance.defaults.adapter = async (config) => {
+    const method = (config.method || "get").toLowerCase();
+    const inAdmin = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+    if (method !== "get") {
+        const response = await baseAdapter(config);
+        if (response.status < 400) cachedLists.clear();
+        return response;
+    }
+    if (!inAdmin || !listPattern.test(config.url || "") || config.responseType === "blob") return baseAdapter(config);
+    const key = axios.getUri(config);
+    const hit = cachedLists.get(key);
+    if (hit && Date.now() - hit.at < LIST_CACHE_MS) {
+        try {
+            const response = await hit.promise;
+            return { ...response, config, data: clone(response.data) };
+        } catch (error) {
+            // The page that started the shared request left (and cancelled it); this one still wants the list.
+            if (!axios.isCancel(error) || config.signal?.aborted) throw error;
+        }
+    }
+    const promise = baseAdapter(config);
+    cachedLists.set(key, { at: Date.now(), promise });
+    try {
+        const response = await promise;
+        if (response.status >= 400) cachedLists.delete(key);
+        return { ...response, data: clone(response.data) };
+    } catch (error) {
+        cachedLists.delete(key);
+        throw error;
+    }
+};
+
 // Add token automatically to every request
 axiosInstance.interceptors.request.use((config) => {
     const url = config.url || "";

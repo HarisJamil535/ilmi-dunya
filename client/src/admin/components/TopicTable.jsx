@@ -42,7 +42,7 @@ export const TopicTable = ({ topics, onEdit, onDelete }) => {
                         placeholder="Search topics by name or number..."
                         value={searchTerm}
                         onChange={handleSearchChange}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all shadow-2xs"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition shadow-2xs"
                     />
                     {searchTerm && (
                         <button
@@ -114,7 +114,7 @@ export const TopicTable = ({ topics, onEdit, onDelete }) => {
                                                 href={topic.videoUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center  gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-600 hover:text-white border border-red-200/60 transition-all shadow-2xs"
+                                                className="inline-flex items-center  gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-600 hover:text-white border border-red-200/60 transition shadow-2xs"
                                                 title="Watch YouTube Video"
                                             >
                                                 <Video className="w-6 h-3.5 shrink-0" /> Watch Video <ExternalLink className="w-6 h-3 shrink-0" />
@@ -149,7 +149,7 @@ export const TopicTable = ({ topics, onEdit, onDelete }) => {
                             type="button"
                             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                             disabled={effectivePage === 1}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs cursor-pointer"
                         >
                             <ChevronLeft className="w-4 h-4" /> Previous
                         </button>
@@ -160,7 +160,7 @@ export const TopicTable = ({ topics, onEdit, onDelete }) => {
                                     key={page}
                                     type="button"
                                     onClick={() => setCurrentPage(page)}
-                                    className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer ${
                                         effectivePage === page
                                             ? "bg-primary text-white shadow-sm"
                                             : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
@@ -175,7 +175,7 @@ export const TopicTable = ({ topics, onEdit, onDelete }) => {
                             type="button"
                             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                             disabled={effectivePage === totalPages}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs cursor-pointer"
                         >
                             Next <ChevronRight className="w-4 h-4" />
                         </button>

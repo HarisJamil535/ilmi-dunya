@@ -3,6 +3,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import "../../urdu-font.css";
 import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, ImagePlus, Languages, Loader2, Plus, Save, SearchX, Trash2, Upload, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import ImagePicker from "../../shared/ImagePicker";
 import axiosInstance from "@/api/axios";
 import { CustomSelect } from "../components/CustomSelect";
 import { DeleteButton, EditButton } from "../components/AdminUI";
@@ -282,28 +283,16 @@ const QuestionBankManagement = () => {
     requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(start + formula.length, start + formula.length); });
   };
 
-  const uploadQuestionImage = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setError("");
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
-      setError("Choose a JPG, PNG or WebP diagram under 2 MB.");
-      event.target.value = "";
-      return;
-    }
+  const uploadQuestionImage = async (file) => {
     setUploadingImage(true);
     try {
       const data = new FormData();
       data.append("image", file);
       const response = await axiosInstance.post("/questions/images", data, { headers: { "Content-Type": "multipart/form-data" } });
-      setForm((current) => ({ ...current, imageUrls: [response.data.imageUrl] }));
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not upload this diagram. Please try again.");
-    } finally {
-      setUploadingImage(false);
-      event.target.value = "";
-    }
+      return response.data.imageUrl;
+    } finally { setUploadingImage(false); }
   };
+
 
   const resetForm = () => {
     setForm({
@@ -735,7 +724,7 @@ const QuestionBankManagement = () => {
               <div className="mt-4 rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm font-bold text-slate-800">Reference image <span className="font-normal text-slate-500">(optional)</span></p>
                 <p className="mt-1 text-xs text-slate-500">Add one clear diagram or graph for this MCQ. JPG, PNG or WebP, up to 2 MB.</p>
-                {form.imageUrls[0] ? <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start"><img src={form.imageUrls[0]} alt={form.imageAlt || "Question diagram preview"} className="max-h-52 w-full rounded-lg border border-slate-200 object-contain sm:w-64" /><button type="button" onClick={() => setForm({ ...form, imageUrls: [], imageAlt: "" })} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-sm font-bold text-rose-700"><X size={16} /> Remove image</button></div> : <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-4 text-sm font-bold text-primary"><ImagePlus size={17} /> {uploadingImage ? "Uploading..." : "Upload image"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadQuestionImage} disabled={uploadingImage} className="sr-only" /></label>}
+                <div className="mt-3"><ImagePicker value={form.imageUrls[0] || ""} onChange={(url) => setForm((current) => ({ ...current, imageUrls: url ? [url] : [], imageAlt: url ? current.imageAlt : "" }))} upload={uploadQuestionImage} label="Diagram" maxMb={2} /></div>
                 {form.imageUrls[0] && <Field label="Describe the image" helper="Required for students using a screen reader. Example: A triangle with sides a, b and c."><input required maxLength={240} value={form.imageAlt} onChange={(event) => setForm({ ...form, imageAlt: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Describe the diagram" /></Field>}
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-2">

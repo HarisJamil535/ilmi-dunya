@@ -243,7 +243,7 @@ const TopicManagement = () => {
                 <button 
                     onClick={() => { setEditingTopic(null); setIsTopicModalOpen(true); }}
                     disabled={!isContextReady}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition duration-200 ${
                         isContextReady 
                         ? "bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer" 
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"

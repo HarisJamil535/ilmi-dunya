@@ -149,7 +149,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             maxLength={maxNameLength}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             required
                             autoFocus
                         />
@@ -167,7 +167,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                                 placeholder="e.g. 2.3.5" 
                                 value={topicNumber}
                                 onChange={(e) => setTopicNumber(e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             />
                         </div>
 
@@ -181,7 +181,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                                 placeholder="https://youtube.com/watch?v=..." 
                                 value={videoUrl}
                                 onChange={(e) => setVideoUrl(e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all"
+                                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition"
                             />
                         </div>
                     </div>
@@ -196,7 +196,7 @@ const TopicModal = ({ isOpen, onClose, editingTopic, chapterId, onSaveSuccess })
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             maxLength={maxDescriptionLength}
-                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition-all resize-none"
+                            className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary-soft outline-none transition resize-none"
                         />
                         <p className="mt-1 text-[11px] text-slate-400">{description.trim().length}/{maxDescriptionLength}</p>
                     </div>
