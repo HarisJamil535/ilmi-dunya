@@ -382,7 +382,7 @@ export default function PaperEditor() {
         {outline?.urduQuestions > 0 && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800">{outline.urduQuestions} Urdu questions are left out because Urdu printing is not available yet.</p>}
       </Section>
 
-      <Section number={5} title="Look and watermark" hint="Choose the font, text size and spacing, and add a watermark if you like. Every page ends with “Prepared by IlmiDunya”.">
+      <Section number={5} title="Look and watermark" hint="Choose the font, text size and spacing, and add a watermark if you like. You can also turn off the “Prepared by IlmiDunya” line at the bottom.">
         <PaperStyle layout={config.layout} setLayout={setLayout} uploading={busy === "mark"} onUpload={(file, done) => uploadImage(file, done, "mark")} />
       </Section>
 
