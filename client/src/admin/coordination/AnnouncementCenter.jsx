@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { AlertTriangle, Bell, Check, Megaphone, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Eye, Megaphone, Send, Trash2, X } from "lucide-react";
 import { AdminActionButton } from "../components/AdminUI";
 import { Dialog, Field, inputClass } from "./CoordUI";
 import { api, messageOf, timeAgo } from "./coordApi";
@@ -18,7 +18,7 @@ function ComposeDialog({ onClose, onSent }) {
   return <Dialog title="New announcement" subtitle="It appears at once for everyone you choose, with a notification." onClose={onClose} busy={busy}
     footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={Send} loading={busy} disabled={!form.title.trim()} onClick={send} className={form.important ? "!bg-rose-600 hover:!bg-rose-700" : ""}>Send{form.important ? " as important" : ""}</AdminActionButton></>}>
     <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Send to</legend>
-      <div className="grid grid-cols-2 gap-2">{[["all", "All staff", "Every department, Section Head and Principal"], ["coordinators", "Subject Coordinators only", "Plus the Principal"]].map(([value, label, hint]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 transition-colors ${form.audience === value ? "border-primary bg-primary-soft" : "border-slate-200 hover:border-primary-muted"}`}>
+      <div className="grid grid-cols-2 gap-2">{[["all", "All staff", "Every department, Section Head and Principal"], ["coordinators", "Subject Coordinators only", "Plus the Section Head and Principal"]].map(([value, label, hint]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 transition-colors ${form.audience === value ? "border-primary bg-primary-soft" : "border-slate-200 hover:border-primary-muted"}`}>
         <input type="radio" name="audience" className="sr-only" checked={form.audience === value} onChange={() => setForm({ ...form, audience: value })} />
         <span className={`block text-sm font-black ${form.audience === value ? "text-primary-dark" : "text-slate-800"}`}>{label}</span><span className="block text-xs text-slate-500">{hint}</span>
       </label>)}</div>
@@ -34,13 +34,34 @@ function ComposeDialog({ onClose, onSent }) {
   </Dialog>;
 }
 
+// "Seen by 5 of 8" — opens the names of who has read the announcement and who has not yet.
+function Readers({ id }) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (!open && !data) api.get(`/announcements/${id}/readers`).then(setData).catch(() => setData({ read: [], unread: [] }));
+    setOpen(!open);
+  };
+  const total = data ? data.read.length + data.unread.length : 0;
+  return <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+    <button type="button" onClick={toggle} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-primary-soft hover:text-primary-dark"><Eye className="h-3 w-3" />{data ? `Seen by ${data.read.length} of ${total}` : "Who has read it"}</button>
+    {open && data && <div className="ann-readers">
+      <p className="ann-readers-h is-read"><CheckCheck className="h-3.5 w-3.5" />Read ({data.read.length})</p>
+      {data.read.length ? <ul>{data.read.map((p) => <li key={p.id}>{p.name}<span>{p.department || (p.title === "principal" ? "Principal" : p.title === "sectionHead" ? "Section Head" : "")}</span></li>)}</ul> : <p className="ann-readers-empty">No one yet</p>}
+      <p className="ann-readers-h"><Clock3 className="h-3.5 w-3.5" />Not yet ({data.unread.length})</p>
+      {data.unread.length ? <ul>{data.unread.map((p) => <li key={p.id}>{p.name}<span>{p.department || (p.title === "principal" ? "Principal" : p.title === "sectionHead" ? "Section Head" : "")}</span></li>)}</ul> : <p className="ann-readers-empty">Everyone has read it</p>}
+    </div>}
+  </div>;
+}
+
 // The bell, the red alert for important notices, and the list of announcements. Updates arrive live.
 export default function AnnouncementCenter({ compact = false, left = null }) {
-  const [state, setState] = useState({ items: [], canAnnounce: false });
+  const [state, setState] = useState({ items: [], canAnnounce: false, canSeeReaders: false });
   const [open, setOpen] = useState(false);
   const [compose, setCompose] = useState(false);
   const panel = useRef(null);
-  const load = useCallback(() => api.get("/announcements").then((d) => setState({ items: d.announcements || [], canAnnounce: d.canAnnounce })).catch(() => {}), []);
+  const load = useCallback(() => api.get("/announcements").then((d) => setState({ items: d.announcements || [], canAnnounce: d.canAnnounce, canSeeReaders: d.canSeeReaders })).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const socket = io("/coordination", { path: "/api/live", auth: { token: localStorage.getItem("adminToken") }, transports: ["websocket", "polling"] });
@@ -72,7 +93,8 @@ export default function AnnouncementCenter({ compact = false, left = null }) {
             <div className="flex items-start gap-2">
               {a.important ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" /> : <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
               <div className="min-w-0 flex-1"><p className="text-sm font-black text-slate-900">{a.title}</p>{a.body && <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-600">{a.body}</p>}
-                <p className="mt-1 text-[11px] text-slate-500">{a.byName} · {timeAgo(a.at)} · {a.audience === "coordinators" ? "Subject Coordinators" : "All staff"}{a.mine ? ` · read by ${Math.max(0, a.readCount - 1)}` : ""}</p></div>
+                <p className="mt-1 text-[11px] text-slate-500">{a.byName} · {timeAgo(a.at)} · {a.audience === "coordinators" ? "Subject Coordinators" : "All staff"}</p>
+                {(state.canSeeReaders || a.mine) && <Readers id={a.id} />}</div>
               {!a.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
               {a.mine && <button type="button" onClick={(e) => { e.stopPropagation(); remove(a); }} aria-label="Delete announcement" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}
             </div>

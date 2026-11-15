@@ -23,6 +23,7 @@ router.get("/overview", c.overview);
 router.get("/announcements", c.listAnnouncements);
 router.post("/announcements", c.createAnnouncement);
 router.post("/announcements/:id/read", c.readAnnouncement);
+router.get("/announcements/:id/readers", c.announcementReaders);
 router.delete("/announcements/:id", c.deleteAnnouncement);
 router.post("/departments", c.createDepartment);
 router.patch("/departments/:id", c.updateDepartment);

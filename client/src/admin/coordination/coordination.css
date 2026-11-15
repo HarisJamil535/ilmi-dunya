@@ -296,9 +296,17 @@ html.dark .ann-alert { border-color: #4c0519; background: #2a0a12; color: #fecdd
 .coord-hero.is-vivid h1 { color: #fff; letter-spacing: -.025em; }
 .coord-hero.is-vivid .coord-eyebrow { color: rgba(255, 255, 255, .78); }
 .coord-hero.is-vivid .coord-lead { color: rgba(255, 255, 255, .82); }
-.coord-hero-btn { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; border: 1px solid rgba(255, 255, 255, .3); border-radius: 12px; padding: 0 14px; background: rgba(255, 255, 255, .1); color: #fff; font-size: 14px; font-weight: 700; transition: transform 150ms ease, background 150ms ease; }
-.coord-hero-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, .18); }
-.coord-hero-btn.is-solid { border-color: #fff; background: #fff; color: color-mix(in srgb, var(--dept) 80%, #000); box-shadow: 0 8px 18px -12px rgba(0, 0, 0, .55); }
+/* Header buttons: solid white, and the main action in the role's bright accent so it never blends in. */
+.coord-hero { --accent: #34d399; --accent-ink: #022c22; }
+.coord-hero.accent-teacher, .coord-hero.accent-editor { --accent: #ec4899; --accent-ink: #ffffff; }
+.coord-hero.accent-coordinator { --accent: #22d3ee; --accent-ink: #083344; }
+.coord-hero.accent-sectionHead { --accent: #fb923c; --accent-ink: #431407; }
+.coord-hero.accent-principal { --accent: #facc15; --accent-ink: #422006; }
+.coord-hero-btn { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; border: 0; border-radius: 12px; padding: 0 16px; background: #fff; color: color-mix(in srgb, var(--dept) 85%, #000); font-size: 14px; font-weight: 800; box-shadow: 0 8px 18px -10px rgba(0, 0, 0, .45); transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease; }
+.coord-hero-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 24px -12px rgba(0, 0, 0, .5); }
+.coord-hero-btn:active { transform: translateY(0); }
+.coord-hero-btn.is-solid { background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--accent) 80%, #000), 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+.coord-hero-btn.is-solid:hover { filter: brightness(1.06); }
 .coord-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .coord-stats span { display: inline-flex; min-width: 88px; flex-direction: column; gap: 2px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 12px; padding: 8px 12px; background: rgba(255, 255, 255, .08); color: rgba(255, 255, 255, .75); font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .coord-stats b { color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
@@ -354,3 +362,11 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .coord-week-del:hover { background: #fff1f2; color: #e11d48; }
 @media (hover: none) { .coord-week-del { opacity: 1; } }
 .dl-week.is-del.is-on { border-color: #f43f5e; background: #fff1f2; color: #be123c; }
+
+.ann-readers { margin-top: 8px; border: 1px solid var(--app-border); border-radius: 12px; padding: 8px 10px; background: var(--app-bg-card); animation: admin-fade-in 160ms ease both; }
+.ann-readers-h { display: flex; align-items: center; gap: 5px; margin: 4px 0 2px; color: var(--app-text-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.ann-readers-h.is-read { color: #047857; }
+.ann-readers ul { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+.ann-readers li { display: flex; justify-content: space-between; gap: 8px; color: var(--app-text-primary); font-size: 13px; font-weight: 600; }
+.ann-readers li span { color: var(--app-text-muted); font-size: 11.5px; font-weight: 500; }
+.ann-readers-empty { color: var(--app-text-muted); font-size: 12px; }

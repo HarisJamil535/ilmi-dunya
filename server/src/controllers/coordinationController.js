@@ -25,14 +25,17 @@ const text = (value, max) => String(value ?? "").trim().slice(0, max);
 
 const TITLES = { teacher: "Teacher", coordinator: "Subject Coordinator", sectionHead: "Section Head", principal: "Principal" };
 const USERNAME = /^[a-z0-9][a-z0-9._@-]{2,59}$/;
+const SALUTATIONS = ["", "Mr.", "Ms.", "Mrs.", "Miss", "Dr.", "Sir", "Madam"];
+// "Ms. Sadaf" — the chosen title, unless the name already starts with one.
+const displayName = (p) => (p?.salutation && !/^(mr|ms|mrs|miss|dr|sir|madam)\.?\s/i.test(p.name || "") ? `${p.salutation} ${p.name}` : p?.name || "");
 
 // Coordination staff grouped by department, plus the school-wide Section Head and Principal.
 async function staffDirectory() {
-    const people = await Admin.find({ coordTitle: { $in: Object.keys(TITLES) } }).select("name email coordTitle coordDepartment status signatureUrl createdAt lastLoginAt").sort({ createdAt: 1 }).lean();
+    const people = await Admin.find({ coordTitle: { $in: Object.keys(TITLES) } }).select("name salutation email coordTitle coordDepartment status signatureUrl createdAt lastLoginAt").sort({ createdAt: 1 }).lean();
     const byDepartment = new Map();
     const org = { sectionHead: null, principal: null };
     for (const p of people) {
-        const person = { id: String(p._id), name: p.name, username: p.email, title: p.coordTitle, titleLabel: TITLES[p.coordTitle], department: p.coordDepartment ? String(p.coordDepartment) : "", status: p.status, hasSignature: Boolean(p.signatureUrl), lastLoginAt: p.lastLoginAt };
+        const person = { id: String(p._id), name: displayName(p), plainName: p.name, salutation: p.salutation || "", username: p.email, title: p.coordTitle, titleLabel: TITLES[p.coordTitle], department: p.coordDepartment ? String(p.coordDepartment) : "", status: p.status, hasSignature: Boolean(p.signatureUrl), lastLoginAt: p.lastLoginAt };
         if (p.coordTitle === "sectionHead" || p.coordTitle === "principal") { org[p.coordTitle] = person; continue; }
         if (!person.department) continue;
         if (!byDepartment.has(person.department)) byDepartment.set(person.department, []);
@@ -84,7 +87,7 @@ exports.overview = wrap(async (req, res) => {
     res.json({
         success: true,
         canManage: manager,
-        me: { id: String(req.admin._id), name: req.admin.name, title: req.admin.coordTitle || "", titleLabel: TITLES[req.admin.coordTitle] || (manager ? "Manager" : ""), department: req.admin.coordDepartment ? String(req.admin.coordDepartment) : "", hasSignature: Boolean(req.admin.signatureUrl), canCreateFiles: manager || ["sectionHead", "coordinator"].includes(req.admin.coordTitle) },
+        me: { id: String(req.admin._id), name: displayName(req.admin), title: req.admin.coordTitle || "", titleLabel: TITLES[req.admin.coordTitle] || (manager ? "Manager" : ""), department: req.admin.coordDepartment ? String(req.admin.coordDepartment) : "", hasSignature: Boolean(req.admin.signatureUrl), canCreateFiles: manager || ["sectionHead", "coordinator"].includes(req.admin.coordTitle) },
         departments: visible.map((d) => ({ id: String(d._id), name: d.name, files: fileCounts.get(String(d._id)) || 0, staff: manager || seesEverything(req.admin) || String(d._id) === String(req.admin.coordDepartment) ? directory.byDepartment.get(String(d._id)) || [] : [] })),
         org: directory.org,
         unassigned: manager ? (await CoordinationFile.countDocuments({ department: null })) : 0,
@@ -149,7 +152,8 @@ exports.createStaff = wrap(async (req, res) => {
     if (password.length < 8) fail("The password must be at least 8 characters.");
     if (await Admin.exists({ email: username })) fail("This username is already taken. Choose another one.", 409);
     await checkTitle(title, departmentId, null);
-    const admin = await Admin.create({ name, email: username, password: await hashPassword(password), role: "admin", permissions: ["coordination"], status: "active", coordTitle: title, coordDepartment: departmentId || null });
+    const salutation = SALUTATIONS.includes(req.body.salutation) ? req.body.salutation : "";
+    const admin = await Admin.create({ name, salutation, email: username, password: await hashPassword(password), role: "admin", permissions: ["coordination"], status: "active", coordTitle: title, coordDepartment: departmentId || null });
     res.status(201).json({ success: true, id: String(admin._id) });
 });
 exports.updateStaff = wrap(async (req, res) => {
@@ -157,6 +161,7 @@ exports.updateStaff = wrap(async (req, res) => {
     const person = await Admin.findById(id(req.params.id)).select("+currentSessionId");
     if (!person || !person.coordTitle) fail("Not found.", 404);
     if (req.body.name !== undefined) { const name = text(req.body.name, 80); if (!name) fail("Write the person's name."); person.name = name; }
+    if (req.body.salutation !== undefined && SALUTATIONS.includes(req.body.salutation)) person.salutation = req.body.salutation;
     if (req.body.username !== undefined) {
         const username = text(req.body.username, 60).toLowerCase();
         if (!USERNAME.test(username)) fail("Choose a username of 3 to 60 letters or numbers (no spaces).");
@@ -334,7 +339,7 @@ exports.getWeek = wrap(async (req, res) => {
         week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
         defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: fileTitle(file, names.get(String(file.department || ""))).className, sections: file.sections, subject: fileTitle(file, names.get(String(file.department || ""))).subject },
         file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, [], directory, names), role, caps,
-        me: { id: String(req.admin._id), name: req.admin.name, hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },
+        me: { id: String(req.admin._id), name: displayName(req.admin), hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },
         settings: { title: (settings.title || "").replace("{session}", file.session), footerText: (settings.footerText || "").replace("{session}", file.session), caption: settings.caption, watermarkUrl: settings.watermarkUrl, watermarkOpacity: settings.watermarkOpacity, quickPicks: settings.quickPicks },
         fit: measureFit(record),
         comments: comments.map(publicComment),
@@ -618,23 +623,38 @@ exports.verify = async (req, res) => {
 };
 
 // ----- Announcements (Section Head or super admin → all staff, or Subject Coordinators only) -----
-const canAnnounce = (admin) => isManager(admin) || admin?.coordTitle === "sectionHead";
+const canAnnounce = (admin) => isManager(admin) || ["sectionHead", "principal"].includes(admin?.coordTitle);
+const canSeeReaders = (admin) => isManager(admin) || ["sectionHead", "principal"].includes(admin?.coordTitle);
 const announcementAudience = (admin) => (canAnnounce(admin) || ["coordinator", "principal"].includes(admin?.coordTitle) ? ["all", "coordinators"] : ["all"]);
 const publicAnnouncement = (a, admin) => ({ id: String(a._id), title: a.title, body: a.body, important: a.important, audience: a.audience, byName: a.byName, byTitle: a.byTitle, at: a.createdAt, read: (a.readBy || []).some((r) => String(r) === String(admin._id)), readCount: (a.readBy || []).length, mine: String(a.by) === String(admin._id) });
 
 exports.listAnnouncements = wrap(async (req, res) => {
     const items = await CoordinationAnnouncement.find({ audience: { $in: announcementAudience(req.admin) } }).sort({ createdAt: -1 }).limit(50).lean();
-    res.json({ success: true, canAnnounce: canAnnounce(req.admin), announcements: items.map((a) => publicAnnouncement(a, req.admin)) });
+    res.json({ success: true, canAnnounce: canAnnounce(req.admin), canSeeReaders: canSeeReaders(req.admin), announcements: items.map((a) => publicAnnouncement(a, req.admin)) });
 });
 exports.createAnnouncement = wrap(async (req, res) => {
-    if (!canAnnounce(req.admin)) fail("Only the Section Head can send announcements.", 403);
+    if (!canAnnounce(req.admin)) fail("Only the Section Head or the Principal can send announcements.", 403);
     const title = text(req.body.title, 120);
     if (!title) fail("Write a short title for the announcement.");
     const audience = req.body.audience === "coordinators" ? "coordinators" : "all";
-    const item = await CoordinationAnnouncement.create({ title, body: text(req.body.body, 2000), important: Boolean(req.body.important), audience, by: req.admin._id, byName: req.admin.name, byTitle: TITLES[req.admin.coordTitle] || "Admin", readBy: [req.admin._id] });
+    const item = await CoordinationAnnouncement.create({ title, body: text(req.body.body, 2000), important: Boolean(req.body.important), audience, by: req.admin._id, byName: displayName(req.admin), byTitle: TITLES[req.admin.coordTitle] || "Admin", readBy: [req.admin._id] });
     hub.emitRoom(`ann:${audience}`, "announcement", { id: String(item._id), title: item.title, important: item.important, audience, byName: item.byName });
     res.status(201).json({ success: true, announcement: publicAnnouncement(item.toObject(), req.admin) });
 });
+// Who has read an announcement and who has not yet, by name (Section Head, Principal, super admin, sender).
+exports.announcementReaders = wrap(async (req, res) => {
+    const item = await CoordinationAnnouncement.findById(id(req.params.id)).lean();
+    if (!item) fail("Not found.", 404);
+    if (!canSeeReaders(req.admin) && String(item.by) !== String(req.admin._id)) fail("You cannot see who read this.", 403);
+    const titles = item.audience === "coordinators" ? ["coordinator", "sectionHead", "principal"] : Object.keys(TITLES);
+    const recipients = await Admin.find({ coordTitle: { $in: titles }, status: "active", _id: { $ne: item.by } }).select("name salutation coordTitle coordDepartment").lean();
+    const departments = await departmentNames();
+    const read = new Set((item.readBy || []).map(String));
+    const person = (p) => ({ id: String(p._id), name: displayName(p), title: p.coordTitle, department: departments.get(String(p.coordDepartment || "")) || "" });
+    const sort = (a, b) => a.name.localeCompare(b.name);
+    res.json({ success: true, read: recipients.filter((p) => read.has(String(p._id))).map(person).sort(sort), unread: recipients.filter((p) => !read.has(String(p._id))).map(person).sort(sort) });
+});
+
 exports.readAnnouncement = wrap(async (req, res) => {
     const item = await CoordinationAnnouncement.findOne({ _id: id(req.params.id), audience: { $in: announcementAudience(req.admin) } });
     if (!item) fail("Not found.", 404);
