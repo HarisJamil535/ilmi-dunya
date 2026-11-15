@@ -12,11 +12,12 @@ const { cleanSignature } = require("../services/signatureImage");
 const { storeImage } = require("../services/mediaStore");
 const { labelOf, KEYS } = require("../services/coordTemplate");
 const hub = require("../services/coordHub");
+const { attachNames } = require("../services/coordSubjects");
 
 const { fail } = svc;
 const id = (value) => (mongoose.isValidObjectId(value) ? String(value) : fail("Not found.", 404));
 const send = (res, error) => res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Something went wrong. Please try again." });
-const wrap = (handler) => async (req, res) => { try { await handler(req, res); } catch (error) { if (!error.status) console.error("[coordination]", error); send(res, error); } };
+const wrap = (handler) => async (req, res) => { try { await handler(req, res); } catch (error) { if (!error.status) console.error("[coordination]", req.method, req.originalUrl, error); send(res, error); } };
 const SESSION = /^\d{4}-\d{4}$/;
 const text = (value, max) => String(value ?? "").trim().slice(0, max);
 
@@ -32,7 +33,18 @@ function fileSummary(file, admin, weeks = []) {
         updatedAt: file.updatedAt,
     };
 }
-const populateFile = (query) => query.populate({ path: "subject", select: "name class board group", populate: [{ path: "class", select: "name" }, { path: "board", select: "name" }, { path: "group", select: "name" }] }).populate("members.admin", "name email");
+// Loads files with their subject and members; board, class and group names are added safely (attachNames).
+const populateFile = (query) => {
+    const run = query.populate({ path: "subject", select: "name class board group" }).populate("members.admin", "name email");
+    const exec = run.exec.bind(run);
+    run.exec = async (...args) => {
+        const result = await exec(...args);
+        const files = Array.isArray(result) ? result : [result];
+        await attachNames(files.map((f) => f?.subject));
+        return result;
+    };
+    return run;
+};
 
 // ----- Files -----
 exports.listFiles = wrap(async (req, res) => {
@@ -97,8 +109,18 @@ exports.people = wrap(async (req, res) => {
 
 exports.subjects = wrap(async (req, res) => {
     if (!isManager(req.admin)) fail("Only coordination managers can create files.", 403);
-    const subjects = await Subject.find({}).select("name class board group").populate("class", "name").populate("board", "name").populate("group", "name").sort({ name: 1 }).lean();
-    res.json({ success: true, subjects: subjects.map((s) => ({ id: String(s._id), name: s.name, className: s.class?.name || "", board: s.board?.name || "", group: s.group?.name || "" })) });
+    // Names are looked up separately (not populated), so an old subject with a missing or malformed
+    // board, class or group still lists instead of failing the whole request.
+    const Board = mongoose.model("Board"), Class = mongoose.model("Class"), Group = mongoose.model("Group");
+    const [subjects, boards, classes, groups] = await Promise.all([
+        Subject.find({}).select("name class board group").lean(),
+        Board.find({}).select("name").lean(), Class.find({}).select("name").lean(), Group.find({}).select("name").lean(),
+    ]);
+    const names = (rows) => new Map(rows.map((r) => [String(r._id), r.name || ""]));
+    const [b, c, g] = [names(boards), names(classes), names(groups)];
+    const list = subjects.filter((s) => s.name).map((s) => ({ id: String(s._id), name: s.name, className: c.get(String(s.class)) || "", board: b.get(String(s.board)) || "", group: g.get(String(s.group)) || "" }));
+    list.sort((x, y) => `${x.className} ${x.name}`.localeCompare(`${y.className} ${y.name}`, undefined, { numeric: true }));
+    res.json({ success: true, subjects: list });
 });
 
 exports.getFile = wrap(async (req, res) => {
@@ -109,7 +131,7 @@ exports.getFile = wrap(async (req, res) => {
     const commentCount = new Map(openComments.map((c) => [String(c._id), c.n]));
     res.json({
         success: true,
-        file: { ...fileSummary(file.toObject(), req.admin, weeks), role, caps },
+        file: { ...fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, weeks), role, caps },
         weeks: weeks.map((w) => ({ id: String(w._id), week: w.week, term: w.term, dueDate: w.dueDate, status: w.status, lastEditAt: w.lastEditAt, lastEditBy: w.updatedBy?.name || "", openComments: commentCount.get(String(w._id)) || 0, signed: { coordinator: Boolean(w.signatures?.coordinator?.admin), sectionHead: Boolean(w.signatures?.sectionHead?.admin) } })),
     });
 });
@@ -162,7 +184,7 @@ exports.getWeek = wrap(async (req, res) => {
         success: true,
         week: { id: String(week._id), week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
         defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: classLabel(file.subject?.class?.name), sections: file.sections, subject: file.subject?.name || "" },
-        file: fileSummary(file.toObject(), req.admin), role, caps,
+        file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin), role, caps,
         me: { id: String(req.admin._id), name: req.admin.name, hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },
         settings: { title: (settings.title || "").replace("{session}", file.session), footerText: (settings.footerText || "").replace("{session}", file.session), caption: settings.caption, watermarkUrl: settings.watermarkUrl, watermarkOpacity: settings.watermarkOpacity, quickPicks: settings.quickPicks },
         fit: measureFit(record),
