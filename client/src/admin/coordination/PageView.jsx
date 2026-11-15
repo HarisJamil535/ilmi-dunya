@@ -2,17 +2,21 @@ import { useLayoutEffect, useRef, useState } from "react";
 import RichCell from "./RichCell";
 import { COLUMNS, DAYS, LABELS, TOTAL, WIDTHS } from "./pageLayout";
 
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "");
-
-function Signature({ title, sig, nameCell }) {
+// Only the e-signature goes on the line (no printed name), at the height of about two lines of text.
+function Signature({ title, sig }) {
   return <div className="cr-sign"><span className="cr-sign-label">{title}</span>
-    <span className="cr-sign-line">{sig?.imageUrl && <img src={sig.imageUrl} alt={`Signature of ${sig.name}`} />}</span>
-    <span className="cr-sign-name">{nameCell}{sig?.at && <small> · {fmtDate(sig.at)}</small>}</span>
+    <span className="cr-sign-line">{sig?.imageUrl && <img src={sig.imageUrl} alt={`Signature of ${sig.name}`} title={`Signed by ${sig.name}`} />}</span>
   </div>;
 }
 
+// Attendees come from the department (Section Head, then its staff); files without a department keep typed names.
+function Attendees({ attendees, cellBox }) {
+  if (!attendees) return <div className="cr-attendees">{[1, 2, 3, 4].map((n) => <div key={n} className="cr-inline"><span>{n}.</span>{cellBox(n)}</div>)}</div>;
+  return <div className="cr-attendees">{attendees.map((name, i) => <div key={`${name}-${i}`} className="cr-inline"><span>{i + 1}.</span><span>{name}</span></div>)}</div>;
+}
+
 // The record exactly as printed: A4 landscape, scaled to fit the screen.
-export function PageView({ cell, settings, signatures, fontPt, zoom = "fit" }) {
+export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", attendees, font = "arial" }) {
   const wrap = useRef(null);
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -25,7 +29,7 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit" }) {
   const c = (key, extra) => <RichCell {...cell(key)} {...extra} />;
   return <div ref={wrap} className={`cr-stage ${zoom !== "fit" ? "is-zoomed" : ""}`} style={{ height: 794 * scale + (zoom !== "fit" ? 14 : 0) }}>
     <div className="cr-sizer" style={{ width: 1123 * scale, height: 794 * scale }}>
-    <div className="cr-page" style={{ transform: `scale(${scale})`, "--fs": `${(fontPt || 9) * 1.3333}px` }}>
+    <div className={`cr-page pf-${font}`} style={{ transform: `scale(${scale})`, "--fs": `${(fontPt || 9) * 1.3333}px` }}>
       {settings.watermarkUrl && <img className="cr-watermark" src={settings.watermarkUrl} alt="" style={{ opacity: Math.min(0.5, (settings.watermarkOpacity || 0.12) * 2.2) }} />}
       <h2 className="cr-title">{settings.title}</h2>
       <div className="cr-topline">
@@ -47,7 +51,7 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit" }) {
           <tr><td colSpan={6}>
             <div className="cr-inline"><span>Teacher Responsible for Preparing lesson Plan:</span>{c("teacher", { single: true })}</div>
             <div>Attendees of Coordination Meeting:</div>
-            <div className="cr-attendees">{[1, 2, 3, 4].map((n) => <div key={n} className="cr-inline"><span>{n}.</span>{c(`attendee${n}`, { single: true })}</div>)}</div>
+            <Attendees attendees={attendees} cellBox={(n) => c(`attendee${n}`, { single: true })} />
           </td></tr>
           <tr>
             <td colSpan={3}><div className="cr-inline"><span>Date of submission of the Lesson Plan to the Sec Head:</span>{c("submitDate", { single: true })}</div></td>
@@ -56,8 +60,8 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit" }) {
         </tbody>
       </table>
       <div className="cr-signs">
-        <Signature title="Sign: Subject Coordinator:" sig={signatures.coordinator} nameCell={c("coordinatorName", { single: true, placeholder: "Name" })} />
-        <Signature title="SH Sign:" sig={signatures.sectionHead} nameCell={c("sectionHeadName", { single: true, placeholder: "Name" })} />
+        <Signature title="Sign: Subject Coordinator:" sig={signatures.coordinator} />
+        <Signature title="SH Sign:" sig={signatures.sectionHead} />
       </div>
       {settings.caption && <p className="cr-caption">{settings.caption}</p>}
       <div className="cr-foot"><span>{settings.footerText}</span></div>
@@ -67,15 +71,15 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit" }) {
 }
 
 // The same boxes as a simple form, for phones.
-export function FormView({ cell, signatures }) {
+export function FormView({ cell, signatures, attendees }) {
   const box = (key, extra) => <div className="cf-field"><span className="cf-label">{LABELS[key]}</span><RichCell {...cell(key)} {...extra} /></div>;
   return <div className="cf-form">
     <section className="cf-card"><h3>Week details</h3><div className="cf-grid">{box("week", { single: true })}{box("className", { single: true })}{box("sections", { single: true })}{box("subject", { single: true })}{box("periods", { single: true })}</div>{box("topic")}{box("broughtForward")}</section>
     {DAYS.map(([day, name]) => <section key={day} className="cf-card"><h3>{name}</h3>{COLUMNS.map(([column]) => <div key={column}>{box(`${day}.${column}`, column === "period" ? { single: true } : {})}</div>)}</section>)}
-    <section className="cf-card"><h3>After the plan</h3>{box("extraHelp")}{box("teacher", { single: true })}<div className="cf-grid">{[1, 2, 3, 4].map((n) => <div key={n}>{box(`attendee${n}`, { single: true })}</div>)}</div>{box("submitDate", { single: true })}{box("distributeDate", { single: true })}</section>
+    <section className="cf-card"><h3>After the plan</h3>{box("extraHelp")}{box("teacher", { single: true })}{attendees ? <div className="cf-field"><span className="cf-label">Attendees of Coordination Meeting</span><ol className="cf-attendees">{attendees.map((name, i) => <li key={`${name}-${i}`}>{name}</li>)}</ol></div> : <div className="cf-grid">{[1, 2, 3, 4].map((n) => <div key={n}>{box(`attendee${n}`, { single: true })}</div>)}</div>}{box("submitDate", { single: true })}{box("distributeDate", { single: true })}</section>
     <section className="cf-card"><h3>Signatures</h3><div className="cf-grid">
-      <div>{box("coordinatorName", { single: true })}{signatures.coordinator?.imageUrl && <img className="cf-sig" src={signatures.coordinator.imageUrl} alt="Subject Coordinator's signature" />}</div>
-      <div>{box("sectionHeadName", { single: true })}{signatures.sectionHead?.imageUrl && <img className="cf-sig" src={signatures.sectionHead.imageUrl} alt="Section Head's signature" />}</div>
+      <div className="cf-field"><span className="cf-label">Subject Coordinator</span>{signatures.coordinator?.imageUrl ? <img className="cf-sig" src={signatures.coordinator.imageUrl} alt="Subject Coordinator's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
+      <div className="cf-field"><span className="cf-label">Section Head</span>{signatures.sectionHead?.imageUrl ? <img className="cf-sig" src={signatures.sectionHead.imageUrl} alt="Section Head's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
     </div></section>
   </div>;
 }

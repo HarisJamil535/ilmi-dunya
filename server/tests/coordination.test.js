@@ -22,8 +22,9 @@ test("a full week fits on one page, and very long text shrinks instead of spilli
 
 test("Word export can be read back by the importer", async () => {
     const cells = { "mon.subTopics": fromHtml("<b>Big Data</b>"), "mon.methods": fromHtml("<ul><li>Brainstorming</li><li>Pair work</li></ul>"), "tue.work": fromHtml("<b>C.W:</b> Make a table"), topic: fromHtml("Chapter 4"), teacher: fromHtml("Ms. Tahniyat"), attendee2: fromHtml("Mr. Haris"), week: fromHtml("16"), submitDate: fromHtml("23-August-26") };
-    const { sizes } = await renderCoordinationPdf([{ ...base, cells }]);
-    const docx = await renderCoordinationDocx([{ ...base, cells }], { sizes });
+    const record = { ...base, cells, attendees: ["Section Head", "Mr. Haris", "Ms. Ammara"], font: "garamond" };
+    const { sizes } = await renderCoordinationPdf([record]);
+    const docx = await renderCoordinationDocx([record], { sizes });
     const [week] = await readCoordinationDocx(docx);
     assert.equal(week.week, 16);
     assert.equal(plainText(week.cells["mon.subTopics"]), "Big Data");
@@ -33,18 +34,23 @@ test("Word export can be read back by the importer", async () => {
     assert.equal(plainText(week.cells.topic), "Chapter 4");
     assert.equal(plainText(week.cells.teacher), "Ms. Tahniyat");
     assert.equal(plainText(week.cells.attendee2), "Mr. Haris");
+    assert.equal(plainText(week.cells.attendee3), "Ms. Ammara");
     assert.equal(plainText(week.cells.submitDate), "23-August-26");
 });
 
-test("roles decide who can edit and who can sign", () => {
-    const admin = (id, extra = {}) => ({ _id: id, role: "admin", permissions: ["coordination"], ...extra });
-    const file = { members: [{ admin: "a", role: "viewer" }, { admin: "b", role: "editor" }, { admin: "c", role: "coordinator" }, { admin: "d", role: "sectionHead" }] };
-    const caps = (id, extra) => capsFor(roleIn(file, admin(id, extra)), admin(id, extra));
-    assert.deepEqual([caps("a").edit, caps("a").comment], [false, true]);
-    assert.deepEqual([caps("b").edit, caps("b").signCoordinator], [true, false]);
-    assert.deepEqual([caps("c").signCoordinator, caps("c").signSectionHead], [true, false]);
-    assert.deepEqual([caps("d").signSectionHead, caps("d").reopen], [true, true]);
-    assert.equal(roleIn(file, admin("x")), null, "not a member: no access");
-    assert.equal(roleIn(file, admin("x", { permissions: ["coordinationManage"] })), "manager");
-    assert.equal(caps("x", { role: "super_admin" }).signCoordinator, false, "managers cannot sign for others");
+test("departments decide who can see, edit and sign", () => {
+    const cs = "dept-cs", chem = "dept-chem";
+    const person = (coordTitle, coordDepartment = null, extra = {}) => ({ _id: Math.random().toString(36), role: "admin", permissions: ["coordination"], coordTitle, coordDepartment, ...extra });
+    const csFile = { department: cs };
+    const caps = (p) => capsFor(roleIn(csFile, p), p);
+    const teacher = person("teacher", cs), coordinator = person("coordinator", cs), chemTeacher = person("teacher", chem), sh = person("sectionHead"), principal = person("principal");
+    assert.deepEqual([caps(teacher).view, caps(teacher).edit, caps(teacher).signCoordinator], [true, true, false]);
+    assert.deepEqual([caps(coordinator).signCoordinator, caps(coordinator).signSectionHead], [true, false]);
+    assert.equal(roleIn(csFile, chemTeacher), null, "another department sees nothing");
+    assert.equal(roleIn(csFile, person("coordinator", chem)), null, "another department's coordinator sees nothing");
+    assert.deepEqual([caps(sh).edit, caps(sh).signSectionHead, caps(sh).signCoordinator], [true, true, false]);
+    assert.deepEqual([caps(principal).view, caps(principal).download, caps(principal).comment, caps(principal).edit, caps(principal).signSectionHead], [true, true, true, false, false]);
+    assert.equal(roleIn(csFile, person("")), null, "no title, no access");
+    const superAdmin = person("", null, { role: "super_admin" });
+    assert.deepEqual([roleIn(csFile, superAdmin), caps(superAdmin).signCoordinator], ["manager", false]);
 });

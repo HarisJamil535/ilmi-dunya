@@ -3,6 +3,17 @@ const { readImage } = require("./mediaStore");
 const { fadeImage } = require("./watermark");
 const { flatCells, plainText } = require("./coordService");
 const { fromText } = require("./coordRichText");
+const Admin = require("../models/Admin");
+
+// The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
+// (as in the school's form: "1. Section Head  2. Ms. Ammara  3. Ms. Tahniyat"). Files without a department
+// fall back to the names typed in the week.
+async function attendeesOf(file) {
+    if (!file.department) return null;
+    const staff = await Admin.find({ coordDepartment: file.department?._id || file.department, coordTitle: { $in: ["teacher", "coordinator"] }, status: "active" }).select("name coordTitle createdAt").sort({ createdAt: 1 }).lean();
+    staff.sort((a, b) => Number(a.coordTitle === "coordinator") - Number(b.coordTitle === "coordinator"));
+    return ["Section Head", ...staff.map((p) => p.name)];
+}
 
 // Prepares one week for printing: fills in what the system already knows (week, class, subject,
 // sections, signer names) when the cell is empty, and loads the pictures (watermark, signatures, QR).
@@ -27,6 +38,7 @@ async function buildRecords(file, weeks, settings) {
     let watermark = null;
     try { watermark = original ? fadeImage(original, Math.max(0.03, Math.min(0.4, settings.watermarkOpacity || 0.12))) : null; } catch { watermark = null; }
     const session = file.session;
+    const departmentAttendees = await attendeesOf(file);
     const records = [];
     for (const [index, week] of weeks.entries()) {
         const cells = flatCells(week.cells);
@@ -38,13 +50,13 @@ async function buildRecords(file, weeks, settings) {
         const approved = week.status === "approved" && week.verifyCode;
         records.push({
             cells,
+            font: week.font || "arial",
+            attendees: departmentAttendees || [1, 2, 3, 4].map((n) => plainText(cells[`attendee${n}`])),
             status: week.status,
             title: (settings.title || "").replace("{session}", session),
             footerText: (settings.footerText || "").replace("{session}", session),
             caption: settings.caption || "",
             watermarkOpacity: settings.watermarkOpacity,
-            coordinatorName: plainText(cells.coordinatorName) || sig.coordinator?.name || "",
-            sectionHeadName: plainText(cells.sectionHeadName) || sig.sectionHead?.name || "",
             pageNumber: index + 1,
             pageCount: weeks.length,
             verifyUrl: approved ? `${siteOrigin()}/verify/coordination/${week.verifyCode}` : "",
@@ -59,4 +71,4 @@ async function buildRecords(file, weeks, settings) {
     return records;
 }
 
-module.exports = { buildRecords, classLabel };
+module.exports = { buildRecords, classLabel, attendeesOf };

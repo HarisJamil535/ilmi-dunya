@@ -51,6 +51,10 @@ const adminSchema = new mongoose.Schema(
             default: "active",
         },
         signatureUrl: { type: String, default: "" }, // e-signature picture for coordination records
+        // Coordination staff: a teacher or subject coordinator belongs to one department; the Section Head and
+        // the Principal see every department.
+        coordTitle: { type: String, enum: ["", "teacher", "coordinator", "sectionHead", "principal"], default: "" },
+        coordDepartment: { type: mongoose.Schema.Types.ObjectId, ref: "CoordinationDepartment", default: null },
         currentSessionId: { type: String, select: false },
         lastLoginAt: Date,
         passwordResetOtpHash: { type: String, select: false },

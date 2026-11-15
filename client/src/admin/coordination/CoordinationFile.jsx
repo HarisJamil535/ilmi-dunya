@@ -106,10 +106,10 @@ export default function CoordinationFile() {
     <Link to="/admin/coordination" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary"><ArrowLeft className="h-4 w-4" />All coordination files</Link>
     <header className="coord-hero">
       <div className="min-w-0">
-        <p className="coord-eyebrow">{file.session} · {file.subject.className}{file.subject.group ? ` · ${file.subject.group}` : ""}</p>
-        <h1>{file.subject.name}</h1>
-        <p className="coord-lead">You are <b>{ROLE_LABEL[file.role]}</b> in this file. {counts.approved} of {counts.total} weeks approved.</p>
-        <div className="mt-3 flex -space-x-2">{file.members.map((m) => <Avatar key={m.admin} name={m.name} size={30} ring title={`${m.name} — ${ROLE_LABEL[m.role]}`} />)}</div>
+        <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session}{file.subject.group ? ` · ${file.subject.group}` : ""}</p>
+        <h1>{file.subject.name} <span className="text-slate-400">·</span> {file.subject.className || "No class"}</h1>
+        <p className="coord-lead">You are <b>{ROLE_LABEL[file.role]}</b>{file.role === "principal" ? " (view and download)" : ""}. {counts.approved} of {counts.total} weeks approved.</p>
+        {file.members.length > 0 && <div className="mt-3 flex items-center gap-2"><div className="flex -space-x-2">{file.members.map((m) => <Avatar key={m.admin} name={m.name} size={30} ring title={`${m.name} — ${m.title}`} />)}</div><span className="text-xs font-bold text-slate-500">{file.members.map((m) => m.name).join(", ")}</span></div>}
       </div>
       <div className="flex flex-wrap gap-2">
         <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog("signature")}>My signature</AdminActionButton>
@@ -119,7 +119,7 @@ export default function CoordinationFile() {
       </div>
     </header>
 
-    {file.caps.manage && <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
+    {(file.caps.manage || file.caps.signCoordinator || file.caps.signSectionHead) && <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
       <label className="flex items-center gap-2 font-bold text-slate-600">No. of sections <input className={`${inputClass} !min-h-9 w-24`} defaultValue={file.sections} maxLength={20} onBlur={(e) => e.target.value !== file.sections && saveSections(e.target.value)} /></label>
       <label className="flex cursor-pointer items-center gap-2 font-bold text-slate-600"><input type="checkbox" className="accent-[var(--brand-primary)]" checked={file.showQr} onChange={toggleQr} /><QrCode className="h-4 w-4" />Verification QR code on approved weeks</label>
     </div>}

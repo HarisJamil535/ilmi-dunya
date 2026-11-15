@@ -40,6 +40,8 @@ const safeAdmin = (admin) => ({
     status: admin.status,
     lastLoginAt: admin.lastLoginAt,
     createdAt: admin.createdAt,
+    coordTitle: admin.coordTitle || "",
+    coordDepartment: admin.coordDepartment ? String(admin.coordDepartment) : "",
 });
 
 const signAdminToken = (admin, sessionId) => jwt.sign(

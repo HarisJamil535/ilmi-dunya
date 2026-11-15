@@ -4,6 +4,7 @@ import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, CheckCircle2, Chev
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import { Avatar, Dialog, StatusChip } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
+import FontPicker from "./FontPicker";
 import SidePanel from "./SidePanel";
 import { FormView, PageView } from "./PageView";
 import { LABELS } from "./pageLayout";
@@ -97,7 +98,7 @@ function WeekEditorView({ weekId }) {
     onActivity: (entry) => setActivity((list) => [entry, ...list.filter((a) => a.id !== entry.id)].slice(0, 80)),
     onStatus: ({ by }) => { load(); toast(`${by} changed the week's status.`, "success"); },
     onReload: ({ by, note }) => { load(); if (by) toast(`${by}: ${note || "updated the week"}`, "success"); },
-    onMeta: () => load(),
+    onMeta: ({ font, by } = {}) => { load(); if (font && by) toast(`${by} changed the page font.`, "success"); },
     onDeleted: ({ by }) => { toast(`${by} deleted this week.`); navigate(-1); },
     onEnded: (message) => toast(message),
     onJoined: () => { if (pending.current.size) flushAll(); },
@@ -155,6 +156,9 @@ function WeekEditorView({ weekId }) {
   const focusCell = (key) => { const el = document.querySelector(`[data-cell="${CSS.escape(key)}"]`); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.focus({ preventScroll: true }); } };
   const applyFormat = (fn) => { const el = activeEl.current; if (!el || !editable) return; fn(); schedule(el.dataset.cell, el); };
 
+  const setPageFont = async (font) => {
+    try { await api.patch(`/weeks/${weekId}`, { font }); await load(); refreshFit(); } catch (e) { toast(messageOf(e)); }
+  };
   const pick = (item) => {
     const el = activeEl.current; if (!el || !editable) return;
     addPick(el, item, PICK_GROUP(el.dataset.cell) !== "resources");
@@ -236,6 +240,8 @@ function WeekEditorView({ weekId }) {
       <span className="ce-sep" />
       <Swatches label="Text colour" colours={TEXT_COLOURS} onPick={(hex) => applyFormat(() => run("foreColor", hex))} />
       <Swatches label="Highlight" colours={HIGHLIGHTS} onPick={(hex) => applyFormat(() => run("hiliteColor", hex))} onClear={() => applyFormat(clearHighlight)} />
+      <FontPicker label="Page font" fonts={data.fonts} value={week.font} onPick={setPageFont} />
+      <FontPicker label="Font for selected text" fonts={data.fonts} value="" onPick={(key) => applyFormat(() => run("fontName", `Coord ${data.fonts.find((f) => f.key === key)?.label || "Arial"}`))} keepFocus />
       <div className="ce-size" role="group" aria-label="Text size">{[["s", "Small"], ["m", "Normal"], ["l", "Large"]].map(([v, l]) => <button key={v} type="button" title={`${l} text`} onMouseDown={(e) => e.preventDefault()} onClick={() => applyFormat(() => size(v))}>{v === "s" ? "A-" : v === "m" ? "A" : "A+"}</button>)}</div>
       <span className="ce-sep" />
       <ToolButton icon={List} label="Bullet list" onClick={() => applyFormat(() => run("insertUnorderedList"))} />
@@ -261,7 +267,7 @@ function WeekEditorView({ weekId }) {
     </div>
 
     <div className={`ce-main ${panel ? "with-panel" : ""}`}>
-      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} fontPt={fit?.size} zoom={zoom} /> : <FormView cell={cell} signatures={week.signatures} />}</div>
+      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} attendees={file.department?.id ? data.attendees : null} />}</div>
       {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 

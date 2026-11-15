@@ -6,7 +6,13 @@ import { useNavigate } from "react-router-dom";
 import ThemeToggle from '../../shared/ThemeToggle';
 
 // Teachers only have the Paper Maker, so they skip the dashboard.
-const landing = (admin) => (admin?.role !== 'super_admin' && admin?.permissions?.length === 1 && admin.permissions[0] === 'papers' ? '/admin/papers' : '/admin/dashboard');
+// Teachers who only use one area land straight in it.
+const landing = (admin) => {
+  const only = admin?.role !== 'super_admin' && admin?.permissions?.length === 1 ? admin.permissions[0] : '';
+  if (only === 'papers') return '/admin/papers';
+  if (only === 'coordination' || (admin?.coordTitle && admin?.role !== 'super_admin' && !(admin?.permissions || []).some((p) => !['coordination', 'coordinationManage'].includes(p)))) return '/admin/coordination';
+  return '/admin/dashboard';
+};
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -160,14 +166,17 @@ export default function AdminLogin() {
               htmlFor="email" 
               className="block text-sm font-medium text-slate-700 mb-1.5"
             >
-              Email Address
+              Email or username
             </label>
             <input
-              type="email"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@ilmidunya.com"
+              placeholder="you@school.com or your username"
               required
               disabled={isSubmitting}
               autoComplete="email"

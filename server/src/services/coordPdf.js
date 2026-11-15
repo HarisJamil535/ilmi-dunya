@@ -1,4 +1,3 @@
-const path = require("node:path");
 const PDFDocument = require("pdfkit");
 const { DAYS, COLUMNS, WIDTHS } = require("./coordTemplate");
 
@@ -6,8 +5,7 @@ const { DAYS, COLUMNS, WIDTHS } = require("./coordTemplate");
 // Text is laid out word by word with real font measurements, so the same code decides both where every
 // line breaks and how big the text can be: the text size is lowered step by step until the week fits on
 // one page (it never spills onto a second page).
-const FONT_DIR = path.join(__dirname, "../../assets/fonts");
-const FONTS = { r: "LiberationSans-Regular.ttf", b: "LiberationSans-Bold.ttf", i: "LiberationSans-Italic.ttf", bi: "LiberationSans-BoldItalic.ttf" };
+const { fontKey: pageFontKey, registerPdfFonts } = require("./coordFonts");
 const PAGE = { w: 841.89, h: 595.28 };
 const M = { top: 22, side: 36, bottom: 18 };
 const SIZES = [9.5, 9, 8.5, 8, 7.5, 7, 6.75, 6.5, 6.25, 6, 5.75, 5.5, 5.25, 5];
@@ -15,8 +13,11 @@ const PAD = { x: 3.5, y: 2.5 };
 const LINE = 1.18;
 const SCALE = { s: 0.86, m: 1, l: 1.2 };
 
-const fontKey = (run) => (run.b && run.i ? "bi" : run.b ? "b" : run.i ? "i" : "r");
-const useFont = (doc, run, size) => doc.font(`cs-${fontKey(run)}`).fontSize(size * (SCALE[run.z] || 1));
+// The page font is set per week before it is laid out; a run may choose its own font (run.f).
+let pageFont = "arial";
+const styleOf = (run) => (run.b && run.i ? "bi" : run.b ? "b" : run.i ? "i" : "r");
+const F = (style) => `${pageFont}-${style}`;
+const useFont = (doc, run, size) => doc.font(`${run.f || pageFont}-${styleOf(run)}`).fontSize(size * (SCALE[run.z] || 1));
 
 // Breaks paragraphs into lines that fit `width`. Each line is a list of pieces { text, run, x, w }.
 function layout(doc, paragraphs, width, size, { base = {} } = {}) {
@@ -70,7 +71,7 @@ function drawLines(doc, lines, x, y, width, size) {
     let top = y;
     for (const line of lines) {
         const offset = line.align === "center" ? (width - line.indent - line.width) / 2 : line.align === "right" ? width - line.indent - line.width : 0;
-        if (line.marker) { doc.font("cs-r").fontSize(size).fillColor("#000").text(line.marker, x, top + (line.h - size * LINE), { lineBreak: false }); }
+        if (line.marker) { doc.font(F("r")).fontSize(size).fillColor("#000").text(line.marker, x, top + (line.h - size * LINE), { lineBreak: false }); }
         for (const piece of line.pieces) {
             const px = x + line.indent + offset + piece.x;
             const s = size * (SCALE[piece.run.z] || 1);
@@ -113,8 +114,12 @@ function plan(doc, record, size) {
     const rowExtra = block(join([{ list: "", align: "left", runs: [{ t: "Strategies for Learners requiring extra assistance:", i: true }] }], c.extraHelp), width);
     const teacher = block(join([label("Teacher Responsible for Preparing lesson Plan:", { b: false })], c.teacher), width);
     const attendeesTitle = block([label("Attendees of Coordination Meeting:", { b: false })], width);
-    const attendees = [1, 2, 3, 4].map((n) => block([{ list: "", align: "left", runs: [{ t: `${n}. ` }, ...(c[`attendee${n}`][0]?.runs || [])] }], width / 4));
-    const attendeesH = Math.max(...attendees.map((a) => a.h));
+    // Any number of attendees, four to a line: "1. Section Head   2. Ms. Ammara   3. Ms. Tahniyat"
+    const names = record.attendees?.length ? record.attendees : ["", "", "", ""];
+    const attendees = names.map((name, i) => block([{ list: "", align: "left", runs: [{ t: `${i + 1}. ` }, ...(name ? [{ t: name }] : [])] }], ATTENDEE_W(width)));
+    const attendeeRows = [];
+    for (let i = 0; i < attendees.length; i += 4) attendeeRows.push(Math.max(...attendees.slice(i, i + 4).map((a) => a.h)) - PAD.y * 2);
+    const attendeesH = attendeeRows.reduce((a, b) => a + b, 0) + PAD.y * 2;
     const rowPeople = { h: teacher.h + attendeesTitle.h + attendeesH - PAD.y * 4 };
     const leftW = cols.slice(0, 3).reduce((a, b) => a + b, 0);
     const dateA = block(join([label("Date of submission of the Lesson Plan to the Sec Head:", { b: false })], c.submitDate), leftW);
@@ -122,16 +127,18 @@ function plan(doc, record, size) {
     const rowDates = { h: Math.max(dateA.h, dateB.h) };
 
     const fixed = rowSubject.h + rowBrought.h + headerH + rowExtra.h + rowPeople.h + rowDates.h;
-    return { width, cols, rowSubject, rowBrought, headers, headerH, days, rowExtra, teacher, attendeesTitle, attendees, attendeesH, rowPeople, leftW, dateA, dateB, rowDates, fixed, daysH: days.reduce((a, d) => a + d.h, 0) };
+    return { width, cols, rowSubject, rowBrought, headers, headerH, days, rowExtra, teacher, attendeesTitle, attendees, attendeeRows, attendeesH, rowPeople, leftW, dateA, dateB, rowDates, fixed, daysH: days.reduce((a, d) => a + d.h, 0) };
 }
 
+const ATTENDEE_W = (width) => (width - 18) / 4;
 // Space above and below the table (title, header line, signatures, caption, footer).
 const HEAD_H = 40;
-const SIGN_H = 44;
+const SIGN_H = 36;
 const CAPTION_H = 14;
 const FOOT_H = 34;
 
 function choosePlan(doc, record) {
+    pageFont = pageFontKey(record.font);
     const room = PAGE.h - M.top - M.bottom - HEAD_H - SIGN_H - (record.caption ? CAPTION_H : 0) - FOOT_H;
     for (const size of SIZES) {
         const p = plan(doc, record, size);
@@ -142,9 +149,9 @@ function choosePlan(doc, record) {
 }
 
 function underlineField(doc, x, y, labelText, value, width, size) {
-    doc.font("cs-b").fontSize(size).fillColor("#000").text(labelText, x, y, { lineBreak: false });
+    doc.font(F("b")).fontSize(size).fillColor("#000").text(labelText, x, y, { lineBreak: false });
     const lw = doc.widthOfString(labelText) + 3;
-    doc.font("cs-r").fontSize(size).text(value || "", x + lw + 2, y, { lineBreak: false, width: width - lw, ellipsis: true });
+    doc.font(F("r")).fontSize(size).text(value || "", x + lw + 2, y, { lineBreak: false, width: width - lw, ellipsis: true });
     doc.save().lineWidth(0.6).moveTo(x + lw, y + size + 1.2).lineTo(x + width, y + size + 1.2).stroke().restore();
 }
 
@@ -164,7 +171,7 @@ function drawWeek(doc, record, assets) {
 
     // Title and the Week / Class / Sections line.
     let y = M.top;
-    doc.font("cs-b").fontSize(11).fillColor("#000");
+    doc.font(F("b")).fontSize(11).fillColor("#000");
     const titleW = doc.widthOfString(record.title);
     doc.text(record.title, (PAGE.w - titleW) / 2, y, { lineBreak: false });
     doc.save().lineWidth(0.8).moveTo((PAGE.w - titleW) / 2, y + 12.2).lineTo((PAGE.w + titleW) / 2, y + 12.2).stroke().restore();
@@ -205,7 +212,11 @@ function drawWeek(doc, record, assets) {
     y += p.rowExtra.h; hline(y);
     let yy = drawLines(doc, p.teacher.lines, x0 + PAD.x, y + PAD.y, width - PAD.x * 2, size);
     yy = drawLines(doc, p.attendeesTitle.lines, x0 + PAD.x, yy, width - PAD.x * 2, size);
-    p.attendees.forEach((a, i) => drawLines(doc, a.lines, x0 + PAD.x + 18 + i * (width / 4), yy, width / 4 - PAD.x * 2 - 18, size));
+    let rowY = yy;
+    p.attendeeRows.forEach((h, row) => {
+        p.attendees.slice(row * 4, row * 4 + 4).forEach((a, i) => drawLines(doc, a.lines, x0 + PAD.x + 18 + i * ATTENDEE_W(width), rowY, ATTENDEE_W(width) - PAD.x * 2, size));
+        rowY += h;
+    });
     y += p.rowPeople.h; hline(y);
     drawLines(doc, p.dateA.lines, x0 + PAD.x, y + PAD.y, p.leftW - PAD.x * 2, size);
     drawLines(doc, p.dateB.lines, x0 + p.leftW + PAD.x, y + PAD.y, width - p.leftW - PAD.x * 2, size);
@@ -213,22 +224,21 @@ function drawWeek(doc, record, assets) {
     y += p.rowDates.h;
     doc.rect(x0, top, width, y - top).stroke();
 
-    // Signatures: the picture sits on the line, the name is printed under it.
+    // Signatures: only the e-signature sits on the line, kept to about two lines of text in height so it
+    // never pushes the layout around.
     const signY = y + 10;
-    const signLine = (lx, labelText, sig, name, lineW) => {
-        doc.font("cs-r").fontSize(8.5).fillColor("#000").text(labelText, lx, signY + 20, { lineBreak: false });
+    const signLine = (lx, labelText, sig, lineW) => {
+        doc.font(F("r")).fontSize(8.5).fillColor("#000").text(labelText, lx, signY + 14, { lineBreak: false });
         const sx = lx + doc.widthOfString(labelText) + 4;
-        doc.save().lineWidth(0.6).moveTo(sx, signY + 29).lineTo(sx + lineW, signY + 29).stroke().restore();
-        if (sig?.image) { try { doc.image(sig.image, sx + 6, signY - 4, { fit: [lineW - 12, 32], align: "center", valign: "bottom" }); } catch { /* skip */ } }
-        const under = [name, sig?.at ? new Date(sig.at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : ""].filter(Boolean).join(" · ");
-        if (under) doc.font("cs-r").fontSize(6.5).fillColor("#333").text(under, sx, signY + 31, { width: lineW, align: "center", lineBreak: false });
+        doc.save().lineWidth(0.6).moveTo(sx, signY + 23).lineTo(sx + lineW, signY + 23).stroke().restore();
+        if (sig?.image) { try { doc.image(sig.image, sx + 4, signY + 1, { fit: [lineW - 8, 21], align: "center", valign: "bottom" }); } catch { /* skip */ } }
     };
-    signLine(x0 + width * 0.12, "Sign: Subject Coordinator:", assets.coordinator, record.coordinatorName, 150);
-    signLine(x0 + width * 0.56, "SH Sign:", assets.sectionHead, record.sectionHeadName, 150);
+    signLine(x0 + width * 0.12, "Sign: Subject Coordinator:", assets.coordinator, 150);
+    signLine(x0 + width * 0.56, "SH Sign:", assets.sectionHead, 150);
 
     let fy = signY + SIGN_H;
     if (record.caption) {
-        doc.font("cs-i").fontSize(8.5).fillColor("#000");
+        doc.font(F("i")).fontSize(8.5).fillColor("#000");
         const cw = doc.widthOfString(record.caption);
         doc.text(record.caption, (PAGE.w - cw) / 2, fy - 4, { lineBreak: false });
         doc.save().lineWidth(0.5).moveTo((PAGE.w - cw) / 2, fy + 5.5).lineTo((PAGE.w + cw) / 2, fy + 5.5).stroke().restore();
@@ -238,10 +248,10 @@ function drawWeek(doc, record, assets) {
     const footY = PAGE.h - M.bottom - 26;
     let textX = x0;
     if (assets.qr) { doc.image(assets.qr, x0, footY - 2, { width: 28, height: 28 }); textX += 32; }
-    doc.font("cs-r").fontSize(7).fillColor("#000").text(record.footerText || "", textX, footY + 16, { lineBreak: false });
-    doc.font("cs-b").fontSize(7).text(`Page ${record.pageNumber} of ${record.pageCount}`, x0 + width - 120, footY + 16, { width: 120, align: "right", lineBreak: false });
+    doc.font(F("r")).fontSize(7).fillColor("#000").text(record.footerText || "", textX, footY + 16, { lineBreak: false });
+    doc.font(F("b")).fontSize(7).text(`Page ${record.pageNumber} of ${record.pageCount}`, x0 + width - 120, footY + 16, { width: 120, align: "right", lineBreak: false });
     if (record.status !== "approved") {
-        doc.font("cs-b").fontSize(6.5).fillColor("#9a3412").text(record.status === "submitted" ? "SUBMITTED — AWAITING SECTION HEAD APPROVAL" : "DRAFT — NOT YET SIGNED", x0, footY + 16, { width, align: "center", lineBreak: false });
+        doc.font(F("b")).fontSize(6.5).fillColor("#9a3412").text(record.status === "submitted" ? "SUBMITTED — AWAITING SECTION HEAD APPROVAL" : "DRAFT — NOT YET SIGNED", x0, footY + 16, { width, align: "center", lineBreak: false });
     }
     return { size, overflow: p.overflow, dayHeights: p.days.map((d) => d.h + dayBonus) };
 }
@@ -249,7 +259,7 @@ function drawWeek(doc, record, assets) {
 // records: one per week (see coordRecord.buildRecord). Returns { buffer, sizes } with the text size used per page.
 async function renderCoordinationPdf(records, { title = "Coordination record" } = {}) {
     const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: false, info: { Title: title, Producer: "IlmiDunya" } });
-    for (const [key, file] of Object.entries(FONTS)) doc.registerFont(`cs-${key}`, path.join(FONT_DIR, file));
+    registerPdfFonts(doc);
     const chunks = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     const done = new Promise((resolve) => doc.on("end", resolve));
@@ -267,7 +277,7 @@ async function renderCoordinationPdf(records, { title = "Coordination record" } 
 // Works out the text size that makes a week fit, without drawing it (used by the editor's fit meter).
 function measureFit(record) {
     const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: false });
-    for (const [key, file] of Object.entries(FONTS)) doc.registerFont(`cs-${key}`, path.join(FONT_DIR, file));
+    registerPdfFonts(doc);
     const p = choosePlan(doc, record);
     const used = (p.fixed + p.daysH) / p.room;
     return { size: p.size, overflow: p.overflow, fullness: Math.round(Math.min(1.5, p.overflow ? used : (p.fixed + p.daysH) / p.room) * 100) / 100 };
