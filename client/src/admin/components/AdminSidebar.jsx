@@ -43,12 +43,13 @@ const standardSidebarItems = [
   { id: 21, label: "Schools", icon: HiOutlineOfficeBuilding, path:'schools', permission: "schools" },
   { id: 22, label: "School Results", icon: HiOutlineDocumentReport, path:'school-results', permission: "schools" },
   { id: 25, label: "Paper Maker", icon: HiOutlineDocumentText, path:'papers', permission: "papers" },
+  { id: 27, label: "Coordination", icon: HiOutlineUserGroup, path:'coordination', permission: ["coordination", "coordinationManage"] },
   { id: 26, label: "Prepare PBA", icon: HiOutlineClipboardCheck, path:'pba', permission: "pba" },
   { id: 19, label: "Students", icon: HiOutlineUserGroup, path:'students', superAdminOnly: true },
 ];
 
 // The server enforces permissions; the menu only hides pages an admin cannot use.
-const canOpen = (admin, item) => admin?.role === "super_admin" || (!item.superAdminOnly && (!item.permission || admin?.permissions?.includes(item.permission)));
+const canOpen = (admin, item) => admin?.role === "super_admin" || (!item.superAdminOnly && (!item.permission || [].concat(item.permission).some((permission) => admin?.permissions?.includes(permission))));
 
 const AdminSidebar = () => {
   const location = useLocation();

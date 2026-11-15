@@ -23,7 +23,7 @@ function fadeImage(buffer, strength = "light") {
     const width = Math.floor(source.width / step);
     const height = Math.floor(source.height / step);
     const out = new PNG({ width, height });
-    const keep = STRENGTH[strength] || STRENGTH.light;
+    const keep = typeof strength === "number" ? strength : STRENGTH[strength] || STRENGTH.light;
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const from = ((y * step) * source.width + x * step) * 4;
@@ -41,4 +41,4 @@ function fadeImage(buffer, strength = "light") {
     return result;
 }
 
-module.exports = { fadeImage, STRENGTH };
+module.exports = { fadeImage, decode, STRENGTH };
