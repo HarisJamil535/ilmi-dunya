@@ -43,5 +43,6 @@ export const timeAgo = (date) => {
 export const initials = (name = "") => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
 
 // Each department gets its own colour, used on its cards and headings.
-const DEPT_COLOURS = ["#7c3aed", "#0891b2", "#db2777", "#ea580c", "#16a34a", "#2563eb", "#ca8a04", "#9333ea", "#0d9488", "#dc2626"];
+// Professional, well-contrasted tones (white text stays readable on each).
+const DEPT_COLOURS = ["#4f46e5", "#0f766e", "#0369a1", "#7c3aed", "#b45309", "#be123c", "#15803d", "#1d4ed8", "#a21caf", "#334155"];
 export const deptColour = (id = "") => DEPT_COLOURS[[...String(id)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % DEPT_COLOURS.length];
