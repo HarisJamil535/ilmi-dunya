@@ -50,6 +50,7 @@ test("departments decide who can see, edit and sign", () => {
     assert.equal(roleIn(csFile, person("coordinator", chem)), null, "another department's coordinator sees nothing");
     assert.deepEqual([caps(sh).edit, caps(sh).signSectionHead, caps(sh).signCoordinator], [true, true, false]);
     assert.deepEqual([caps(principal).view, caps(principal).download, caps(principal).comment, caps(principal).edit, caps(principal).signSectionHead], [true, true, true, false, false]);
+    assert.deepEqual([caps(coordinator).deleteWeek, caps(sh).deleteWeek, caps(principal).deleteWeek, caps(teacher).deleteWeek], [true, true, true, false]);
     assert.equal(roleIn(csFile, person("")), null, "no title, no access");
     const superAdmin = person("", null, { role: "super_admin" });
     assert.deepEqual([roleIn(csFile, superAdmin), caps(superAdmin).signCoordinator], ["manager", false]);

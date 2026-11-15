@@ -82,7 +82,7 @@ export default function AnnouncementCenter({ compact = false, left = null }) {
     </div>;
   const alertList = alerts.length > 0 && !compact ? <div className="ann-alerts">{alerts.slice(0, 3).map((a) => <div key={a.id} role="alert" className="ann-alert">
       <span className="ann-alert-icon"><AlertTriangle className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1"><p className="text-[11px] font-black uppercase tracking-[0.12em] text-rose-100">Important · {a.byName}{a.byTitle ? `, ${a.byTitle}` : ""} · {timeAgo(a.at)}</p><p className="text-base font-black">{a.title}</p>{a.body && <p className="mt-0.5 whitespace-pre-wrap text-sm text-rose-50">{a.body}</p>}</div>
+      <div className="min-w-0 flex-1"><p className="text-[11px] font-black uppercase tracking-[0.12em] text-rose-500">Important · {a.byName}{a.byTitle ? `, ${a.byTitle}` : ""} · {timeAgo(a.at)}</p><p className="text-base font-black">{a.title}</p>{a.body && <p className="mt-0.5 whitespace-pre-wrap text-sm text-rose-800">{a.body}</p>}</div>
       <button type="button" onClick={() => markRead(a)} className="ann-alert-btn"><Check className="h-4 w-4" />Got it</button>
     </div>)}</div> : null;
   return <>

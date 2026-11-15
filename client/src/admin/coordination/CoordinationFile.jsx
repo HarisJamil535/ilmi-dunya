@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarClock, CheckCircle2, Download, FileText, FileUp, MessageSquare, PenLine, Plus, QrCode, Search } from "lucide-react";
+import { Trash2, ArrowLeft, CalendarClock, CheckCircle2, Download, FileText, FileUp, MessageSquare, PenLine, Plus, QrCode, Search } from "lucide-react";
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
 import { Avatar, Dialog, Field, RoleBadge, StatusChip, inputClass } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
+import ConfirmModal from "../../shared/ConfirmModal";
 import DownloadDialog from "./DownloadDialog";
 import AnnouncementCenter from "./AnnouncementCenter";
-import { ROLE_LABEL, api, deptColour, messageOf, timeAgo } from "./coordApi";
+import { ROLE_LABEL, api, messageOf, roleTheme, timeAgo } from "./coordApi";
 import "./coordination.css";
 
 function NewWeekDialog({ file, weeks, onClose, onCreated }) {
@@ -75,9 +76,14 @@ export default function CoordinationFile() {
   const [dialog, setDialog] = useState("");
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [deleting, setDeleting] = useState(null);
   const load = () => api.get(`/files/${fileId}`).then(setData).catch((e) => setError(messageOf(e)));
   useEffect(() => { load(); }, [fileId]); // eslint-disable-line react-hooks/exhaustive-deps
   const weeks = useMemo(() => (data?.weeks || []).filter((w) => (filter === "all" || (filter === "overdue" ? w.status !== "approved" && w.dueDate && new Date(w.dueDate) < new Date() : filter === "comments" ? w.openComments > 0 : w.status === filter)) && (!query || `week ${w.week} ${w.term}`.toLowerCase().includes(query.toLowerCase()))), [data, filter, query]);
+  const removeWeek = async (w) => {
+    try { await api.del(`/weeks/${w.id}`); window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type: "success", message: `Week ${w.week} deleted.` } })); load(); }
+    catch (e) { setError(messageOf(e)); } finally { setDeleting(null); }
+  };
   const toggleQr = async () => { try { await api.patch(`/files/${fileId}`, { showQr: !data.file.showQr }); load(); } catch (e) { setError(messageOf(e)); } };
   const saveSections = async (sections) => { try { await api.patch(`/files/${fileId}`, { sections }); load(); } catch (e) { setError(messageOf(e)); } };
 
@@ -89,7 +95,7 @@ export default function CoordinationFile() {
 
   return <div className="coord-root mx-auto max-w-6xl space-y-5">
     <AnnouncementCenter left={<Link to="/admin/coordination" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary"><ArrowLeft className="h-4 w-4" />All coordination files</Link>} />
-    <header className="coord-hero is-vivid" style={{ "--dept": deptColour(file.department.id) }}>
+    <header className="coord-hero is-vivid" style={{ "--dept": roleTheme(file.role) }}>
       <div className="min-w-0">
         <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session}</p>
         <h1 className="flex flex-wrap items-center gap-3">{file.subject.name}<span className="coord-class">{file.subject.className || "–"}</span></h1>
@@ -102,6 +108,7 @@ export default function CoordinationFile() {
       <div className="flex flex-wrap gap-2">
         <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog("signature")}>My signature</AdminActionButton>
         <AdminActionButton variant="secondary" icon={Download} disabled={!data.weeks.length} onClick={() => setDialog("download")}>Download</AdminActionButton>
+        {file.caps.deleteWeek && data.weeks.length > 0 && <AdminActionButton variant="secondary" icon={Trash2} onClick={() => setDialog("delete")}>Delete weeks</AdminActionButton>}
         {file.caps.edit && <AdminActionButton variant="secondary" icon={FileUp} onClick={() => setDialog("import")}>Import Word</AdminActionButton>}
         {file.caps.edit && <AdminActionButton icon={Plus} onClick={() => setDialog("new")}>Add week</AdminActionButton>}
       </div>
@@ -134,11 +141,14 @@ export default function CoordinationFile() {
           <p>{w.lastEditBy ? `${w.lastEditBy} · ` : ""}{timeAgo(w.lastEditAt)}</p>
           <p className="flex gap-2"><span className={w.signed.coordinator ? "text-emerald-700" : ""}>{w.signed.coordinator ? "✓" : "○"} Coordinator</span><span className={w.signed.sectionHead ? "text-emerald-700" : ""}>{w.signed.sectionHead ? "✓" : "○"} SH</span></p>
         </div>
+        {file.caps.deleteWeek && <button type="button" className="coord-week-del" aria-label={`Delete week ${w.week}`} title={`Delete week ${w.week}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleting(w); }}><Trash2 className="h-4 w-4" /></button>}
       </Link>;
     })}{weeks.length === 0 && <p className="col-span-full rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No weeks match.</p>}</div>}
 
     {dialog === "new" && <NewWeekDialog file={file} weeks={data.weeks} onClose={() => setDialog("")} onCreated={(id) => navigate(`/admin/coordination/week/${id}`)} />}
     {dialog === "import" && <ImportDialog file={file} onClose={() => setDialog("")} onDone={load} />}
+    {dialog === "delete" && <DownloadDialog mode="delete" fileId={file.id} title={`${file.subject.name} ${file.subject.className}`} weeks={data.weeks} onClose={() => setDialog("")} onDeleted={load} />}
+    {deleting && <ConfirmModal isOpen tone="danger" title={`Delete week ${deleting.week}?`} description="Its content, comments and history will be deleted for everyone. This cannot be undone." confirmLabel="Delete week" onConfirm={() => removeWeek(deleting)} onClose={() => setDeleting(null)} />}
     {dialog === "download" && <DownloadDialog fileId={file.id} title={`${file.subject.name} ${file.subject.className}`} weeks={data.weeks} onClose={() => setDialog("")} />}
     {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} />}
   </div>;

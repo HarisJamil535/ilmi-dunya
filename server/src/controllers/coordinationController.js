@@ -293,6 +293,19 @@ exports.createWeek = wrap(async (req, res) => {
 });
 
 // Weeks from other files the person can copy (same subject earlier sessions, and this file).
+// Deletes several weeks of a file at once: ?weeks=3,4,9 or ?all=1.
+exports.deleteWeeks = wrap(async (req, res) => {
+    const { file, caps } = await svc.accessFile(id(req.params.id), req.admin);
+    if (!caps.deleteWeek) fail("Only the Subject Coordinator, the Section Head or the Principal can delete weeks.", 403);
+    const picked = String(req.query.weeks || "").split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 60);
+    if (!picked.length && req.query.all !== "1") fail("Choose the weeks to delete.");
+    const weeks = await CoordinationWeek.find({ file: file._id, ...(req.query.all === "1" ? {} : { week: { $in: picked } }) }).select("_id week").lean();
+    const ids = weeks.map((w) => w._id);
+    await Promise.all([CoordinationVersion.deleteMany({ week: { $in: ids } }), CoordinationComment.deleteMany({ week: { $in: ids } }), CoordinationActivity.deleteMany({ week: { $in: ids } }), CoordinationWeek.deleteMany({ _id: { $in: ids } })]);
+    for (const w of weeks) hub.emit(w._id, "deleted", { by: req.admin.name });
+    res.json({ success: true, deleted: weeks.length });
+});
+
 exports.copySources = wrap(async (req, res) => {
     const { file } = await svc.accessFile(id(req.params.id), req.admin);
     // Earlier sessions of the same department and class (or of the same site subject, for older files).
@@ -359,8 +372,7 @@ exports.updateWeek = wrap(async (req, res) => {
 
 exports.deleteWeek = wrap(async (req, res) => {
     const { week, caps } = await svc.accessWeek(id(req.params.id), req.admin);
-    if (!caps.deleteWeek) fail("Only the Subject Coordinator or a manager can delete a week.", 403);
-    if (week.status === "approved" && !caps.manage) fail("An approved week can only be deleted by a manager.", 403);
+    if (!caps.deleteWeek) fail("Only the Subject Coordinator, the Section Head or the Principal can delete weeks.", 403);
     await Promise.all([CoordinationVersion.deleteMany({ week: week._id }), CoordinationComment.deleteMany({ week: week._id }), CoordinationActivity.deleteMany({ week: week._id })]);
     await week.deleteOne();
     hub.emit(week._id, "deleted", { by: req.admin.name });
