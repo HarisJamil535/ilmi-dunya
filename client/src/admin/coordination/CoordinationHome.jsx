@@ -52,7 +52,7 @@ function NewFileDialog({ overview, onClose, onCreated }) {
 
 function StaffDialog({ person, preset, departments, onClose, onSaved }) {
   const editing = Boolean(person);
-  const [form, setForm] = useState({ name: person?.name || "", username: person?.username || "", password: "", title: person?.title || preset?.title || "teacher", departmentId: person?.department || preset?.departmentId || "", status: person?.status || "active" });
+  const [form, setForm] = useState({ salutation: person?.salutation || preset?.salutation || "", name: person?.plainName || person?.name || "", username: person?.username || "", password: "", title: person?.title || preset?.title || "teacher", departmentId: person?.department || preset?.departmentId || "", status: person?.status || "active" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
@@ -63,7 +63,7 @@ function StaffDialog({ person, preset, departments, onClose, onSaved }) {
   const save = async () => {
     setBusy(true); setError("");
     try {
-      const body = { name: form.name, username: form.username, title: form.title, departmentId: needsDept ? form.departmentId : "", ...(form.password ? { password: form.password } : {}), ...(editing ? { status: form.status } : {}) };
+      const body = { salutation: form.salutation, name: form.name, username: form.username, title: form.title, departmentId: needsDept ? form.departmentId : "", ...(form.password ? { password: form.password } : {}), ...(editing ? { status: form.status } : {}) };
       if (editing) { await api.patch(`/staff/${person.id}`, body); onSaved(); onClose(); toast("Saved."); }
       else { await api.post("/staff", body); setCreated({ username: form.username.toLowerCase(), password: form.password }); onSaved(); }
     } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
@@ -87,7 +87,10 @@ function StaffDialog({ person, preset, departments, onClose, onSaved }) {
 
   return <Dialog title={editing ? `Edit ${person.name}` : "Add a staff member"} subtitle={editing ? "Change their details, role, department or password." : "Create their sign-in. They will only see what their role allows."} onClose={onClose} busy={busy}
     footer={<>{editing && <AdminActionButton variant="delete" icon={Trash2} onClick={() => setConfirm(true)} className="mr-auto">Remove</AdminActionButton>}<AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={editing ? Check : UserPlus} loading={busy} disabled={!form.name.trim() || !form.username.trim() || (!editing && form.password.length < 8) || (needsDept && !form.departmentId)} onClick={save}>{editing ? "Save" : "Add person"}</AdminActionButton></>}>
-    <Field label="Full name"><input className={inputClass} value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} onBlur={() => !editing && suggest()} placeholder="e.g. Ms. Ammara Khan" /></Field>
+    <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Title</legend>
+      <div className="flex flex-wrap gap-1.5">{["Mr.", "Ms.", "Mrs.", "Miss", "Dr.", "Sir", "Madam", ""].map((t) => <button key={t || "none"} type="button" aria-pressed={form.salutation === t} onClick={() => setForm({ ...form, salutation: t })} className={`min-h-9 rounded-full border px-3.5 text-sm font-bold transition-colors ${form.salutation === t ? "border-primary bg-primary text-white" : "border-slate-200 text-slate-600 hover:border-primary-muted"}`}>{t || "None"}</button>)}</div>
+    </fieldset>
+    <Field label="Full name" hint={form.salutation && form.name ? `Shown as “${form.salutation} ${form.name.replace(/^(mr|ms|mrs|miss|dr|sir|madam)\.?\s+/i, "")}”` : "Without Mr./Ms. — choose that above."}><input className={inputClass} value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} onBlur={() => !editing && suggest()} placeholder="e.g. Ammara Khan" /></Field>
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Username" hint="Used to sign in. No spaces."><input className={inputClass} value={form.username} maxLength={60} autoCapitalize="none" spellCheck={false} onChange={(e) => setForm({ ...form, username: e.target.value.replace(/\s/g, "") })} placeholder="e.g. ammara.khan" /></Field>
       <Field label={editing ? "New password (optional)" : "Password"} hint="At least 8 characters."><div className="flex gap-2"><input className={inputClass} value={form.password} maxLength={100} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editing ? "Leave empty to keep" : ""} /><button type="button" onClick={randomPassword} title="Make a password" aria-label="Make a password" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-primary-muted hover:text-primary"><KeyRound className="h-4 w-4" /></button></div></Field>
@@ -267,10 +270,10 @@ export default function CoordinationHome() {
 
   return <div className="coord-root mx-auto max-w-6xl space-y-6">
     <AnnouncementCenter left={<p className="coord-greet" style={{ "--role": roleTheme(myRole) }}>{greeting}, <b>{me.name?.split(" ").slice(0, 3).join(" ")}</b></p>} />
-    <header className="coord-hero is-vivid" style={{ "--dept": roleTheme(myRole) }}>
+    <header className={`coord-hero is-vivid accent-${myRole || "manager"}`} style={{ "--dept": roleTheme(myRole) }}>
       <div className="min-w-0">
         <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination</p>
-        <h1>Coordination records</h1>
+        <h1>{me.name || "Coordination records"}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">{myRole && <RoleBadge role={myRole} />}{myDept && <span className="coord-deptchip" style={{ "--dept": deptColour(myDept.id) }}>{myDept.name}</span>}</div>
         <p className="coord-lead">{intro}</p>
         {!me.hasSignature && ["coordinator", "sectionHead"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-white"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
