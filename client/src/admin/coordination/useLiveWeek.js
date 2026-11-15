@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import { acquireSocket, releaseSocket } from "./liveSocket";
 
 // Live connection to one week: who is here, which cell each person is typing in, and changes from others.
 // Socket.IO falls back to ordinary requests where WebSockets are blocked, so it works behind most proxies.
@@ -13,21 +13,28 @@ export function useLiveWeek(weekId, handlers) {
 
   useEffect(() => {
     if (!weekId) return undefined;
-    const socket = io("/coordination", { path: "/api/live", auth: { token: localStorage.getItem("adminToken") }, transports: ["websocket", "polling"], reconnectionDelayMax: 8000 });
+    const socket = acquireSocket();
     socketRef.current = socket;
     const join = () => socket.emit("join", { weekId }, (reply) => {
       if (reply?.ok) { setStatus("live"); setMe(reply.me); handlersRef.current.onJoined?.(); }
       else { setStatus("offline"); handlersRef.current.onError?.(reply?.message); }
     });
-    socket.on("connect", join);
-    socket.on("disconnect", () => setStatus("offline"));
-    socket.on("connect_error", () => setStatus("offline"));
-    socket.io.on("reconnect_attempt", () => setStatus("connecting"));
-    socket.on("presence", setPeople);
+    const offline = () => setStatus("offline");
+    const connecting = () => setStatus("connecting");
+    const handlers = { connect: join, disconnect: offline, connect_error: offline, presence: setPeople };
     for (const event of ["cell", "comment", "comment-deleted", "activity", "status", "reload", "meta", "deleted", "ended"]) {
-      socket.on(event, (payload) => handlersRef.current[`on${event.replace(/(^|-)(\w)/g, (_, __, c) => c.toUpperCase())}`]?.(payload));
+      handlers[event] = (payload) => handlersRef.current[`on${event.replace(/(^|-)(\w)/g, (_, __, c) => c.toUpperCase())}`]?.(payload);
     }
-    return () => { socket.emit("leave"); socket.disconnect(); socketRef.current = null; };
+    for (const [event, fn] of Object.entries(handlers)) socket.on(event, fn);
+    socket.io.on("reconnect_attempt", connecting);
+    if (socket.connected) join();
+    return () => {
+      socket.emit("leave");
+      for (const [event, fn] of Object.entries(handlers)) socket.off(event, fn);
+      socket.io.off("reconnect_attempt", connecting);
+      socketRef.current = null;
+      releaseSocket();
+    };
   }, [weekId]);
 
   const emit = (event, payload) => new Promise((resolve) => {
