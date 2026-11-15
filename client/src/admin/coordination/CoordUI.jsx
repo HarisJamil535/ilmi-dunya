@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { BookOpen, Crown, ShieldCheck, Sparkles, Star, X } from "lucide-react";
 import ModalViewport from "../../shared/ModalViewport";
 import { STATUS, initials } from "./coordApi";
 
@@ -25,3 +25,20 @@ export const StatusChip = ({ status, className = "" }) => {
 export const Avatar = ({ name, colour = "#7c3aed", size = 32, ring = false, title }) => (
   <span title={title || name} className={`grid shrink-0 place-items-center rounded-full font-black text-white ${ring ? "ring-2 ring-white" : ""}`} style={{ width: size, height: size, background: colour, fontSize: size * 0.38 }}>{initials(name)}</span>
 );
+
+// A clear, colourful badge for each role.
+const ROLE_STYLE = {
+  principal: { label: "Principal", icon: Crown, cls: "rb-principal" },
+  sectionHead: { label: "Section Head", icon: ShieldCheck, cls: "rb-sh" },
+  coordinator: { label: "Subject Coordinator", icon: Star, cls: "rb-coordinator" },
+  teacher: { label: "Teacher", icon: BookOpen, cls: "rb-teacher" },
+  editor: { label: "Teacher", icon: BookOpen, cls: "rb-teacher" },
+  manager: { label: "Super admin", icon: Sparkles, cls: "rb-manager" },
+};
+export function RoleBadge({ role, small = false, className = "" }) {
+  const r = ROLE_STYLE[role];
+  if (!r) return null;
+  const Icon = r.icon;
+  return <span className={`role-badge ${r.cls} ${small ? "is-small" : ""} ${className}`}><Icon aria-hidden="true" />{r.label}</span>;
+}
+

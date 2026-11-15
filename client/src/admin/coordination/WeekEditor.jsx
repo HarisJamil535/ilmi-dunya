@@ -5,6 +5,7 @@ import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import { Avatar, Dialog, StatusChip } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
 import FontPicker from "./FontPicker";
+import AnnouncementCenter from "./AnnouncementCenter";
 import SidePanel from "./SidePanel";
 import { FormView, PageView } from "./PageView";
 import { LABELS } from "./pageLayout";
@@ -220,6 +221,7 @@ function WeekEditorView({ weekId }) {
         {caps.signCoordinator && week.status === "draft" && <AdminActionButton icon={Send} loading={busy === "submit"} onClick={() => act("submit")} className="!min-h-9">Submit &amp; sign</AdminActionButton>}
         {caps.signSectionHead && week.status === "submitted" && <AdminActionButton icon={ShieldCheck} loading={busy === "approve"} onClick={() => act("approve")} className="!min-h-9">Approve &amp; sign</AdminActionButton>}
         {caps.reopen && week.status !== "draft" && <AdminActionButton variant="secondary" icon={RotateCcw} loading={busy === "reopen"} onClick={() => setDialog("reopen")} className="!min-h-9">Reopen</AdminActionButton>}
+        <AnnouncementCenter compact />
         <button type="button" onClick={() => setPanel(!panel)} className={`ce-icon ${panel ? "is-on" : ""}`} aria-label="Comments, activity and history" aria-pressed={panel}><PanelRight className="h-5 w-5" />{comments.some((c) => !c.resolved) && <span className="ce-dot" />}</button>
       </div>
     </div>

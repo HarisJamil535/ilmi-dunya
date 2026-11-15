@@ -4,6 +4,7 @@ const { fadeImage } = require("./watermark");
 const { flatCells, plainText } = require("./coordService");
 const { fromText } = require("./coordRichText");
 const Admin = require("../models/Admin");
+const { fileTitle, departmentNameOf } = require("./coordSubjects");
 
 // The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
 // (as in the school's form: "1. Section Head  2. Ms. Ammara  3. Ms. Tahniyat"). Files without a department
@@ -39,14 +40,15 @@ async function buildRecords(file, weeks, settings) {
     try { watermark = original ? fadeImage(original, Math.max(0.03, Math.min(0.4, settings.watermarkOpacity || 0.12))) : null; } catch { watermark = null; }
     const session = file.session;
     const departmentAttendees = await attendeesOf(file);
+    const title = fileTitle(file, await departmentNameOf(file));
     const records = [];
     for (const [index, week] of weeks.entries()) {
         const cells = flatCells(week.cells);
         const sig = week.signatures || {};
         cells.week = fill(cells.week, `${week.week}${week.term ? ` (${week.term})` : ""}`);
-        cells.className = fill(cells.className, classLabel(file.subject?.class?.name));
+        cells.className = fill(cells.className, title.className);
         cells.sections = fill(cells.sections, file.sections);
-        cells.subject = fill(cells.subject, file.subject?.name);
+        cells.subject = fill(cells.subject, title.subject);
         const approved = week.status === "approved" && week.verifyCode;
         records.push({
             cells,

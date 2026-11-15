@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, Check, ChevronRight, Copy, Crown, FilePlus2, FolderOpen, KeyRound, PenLine, Plus, Settings2, ShieldCheck, Trash2, UserPlus, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, Building2, CalendarCheck2, Check, ChevronRight, Clock3, Copy, Crown, Download, FilePlus2, FolderOpen, KeyRound, PenLine, Plus, Settings2, ShieldCheck, Trash2, UserPlus, Users, UsersRound } from "lucide-react";
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
 import ImagePicker from "../../shared/ImagePicker";
 import ConfirmModal from "../../shared/ConfirmModal";
-import { Avatar, Dialog, Field, inputClass } from "./CoordUI";
+import { Avatar, Dialog, Field, RoleBadge, inputClass } from "./CoordUI";
+import AnnouncementCenter from "./AnnouncementCenter";
+import DownloadDialog from "./DownloadDialog";
 import SignatureDialog from "./SignatureDialog";
-import { api, messageOf } from "./coordApi";
+import { api, deptColour, messageOf } from "./coordApi";
 import "./coordination.css";
 
 const thisSession = () => { const now = new Date(); const start = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1; return `${start}-${start + 1}`; };
@@ -21,21 +23,25 @@ const toast = (message, type = "success") => window.dispatchEvent(new CustomEven
 
 function NewFileDialog({ overview, onClose, onCreated }) {
   const mine = overview.me.title === "coordinator" ? overview.me.department : "";
-  const [subjects, setSubjects] = useState(null);
-  const [form, setForm] = useState({ departmentId: mine || (overview.departments.length === 1 ? overview.departments[0].id : ""), subjectId: "", session: thisSession(), sections: "" });
+  const [form, setForm] = useState({ departmentId: mine || (overview.departments.length === 1 ? overview.departments[0].id : ""), classLevel: "", session: thisSession(), sections: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { api.get("/subjects").then((d) => setSubjects(d.subjects || [])).catch((e) => { setSubjects([]); setError(messageOf(e, "The subject list could not be loaded. Close this window and try again.")); }); }, []);
   const create = async () => {
     setBusy(true); setError("");
     try { const d = await api.post("/files", form); onCreated(d.id); } catch (e) { setError(messageOf(e)); setBusy(false); }
   };
-  return <Dialog title="New coordination file" subtitle="One file per subject and class for a session, for example Computer Science Class 9 and Class 10. Each week is one page." onClose={onClose} busy={busy}
-    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FilePlus2} loading={busy} disabled={!form.departmentId || !form.subjectId || !/^\d{4}-\d{4}$/.test(form.session)} onClick={create}>Create file</AdminActionButton></>}>
+  const dept = overview.departments.find((d) => d.id === form.departmentId);
+  return <Dialog title="New coordination file" subtitle="Each department keeps one file per class for the session. Each week is one page." onClose={onClose} busy={busy}
+    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FilePlus2} loading={busy} disabled={!form.departmentId || !form.classLevel || !/^\d{4}-\d{4}$/.test(form.session)} onClick={create}>Create file</AdminActionButton></>}>
     {overview.departments.length === 0 ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Add a department first (Departments &amp; staff).</p>
-      : <SharedSelect label="Department" allowClear={false} disabled={Boolean(mine)} value={form.departmentId} onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder="Choose a department" options={overview.departments.map((d) => ({ value: d.id, label: d.name }))} />}
-    <SharedSelect label="Subject and class" searchable isLoading={!subjects} value={form.subjectId} onChange={(subjectId) => setForm({ ...form, subjectId })} placeholder="Choose a subject"
-      options={(subjects || []).map((s) => ({ value: s.id, label: `${s.name} — ${s.className || "No class"}${s.group ? ` (${s.group})` : ""}${s.board ? ` · ${s.board}` : ""}` }))} />
+      : mine ? <div className="rounded-xl border border-slate-200 p-3"><p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Department</p><p className="mt-1 text-base font-black" style={{ color: deptColour(dept?.id) }}>{dept?.name}</p></div>
+      : <SharedSelect label="Department" allowClear={false} value={form.departmentId} onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder="Choose a department" options={overview.departments.map((d) => ({ value: d.id, label: d.name }))} />}
+    <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Class</legend>
+      <div className="grid grid-cols-2 gap-3">{[["9", "9th"], ["10", "10th"]].map(([value, label]) => <label key={value} className={`coord-classpick ${form.classLevel === value ? "is-on" : ""}`}>
+        <input type="radio" name="classLevel" className="sr-only" checked={form.classLevel === value} onChange={() => setForm({ ...form, classLevel: value })} />
+        <b>{label}</b><span>{dept ? `${dept.name} ${label}` : `Class ${label}`}</span>
+      </label>)}</div>
+    </fieldset>
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Session" hint="For example 2026-2027"><input className={inputClass} value={form.session} maxLength={9} onChange={(e) => setForm({ ...form, session: e.target.value })} /></Field>
       <Field label="No. of sections" hint="Printed at the top of every week"><input className={inputClass} value={form.sections} maxLength={20} onChange={(e) => setForm({ ...form, sections: e.target.value })} placeholder="e.g. 5" /></Field>
@@ -99,11 +105,11 @@ function StaffDialog({ person, preset, departments, onClose, onSaved }) {
   </Dialog>;
 }
 
-function PersonRow({ person, onEdit, badge }) {
+function PersonRow({ person, onEdit }) {
   return <button type="button" onClick={onEdit} className={`coord-person ${person.status !== "active" ? "is-off" : ""}`}>
     <Avatar name={person.name} size={32} />
     <span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-bold text-slate-800">{person.name}</span><span className="block truncate text-xs text-slate-500">@{person.username}{person.status !== "active" ? " · blocked" : ""}</span></span>
-    {badge}
+    <RoleBadge role={person.title} small />
     {person.hasSignature ? <PenLine className="h-4 w-4 text-emerald-600" aria-label="Has an e-signature" /> : null}
   </button>;
 }
@@ -141,7 +147,7 @@ function StaffTab({ overview, reload }) {
         : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{overview.departments.map((d) => {
           const coordinator = d.staff.find((p) => p.title === "coordinator");
           const teachers = d.staff.filter((p) => p.title !== "coordinator");
-          return <article key={d.id} className="coord-dept">
+          return <article key={d.id} className="coord-dept" style={{ "--dept": deptColour(d.id) }}>
             <div className="flex items-start justify-between gap-2">
               {renaming?.id === d.id ? <div className="flex flex-1 gap-2"><input autoFocus className={`${inputClass} !min-h-9`} value={renaming.name} maxLength={60} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") rename(); if (e.key === "Escape") setRenaming(null); }} /><AdminActionButton className="!min-h-9" onClick={rename}>Save</AdminActionButton></div>
                 : <button type="button" onClick={() => setRenaming({ id: d.id, name: d.name })} className="min-w-0 text-left" title="Rename"><h3 className="truncate text-lg font-black text-slate-900">{d.name}</h3><p className="text-xs text-slate-500">{d.staff.length} staff · {d.files} file{d.files === 1 ? "" : "s"}</p></button>}
@@ -201,27 +207,28 @@ function SettingsDialog({ onClose }) {
   </Dialog>;
 }
 
-function FileCard({ f, departments, onMove, onDelete }) {
+function FileCard({ f, departments, onMove, onDelete, onDownload }) {
   const pct = f.counts.total ? Math.round((f.counts.approved / f.counts.total) * 100) : 0;
-  return <article className="coord-card">
+  return <article className="coord-card" style={{ "--dept": deptColour(f.department.id) }}>
     <Link to={`/admin/coordination/${f.id}`} className="coord-card-main">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0"><h3>{f.subject.name} <span className="text-slate-400">·</span> {f.subject.className || "No class"}</h3><p>{[f.session, f.subject.group, f.subject.board].filter(Boolean).join(" · ")}</p></div>
-        <ChevronRight className="coord-arrow mt-1 h-5 w-5 shrink-0" />
+      <div className="flex items-center gap-4">
+        <span className="coord-classbig"><b>{f.subject.className || "–"}</b><small>class</small></span>
+        <div className="min-w-0 flex-1"><h3 className="truncate">{f.subject.name}</h3><p>{f.session}{f.sections ? ` · ${f.sections} sections` : ""}</p></div>
+        <span className="coord-ring" style={{ "--pct": pct }} aria-label={`${pct}% approved`}><b>{pct}%</b></span>
       </div>
-      <div className="coord-progress" aria-label={`${f.counts.approved} of ${f.counts.total} weeks approved`}><span style={{ width: `${pct}%` }} /></div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
-        <span><b className="text-slate-800">{f.counts.total}</b> week{f.counts.total === 1 ? "" : "s"}</span>
-        <span className="text-emerald-700">{f.counts.approved} approved</span>
-        {f.counts.submitted > 0 && <span className="text-sky-700">{f.counts.submitted} awaiting approval</span>}
-        {f.counts.overdue > 0 && <span className="text-rose-600">{f.counts.overdue} overdue</span>}
+      <div className="flex flex-wrap gap-1.5">
+        <span className="coord-pill">{f.counts.total} week{f.counts.total === 1 ? "" : "s"}</span>
+        <span className="coord-pill is-green"><CalendarCheck2 />{f.counts.approved} approved</span>
+        {f.counts.submitted > 0 && <span className="coord-pill is-blue"><Clock3 />{f.counts.submitted} awaiting</span>}
+        {f.counts.overdue > 0 && <span className="coord-pill is-red"><AlertTriangle />{f.counts.overdue} overdue</span>}
       </div>
-      <div className="flex -space-x-2">{f.members.slice(0, 7).map((m) => <Avatar key={m.admin} name={m.name} size={26} ring title={`${m.name} — ${m.title}`} />)}</div>
+      <div className="flex items-center justify-between gap-2"><div className="flex -space-x-2">{f.members.slice(0, 7).map((m) => <Avatar key={m.admin} name={m.name} size={26} ring title={`${m.name} — ${m.title}`} />)}</div><ChevronRight className="coord-arrow h-5 w-5" /></div>
     </Link>
-    {f.caps.manage && <div className="coord-card-tools">
-      {!f.department.id && <div className="flex-1 p-1.5"><SharedSelect size="sm" placeholder="Move to a department" value="" onChange={(id) => id && onMove(f, id)} options={departments.map((d) => ({ value: d.id, label: d.name }))} /></div>}
-      <button type="button" className="is-danger" onClick={() => onDelete(f)}><Trash2 className="h-4 w-4" />Delete</button>
-    </div>}
+    <div className="coord-card-tools">
+      {f.counts.total > 0 && <button type="button" onClick={() => onDownload(f)}><Download className="h-4 w-4" />Download weeks</button>}
+      {f.caps.manage && !f.department.id && <div className="flex-1 p-1.5"><SharedSelect size="sm" placeholder="Move to a department" value="" onChange={(id) => id && onMove(f, id)} options={departments.map((d) => ({ value: d.id, label: d.name }))} /></div>}
+      {f.caps.manage && <button type="button" className="is-danger" onClick={() => onDelete(f)}><Trash2 className="h-4 w-4" />Delete</button>}
+    </div>
   </article>;
 }
 
@@ -233,6 +240,7 @@ export default function CoordinationHome() {
   const [tab, setTab] = useState("files");
   const [dialog, setDialog] = useState("");
   const [confirm, setConfirm] = useState(null);
+  const [downloadFile, setDownloadFile] = useState(null);
   const load = () => Promise.all([api.get("/overview"), api.get("/files")]).then(([o, f]) => { setOverview(o); setFiles(f.files); setError(""); }).catch((e) => setError(messageOf(e)));
   useEffect(() => { load(); }, []);
   const groups = useMemo(() => {
@@ -252,18 +260,28 @@ export default function CoordinationHome() {
   const myDept = overview.departments.find((d) => d.id === me.department);
   const intro = overview.canManage ? "Add departments and staff, then create a file for each subject and class." : me.title === "principal" ? "You can open and download every department's records." : me.title === "sectionHead" ? "You can review, approve and sign every department's weekly records." : `${myDept?.name || "Your department"}: plan each week together, live.`;
 
+  const totals = files.reduce((t, f) => ({ files: t.files + 1, weeks: t.weeks + f.counts.total, approved: t.approved + f.counts.approved, awaiting: t.awaiting + f.counts.submitted, overdue: t.overdue + f.counts.overdue }), { files: 0, weeks: 0, approved: 0, awaiting: 0, overdue: 0 });
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const myRole = overview.canManage && !me.title ? "manager" : me.title;
+
   return <div className="coord-root mx-auto max-w-6xl space-y-6">
-    <header className="coord-hero">
+    <AnnouncementCenter left={<span className="text-sm font-bold text-slate-500">{greeting}, {me.name?.split(" ").slice(0, 2).join(" ")}</span>} />
+    <header className="coord-hero is-vivid">
       <div className="min-w-0">
-        <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination{me.titleLabel ? ` · ${me.titleLabel}${myDept ? `, ${myDept.name}` : ""}` : ""}</p>
+        <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination</p>
         <h1>Coordination records</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">{myRole && <RoleBadge role={myRole} />}{myDept && <span className="coord-deptchip" style={{ "--dept": deptColour(myDept.id) }}>{myDept.name}</span>}</div>
         <p className="coord-lead">{intro}</p>
-        {!me.hasSignature && ["coordinator", "sectionHead"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
+        {!me.hasSignature && ["coordinator", "sectionHead"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-white"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
+        <div className="coord-stats">
+          <span><b>{totals.files}</b>files</span><span><b>{totals.weeks}</b>weeks</span><span className="is-green"><b>{totals.approved}</b>approved</span><span className="is-blue"><b>{totals.awaiting}</b>awaiting</span>{totals.overdue > 0 && <span className="is-red"><b>{totals.overdue}</b>overdue</span>}
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog("signature")}>My signature</AdminActionButton>
-        {overview.canManage && <AdminActionButton variant="secondary" icon={Settings2} onClick={() => setDialog("settings")}>Record settings</AdminActionButton>}
-        {me.canCreateFiles && <AdminActionButton icon={Plus} onClick={() => setDialog("new")}>New file</AdminActionButton>}
+        <button type="button" className="coord-hero-btn" onClick={() => setDialog("signature")}><PenLine className="h-4 w-4" />My signature</button>
+        {overview.canManage && <button type="button" className="coord-hero-btn" onClick={() => setDialog("settings")}><Settings2 className="h-4 w-4" />Record settings</button>}
+        {me.canCreateFiles && <button type="button" className="coord-hero-btn is-solid" onClick={() => setDialog("new")}><Plus className="h-4 w-4" />New file</button>}
       </div>
     </header>
 
@@ -278,11 +296,12 @@ export default function CoordinationHome() {
       <p>{overview.canManage ? "Add departments and their staff, then create a file for each subject and class." : me.title ? "When a file is created for your department, it will appear here." : "Ask the super admin to add you to a department."}</p>
       {overview.canManage && <AdminActionButton icon={Building2} onClick={() => setTab("staff")}>Set up departments</AdminActionButton>}
     </div> : groups.map((g) => <section key={g.id || "none"} className="space-y-3">
-      <h2 className="coord-group flex items-center gap-2"><Building2 className="h-4 w-4" />{g.name}<span className="font-bold normal-case tracking-normal text-slate-400">· {g.files.length} file{g.files.length === 1 ? "" : "s"}</span></h2>
-      {g.files.length ? <div className="grid gap-3 md:grid-cols-2">{g.files.map((f) => <FileCard key={f.id} f={f} departments={overview.departments} onMove={move} onDelete={setConfirm} />)}</div>
+      <h2 className="coord-group flex items-center gap-2" style={{ "--dept": deptColour(g.id) }}><span className="coord-dot" />{g.name}<span className="font-bold normal-case tracking-normal text-slate-400">· {g.files.length} file{g.files.length === 1 ? "" : "s"}</span></h2>
+      {g.files.length ? <div className="grid gap-3 md:grid-cols-2">{g.files.map((f) => <FileCard key={f.id} f={f} departments={overview.departments} onMove={move} onDelete={setConfirm} onDownload={setDownloadFile} />)}</div>
         : <p className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500">No files yet.{me.canCreateFiles && <> <button type="button" onClick={() => setDialog("new")} className="font-bold text-primary hover:underline">Create one</button>.</>}</p>}
     </section>)}
 
+    {downloadFile && <DownloadDialog fileId={downloadFile.id} title={`${downloadFile.subject.name} ${downloadFile.subject.className}`} onClose={() => setDownloadFile(null)} />}
     {dialog === "new" && <NewFileDialog overview={overview} onClose={() => setDialog("")} onCreated={(id) => { setDialog(""); navigate(`/admin/coordination/${id}`); }} />}
     {dialog === "settings" && <SettingsDialog onClose={() => setDialog("")} />}
     {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} onSaved={load} />}

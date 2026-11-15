@@ -183,6 +183,10 @@ const initializeDatabase = async () => {
         databaseReady = connectDB().then(async () => {
             await Student.collection.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
             await StudentAuthChallenge.createIndexes();
+            // Coordination files used to be unique per site subject; they are now unique per department and class.
+            const { CoordinationFile } = require('./src/models/Coordination');
+            await CoordinationFile.collection.dropIndex('subject_1_session_1').catch(() => {});
+            await CoordinationFile.createIndexes().catch((error) => process.stderr.write(`coordination indexes: ${error.message}\n`));
         }).catch(error => { databaseReady = undefined; throw error; });
     }
     return databaseReady;

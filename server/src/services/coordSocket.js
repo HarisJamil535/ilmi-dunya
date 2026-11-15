@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const Admin = require("../models/Admin");
-const { canUseArea } = require("./coordAccess");
+const { canUseArea, isManager } = require("./coordAccess");
 const { accessWeek, saveCell } = require("./coordService");
 const { toHtml } = require("./coordRichText");
 const { KEYS } = require("./coordTemplate");
@@ -65,6 +65,11 @@ function attachCoordinationSocket(httpServer) {
     };
 
     ns.on("connection", (socket) => {
+        // Rooms for announcements, by who should receive them.
+        const me = socket.data.admin;
+        socket.join("ann:all");
+        if (isManager(me) || ["coordinator", "sectionHead", "principal"].includes(me.coordTitle)) socket.join("ann:coordinators");
+
         socket.on("join", async ({ weekId } = {}, reply = () => {}) => {
             try {
                 leave(socket);

@@ -10,6 +10,7 @@ departmentSchema.index({ name: 1 }, { unique: true, collation: { locale: "en", s
 
 // One coordination file: a subject (which already belongs to one class, e.g. Computer Science Class 9) for one
 // academic session. Its members decide who may see, edit, comment on and sign its weekly records.
+const CLASS_LEVELS = ["9", "10"];
 const ROLES = ["viewer", "editor", "coordinator", "sectionHead"];
 const memberSchema = new mongoose.Schema({
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true },
@@ -17,7 +18,9 @@ const memberSchema = new mongoose.Schema({
 }, { _id: false });
 
 const fileSchema = new mongoose.Schema({
-    subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
+    // Files are made per department and class (9th or 10th). Older files may point at a site subject instead.
+    subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", default: undefined },
+    classLevel: { type: String, enum: CLASS_LEVELS, default: undefined },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "CoordinationDepartment", index: true, default: null },
     session: { type: String, required: true, trim: true, match: /^\d{4}-\d{4}$/ },
     sections: { type: String, default: "", maxlength: 20 },
@@ -25,7 +28,8 @@ const fileSchema = new mongoose.Schema({
     members: { type: [memberSchema], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
 }, { timestamps: true });
-fileSchema.index({ subject: 1, session: 1 }, { unique: true });
+// One file per department, class and session.
+fileSchema.index({ department: 1, classLevel: 1, session: 1 }, { unique: true, partialFilterExpression: { classLevel: { $exists: true } } });
 
 const signatureSchema = new mongoose.Schema({
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
@@ -111,8 +115,23 @@ const settingSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
+// Notices from the Section Head (or the super admin) to all staff or to Subject Coordinators only.
+const announcementSchema = new mongoose.Schema({
+    title: { type: String, required: true, trim: true, maxlength: 120 },
+    body: { type: String, default: "", trim: true, maxlength: 2000 },
+    important: { type: Boolean, default: false },
+    audience: { type: String, enum: ["all", "coordinators"], default: "all" },
+    by: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    byName: String,
+    byTitle: String,
+    readBy: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+}, { timestamps: true });
+announcementSchema.index({ createdAt: -1 });
+
 module.exports = {
     ROLES,
+    CLASS_LEVELS,
+    CoordinationAnnouncement: mongoose.model("CoordinationAnnouncement", announcementSchema),
     CoordinationDepartment: mongoose.model("CoordinationDepartment", departmentSchema),
     CoordinationFile: mongoose.model("CoordinationFile", fileSchema),
     CoordinationWeek: mongoose.model("CoordinationWeek", weekSchema),
