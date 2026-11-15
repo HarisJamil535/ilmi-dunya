@@ -46,3 +46,14 @@ export const initials = (name = "") => name.split(/\s+/).filter(Boolean).slice(0
 // Professional, well-contrasted tones (white text stays readable on each).
 const DEPT_COLOURS = ["#4f46e5", "#0f766e", "#0369a1", "#7c3aed", "#b45309", "#be123c", "#15803d", "#1d4ed8", "#a21caf", "#334155"];
 export const deptColour = (id = "") => DEPT_COLOURS[[...String(id)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % DEPT_COLOURS.length];
+
+// Header colour by the viewer's role, and a badge colour chosen to stand out clearly on it.
+export const ROLE_THEME = {
+  teacher: "#1d4ed8",     // blue header; teacher badge is pink
+  editor: "#1d4ed8",
+  coordinator: "#6d28d9", // violet header; coordinator badge is cyan
+  sectionHead: "#0f766e", // teal header; Section Head badge is orange
+  principal: "#1e293b",   // navy header; Principal badge is gold
+  manager: "#4338ca",     // indigo header; super admin badge is green
+};
+export const roleTheme = (role) => ROLE_THEME[role] || ROLE_THEME.manager;

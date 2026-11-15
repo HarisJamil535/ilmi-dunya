@@ -9,7 +9,7 @@ import { Avatar, Dialog, Field, RoleBadge, inputClass } from "./CoordUI";
 import AnnouncementCenter from "./AnnouncementCenter";
 import DownloadDialog from "./DownloadDialog";
 import SignatureDialog from "./SignatureDialog";
-import { api, deptColour, messageOf } from "./coordApi";
+import { api, deptColour, messageOf, roleTheme } from "./coordApi";
 import "./coordination.css";
 
 const thisSession = () => { const now = new Date(); const start = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1; return `${start}-${start + 1}`; };
@@ -266,8 +266,8 @@ export default function CoordinationHome() {
   const myRole = overview.canManage && !me.title ? "manager" : me.title;
 
   return <div className="coord-root mx-auto max-w-6xl space-y-6">
-    <AnnouncementCenter left={<span className="text-sm font-bold text-slate-500">{greeting}, {me.name?.split(" ").slice(0, 2).join(" ")}</span>} />
-    <header className="coord-hero is-vivid">
+    <AnnouncementCenter left={<p className="coord-greet" style={{ "--role": roleTheme(myRole) }}>{greeting}, <b>{me.name?.split(" ").slice(0, 3).join(" ")}</b></p>} />
+    <header className="coord-hero is-vivid" style={{ "--dept": roleTheme(myRole) }}>
       <div className="min-w-0">
         <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination</p>
         <h1>Coordination records</h1>

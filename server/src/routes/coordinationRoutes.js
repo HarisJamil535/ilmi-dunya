@@ -42,6 +42,7 @@ router.get("/files/:id", c.getFile);
 router.patch("/files/:id", c.updateFile);
 router.delete("/files/:id", c.deleteFile);
 router.post("/files/:id/weeks", c.createWeek);
+router.delete("/files/:id/weeks", c.deleteWeeks);
 router.get("/files/:id/copy-sources", c.copySources);
 router.post("/files/:id/import", docx.single("file"), c.importIntoFile);
 router.get("/files/:id/export", c.exportFile);
