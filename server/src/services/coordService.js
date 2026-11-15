@@ -4,6 +4,7 @@ const { KEYS, labelOf } = require("./coordTemplate");
 const { fromHtml, toHtml, normalise, plainText } = require("./coordRichText");
 const { roleIn, capsFor } = require("./coordAccess");
 const hub = require("./coordHub");
+const { attachNames } = require("./coordSubjects");
 
 const SNAPSHOT_EVERY_MS = 10 * 60 * 1000;
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
@@ -23,7 +24,8 @@ async function settings() {
 async function accessWeek(weekId, admin) {
     const week = await CoordinationWeek.findById(weekId).catch(() => null);
     if (!week) fail("This week was not found.", 404);
-    const file = await CoordinationFile.findById(week.file).populate({ path: "subject", select: "name class board group", populate: [{ path: "class", select: "name" }, { path: "board", select: "name" }, { path: "group", select: "name" }] });
+    const file = await CoordinationFile.findById(week.file).populate({ path: "subject", select: "name class board group" });
+    if (file?.subject) await attachNames([file.subject]);
     if (!file) fail("This coordination file was not found.", 404);
     const role = roleIn(file, admin);
     if (!role) fail("You do not have access to this coordination file.", 403);
@@ -31,7 +33,8 @@ async function accessWeek(weekId, admin) {
 }
 
 async function accessFile(fileId, admin) {
-    const file = await CoordinationFile.findById(fileId).populate({ path: "subject", select: "name class board group", populate: [{ path: "class", select: "name" }, { path: "board", select: "name" }, { path: "group", select: "name" }] }).catch(() => null);
+    const file = await CoordinationFile.findById(fileId).populate({ path: "subject", select: "name class board group" }).catch(() => null);
+    if (file?.subject) await attachNames([file.subject]);
     if (!file) fail("This coordination file was not found.", 404);
     const role = roleIn(file, admin);
     if (!role) fail("You do not have access to this coordination file.", 403);

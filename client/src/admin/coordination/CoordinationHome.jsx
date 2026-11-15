@@ -17,7 +17,7 @@ function NewFileDialog({ onClose, onCreated }) {
   const [form, setForm] = useState({ subjectId: "", session: thisSession(), sections: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { api.get("/subjects").then((d) => setSubjects(d.subjects)).catch((e) => setError(messageOf(e))); }, []);
+  useEffect(() => { api.get("/subjects").then((d) => setSubjects(d.subjects || [])).catch((e) => { setSubjects([]); setError(messageOf(e, "The subject list could not be loaded. Close this window and try again.")); }); }, []);
   const create = async () => {
     setBusy(true); setError("");
     try { const d = await api.post("/files", form); onCreated(d.file); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
@@ -40,7 +40,7 @@ function MembersDialog({ file, onClose, onSaved }) {
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { api.get("/people").then((d) => setPeople(d.people)).catch((e) => setError(messageOf(e))); }, []);
+  useEffect(() => { api.get("/people").then((d) => setPeople(d.people || [])).catch((e) => { setPeople([]); setError(messageOf(e)); }); }, []);
   const byId = useMemo(() => new Map((people || []).map((p) => [p.id, p])), [people]);
   const add = (id) => { if (id && !members.some((m) => m.admin === id)) setMembers([...members, { admin: id, role: "editor" }]); setAdding(""); };
   const save = async () => {
