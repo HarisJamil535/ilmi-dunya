@@ -3,9 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CalendarClock, CheckCircle2, Download, FileText, FileUp, MessageSquare, PenLine, Plus, QrCode, Search } from "lucide-react";
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
-import { Avatar, Dialog, Field, StatusChip, inputClass } from "./CoordUI";
+import { Avatar, Dialog, Field, RoleBadge, StatusChip, inputClass } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
-import { ROLE_LABEL, api, download, messageOf, timeAgo } from "./coordApi";
+import DownloadDialog from "./DownloadDialog";
+import AnnouncementCenter from "./AnnouncementCenter";
+import { ROLE_LABEL, api, deptColour, messageOf, timeAgo } from "./coordApi";
 import "./coordination.css";
 
 function NewWeekDialog({ file, weeks, onClose, onCreated }) {
@@ -65,23 +67,6 @@ function ImportDialog({ file, onClose, onDone }) {
   </Dialog>;
 }
 
-function DownloadDialog({ file, onClose }) {
-  const [options, setOptions] = useState({ only: "all", from: "", to: "" });
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
-  const get = async (format) => {
-    setBusy(format); setError("");
-    const q = new URLSearchParams({ format, ...(options.only === "approved" ? { only: "approved" } : {}), ...(options.from ? { from: options.from } : {}), ...(options.to ? { to: options.to } : {}) });
-    try { await download(`/files/${file.id}/export?${q}`); onClose(); } catch (e) { setError(e.response?.status === 404 ? "There are no weeks to download with these choices." : messageOf(e)); } finally { setBusy(""); }
-  };
-  return <Dialog title="Download the whole file" subtitle="All chosen weeks in one document, one A4 landscape page per week." onClose={onClose} busy={Boolean(busy)}
-    footer={<><AdminActionButton variant="secondary" icon={FileText} loading={busy === "docx"} disabled={Boolean(busy)} onClick={() => get("docx")}>Word</AdminActionButton><AdminActionButton icon={Download} loading={busy === "pdf"} disabled={Boolean(busy)} onClick={() => get("pdf")}>PDF</AdminActionButton></>}>
-    <SharedSelect label="Weeks" allowClear={false} value={options.only} onChange={(only) => setOptions({ ...options, only })} options={[{ value: "all", label: "All weeks (drafts are marked)" }, { value: "approved", label: "Approved and signed weeks only" }]} />
-    <div className="grid grid-cols-2 gap-3"><Field label="From week"><input className={inputClass} type="number" min="1" max="60" value={options.from} onChange={(e) => setOptions({ ...options, from: e.target.value })} placeholder="First" /></Field><Field label="To week"><input className={inputClass} type="number" min="1" max="60" value={options.to} onChange={(e) => setOptions({ ...options, to: e.target.value })} placeholder="Last" /></Field></div>
-    {error && <p role="alert" className="text-sm font-bold text-rose-600">{error}</p>}
-  </Dialog>;
-}
-
 export default function CoordinationFile() {
   const { fileId } = useParams();
   const navigate = useNavigate();
@@ -103,13 +88,16 @@ export default function CoordinationFile() {
   const filters = [["all", "All", data.weeks.length], ["draft", "Drafts", counts.draft], ["submitted", "Awaiting approval", counts.submitted], ["approved", "Approved", counts.approved], ["overdue", "Overdue", counts.overdue], ["comments", "Open comments", data.weeks.filter((w) => w.openComments).length]];
 
   return <div className="coord-root mx-auto max-w-6xl space-y-5">
-    <Link to="/admin/coordination" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary"><ArrowLeft className="h-4 w-4" />All coordination files</Link>
-    <header className="coord-hero">
+    <AnnouncementCenter left={<Link to="/admin/coordination" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary"><ArrowLeft className="h-4 w-4" />All coordination files</Link>} />
+    <header className="coord-hero is-vivid" style={{ "--dept": deptColour(file.department.id) }}>
       <div className="min-w-0">
-        <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session}{file.subject.group ? ` · ${file.subject.group}` : ""}</p>
-        <h1>{file.subject.name} <span className="text-slate-400">·</span> {file.subject.className || "No class"}</h1>
-        <p className="coord-lead">You are <b>{ROLE_LABEL[file.role]}</b>{file.role === "principal" ? " (view and download)" : ""}. {counts.approved} of {counts.total} weeks approved.</p>
-        {file.members.length > 0 && <div className="mt-3 flex items-center gap-2"><div className="flex -space-x-2">{file.members.map((m) => <Avatar key={m.admin} name={m.name} size={30} ring title={`${m.name} — ${m.title}`} />)}</div><span className="text-xs font-bold text-slate-500">{file.members.map((m) => m.name).join(", ")}</span></div>}
+        <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session}</p>
+        <h1 className="flex flex-wrap items-center gap-3">{file.subject.name}<span className="coord-class">{file.subject.className || "–"}</span></h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-white/80">You are</span><RoleBadge role={file.role} />{file.role === "principal" && <span className="text-sm text-white/80">view and download</span>}</div>
+        <div className="coord-stats">
+          <span><b>{counts.total}</b>weeks</span><span className="is-green"><b>{counts.approved}</b>approved</span><span className="is-blue"><b>{counts.submitted}</b>awaiting</span><span className="is-amber"><b>{counts.draft}</b>drafts</span>{counts.overdue > 0 && <span className="is-red"><b>{counts.overdue}</b>overdue</span>}
+        </div>
+        {file.members.length > 0 && <div className="mt-4 flex flex-wrap items-center gap-2">{file.members.map((m) => <span key={m.admin} className="coord-member"><Avatar name={m.name} size={24} />{m.name}<RoleBadge role={m.role === "coordinator" ? "coordinator" : "teacher"} small /></span>)}</div>}
       </div>
       <div className="flex flex-wrap gap-2">
         <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog("signature")}>My signature</AdminActionButton>
@@ -151,7 +139,7 @@ export default function CoordinationFile() {
 
     {dialog === "new" && <NewWeekDialog file={file} weeks={data.weeks} onClose={() => setDialog("")} onCreated={(id) => navigate(`/admin/coordination/week/${id}`)} />}
     {dialog === "import" && <ImportDialog file={file} onClose={() => setDialog("")} onDone={load} />}
-    {dialog === "download" && <DownloadDialog file={file} onClose={() => setDialog("")} />}
+    {dialog === "download" && <DownloadDialog fileId={file.id} title={`${file.subject.name} ${file.subject.className}`} weeks={data.weeks} onClose={() => setDialog("")} />}
     {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} />}
   </div>;
 }

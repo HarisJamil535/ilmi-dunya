@@ -21,3 +21,19 @@ async function attachNames(subjects) {
 }
 
 module.exports = { attachNames };
+
+// What a file is called: new files are "<Department> · 9th"; older ones use the site subject and its class.
+const ordinal = (n) => (n === "9" ? "9th" : n === "10" ? "10th" : n ? `${n}th` : "");
+function fileTitle(file, departmentName = "") {
+    if (file?.classLevel) return { subject: departmentName || "Subject", className: ordinal(file.classLevel), classLevel: file.classLevel };
+    const raw = String(file?.subject?.class?.name || "").replace(/^class\s*/i, "").trim();
+    return { subject: file?.subject?.name || departmentName || "Subject", className: raw ? ordinal(raw) : "", classLevel: raw };
+}
+async function departmentNameOf(file) {
+    const id = file?.department?._id || file?.department;
+    if (!id || !mongoose.isValidObjectId(id)) return "";
+    return (await mongoose.model("CoordinationDepartment").findById(id).select("name").lean())?.name || "";
+}
+module.exports.fileTitle = fileTitle;
+module.exports.departmentNameOf = departmentNameOf;
+module.exports.ordinal = ordinal;

@@ -41,3 +41,7 @@ export const timeAgo = (date) => {
   return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 };
 export const initials = (name = "") => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
+
+// Each department gets its own colour, used on its cards and headings.
+const DEPT_COLOURS = ["#7c3aed", "#0891b2", "#db2777", "#ea580c", "#16a34a", "#2563eb", "#ca8a04", "#9333ea", "#0d9488", "#dc2626"];
+export const deptColour = (id = "") => DEPT_COLOURS[[...String(id)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % DEPT_COLOURS.length];

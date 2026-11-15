@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Admin = require("../models/Admin");
 const Subject = require("../models/Subject");
-const { CoordinationDepartment, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
+const { CLASS_LEVELS, CoordinationAnnouncement, CoordinationDepartment, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
 const svc = require("../services/coordService");
 const { isManager, roleIn, capsFor, fileFilter, canCreateFile, seesEverything } = require("../services/coordAccess");
 const { hashPassword } = require("../services/passwords");
@@ -14,7 +14,7 @@ const { cleanSignature } = require("../services/signatureImage");
 const { storeImage } = require("../services/mediaStore");
 const { labelOf, KEYS } = require("../services/coordTemplate");
 const hub = require("../services/coordHub");
-const { attachNames } = require("../services/coordSubjects");
+const { attachNames, fileTitle, departmentNameOf } = require("../services/coordSubjects");
 
 const { fail } = svc;
 const id = (value) => (mongoose.isValidObjectId(value) ? String(value) : fail("Not found.", 404));
@@ -46,12 +46,15 @@ async function staffDirectory() {
 function fileSummary(file, admin, weeks = [], directory = null, departments = new Map()) {
     const role = roleIn(file, admin);
     const subject = file.subject || {};
+    const departmentId0 = file.department ? String(file.department?._id || file.department) : "";
+    const title = fileTitle(file, departments.get(departmentId0) || "");
     const departmentId = file.department ? String(file.department?._id || file.department) : "";
     const members = directory ? (directory.byDepartment.get(departmentId) || []).filter((p) => p.status === "active") : [];
     return {
         id: String(file._id), session: file.session, sections: file.sections, showQr: file.showQr,
         department: { id: departmentId, name: departments.get(departmentId) || file.department?.name || "" },
-        subject: { id: String(subject._id || ""), name: subject.name || "", className: subject.class?.name || "", classLabel: classLabel(subject.class?.name), board: subject.board?.name || "", group: subject.group?.name || "" },
+        classLevel: title.classLevel || "",
+        subject: { id: String(subject._id || ""), name: title.subject, className: title.className, classLabel: title.className, board: subject.board?.name || "", group: subject.group?.name || "" },
         role, caps: capsFor(role, admin),
         members: members.map((m) => ({ admin: m.id, name: m.name, role: m.title === "coordinator" ? "coordinator" : "editor", title: m.titleLabel, hasSignature: m.hasSignature })),
         counts: { total: weeks.length, draft: weeks.filter((w) => w.status === "draft").length, submitted: weeks.filter((w) => w.status === "submitted").length, approved: weeks.filter((w) => w.status === "approved").length, overdue: weeks.filter((w) => w.status !== "approved" && w.dueDate && new Date(w.dueDate) < new Date()).length },
@@ -201,13 +204,12 @@ exports.createFile = wrap(async (req, res) => {
     const departmentId = id(req.body.departmentId);
     if (!(await CoordinationDepartment.exists({ _id: departmentId }))) fail("Choose a department.");
     if (!canCreateFile(req.admin, departmentId)) fail("You can only create files for your own department.", 403);
-    const subject = await Subject.findById(id(req.body.subjectId)).select("_id");
-    if (!subject) fail("Choose a subject and class.");
+    const classLevel = String(req.body.classLevel || "");
+    if (!CLASS_LEVELS.includes(classLevel)) fail("Choose the class: 9th or 10th.");
     const session = text(req.body.session, 9);
     if (!SESSION.test(session)) fail("Write the session like 2026-2027.");
-    const exists = await CoordinationFile.findOne({ subject: subject._id, session });
-    if (exists) fail("A coordination file for this subject, class and session already exists.", 409);
-    const file = await CoordinationFile.create({ subject: subject._id, department: departmentId, session, sections: text(req.body.sections, 20), createdBy: req.admin._id });
+    if (await CoordinationFile.exists({ department: departmentId, classLevel, session })) fail(`This department already has a ${classLevel}th class file for ${session}.`, 409);
+    const file = await CoordinationFile.create({ department: departmentId, classLevel, session, sections: text(req.body.sections, 20), createdBy: req.admin._id });
     res.status(201).json({ success: true, id: String(file._id) });
 });
 
@@ -293,7 +295,8 @@ exports.createWeek = wrap(async (req, res) => {
 // Weeks from other files the person can copy (same subject earlier sessions, and this file).
 exports.copySources = wrap(async (req, res) => {
     const { file } = await svc.accessFile(id(req.params.id), req.admin);
-    const files = await CoordinationFile.find({ subject: file.subject._id }).lean();
+    // Earlier sessions of the same department and class (or of the same site subject, for older files).
+    const files = await CoordinationFile.find(file.classLevel ? { department: file.department, classLevel: file.classLevel } : { subject: file.subject?._id }).lean();
     const allowed = files.filter((f) => roleIn(f, req.admin));
     const weeks = await CoordinationWeek.find({ file: { $in: allowed.map((f) => f._id) } }).select("file week term status").sort({ week: 1 }).lean();
     const session = new Map(allowed.map((f) => [String(f._id), f.session]));
@@ -316,7 +319,7 @@ exports.getWeek = wrap(async (req, res) => {
         attendees: record.attendees,
         fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
         week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
-        defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: classLabel(file.subject?.class?.name), sections: file.sections, subject: file.subject?.name || "" },
+        defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: fileTitle(file, names.get(String(file.department || ""))).className, sections: file.sections, subject: fileTitle(file, names.get(String(file.department || ""))).subject },
         file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, [], directory, names), role, caps,
         me: { id: String(req.admin._id), name: req.admin.name, hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },
         settings: { title: (settings.title || "").replace("{session}", file.session), footerText: (settings.footerText || "").replace("{session}", file.session), caption: settings.caption, watermarkUrl: settings.watermarkUrl, watermarkOpacity: settings.watermarkOpacity, quickPicks: settings.quickPicks },
@@ -436,7 +439,8 @@ async function exportWeeks(res, file, weeks, format, name) {
 exports.exportWeek = wrap(async (req, res) => {
     const { week, file } = await svc.accessWeek(id(req.params.id), req.admin);
     const format = req.query.format === "pdf" ? "pdf" : "docx";
-    await exportWeeks(res, file, [week], format, `${file.subject?.name || "Subject"} ${classLabel(file.subject?.class?.name)} Week ${week.week} Coordination`);
+    const t = fileTitle(file, await departmentNameOf(file));
+    await exportWeeks(res, file, [week], format, `${t.subject} ${t.className} Week ${week.week} Coordination`);
 });
 
 exports.exportFile = wrap(async (req, res) => {
@@ -445,10 +449,17 @@ exports.exportFile = wrap(async (req, res) => {
     if (req.query.only === "approved") filter.status = "approved";
     const from = Number(req.query.from), to = Number(req.query.to);
     if (from || to) filter.week = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+    // Any chosen weeks: ?weeks=3,4,9
+    const picked = String(req.query.weeks || "").split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 60);
+    if (picked.length) filter.week = { $in: picked };
     const weeks = await CoordinationWeek.find(filter).sort({ week: 1 }).limit(60);
     if (!weeks.length) fail("There are no weeks to download yet.", 404);
     const format = req.query.format === "pdf" ? "pdf" : "docx";
-    await exportWeeks(res, file, weeks, format, `${file.subject?.name || "Subject"} ${classLabel(file.subject?.class?.name)} Coordination ${file.session}`);
+    const t = fileTitle(file, await departmentNameOf(file));
+    const nums = weeks.map((w) => w.week);
+    const contiguous = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+    const range = nums.length === 1 ? ` Week ${nums[0]}` : !nums.length ? "" : contiguous ? ` Weeks ${nums[0]}-${nums[nums.length - 1]}` : nums.length <= 6 ? ` Weeks ${nums.join(", ")}` : ` ${nums.length} weeks`;
+    await exportWeeks(res, file, weeks, format, `${t.subject} ${t.className} Coordination ${file.session}${range}`);
 });
 
 // ----- History -----
@@ -586,10 +597,43 @@ exports.verify = async (req, res) => {
                 valid: current,
                 status: week.status,
                 message: current ? "This coordination record is genuine and has not been changed since it was approved." : "This record was reopened or changed after it was approved. Ask for the latest signed copy.",
-                subject: file?.subject?.name || "", className: file?.subject?.class?.name || "", session: file?.session || "", week: week.week, term: week.term || "",
+                subject: fileTitle(file, await departmentNameOf(file)).subject, className: fileTitle(file, "").className, session: file?.session || "", week: week.week, term: week.term || "",
                 coordinator: week.signatures?.coordinator ? { name: week.signatures.coordinator.name, at: week.signatures.coordinator.at } : null,
                 sectionHead: week.signatures?.sectionHead ? { name: week.signatures.sectionHead.name, at: week.signatures.sectionHead.at } : null,
             },
         });
     } catch { res.status(500).json({ success: false, message: "Please try again." }); }
 };
+
+// ----- Announcements (Section Head or super admin → all staff, or Subject Coordinators only) -----
+const canAnnounce = (admin) => isManager(admin) || admin?.coordTitle === "sectionHead";
+const announcementAudience = (admin) => (canAnnounce(admin) || ["coordinator", "principal"].includes(admin?.coordTitle) ? ["all", "coordinators"] : ["all"]);
+const publicAnnouncement = (a, admin) => ({ id: String(a._id), title: a.title, body: a.body, important: a.important, audience: a.audience, byName: a.byName, byTitle: a.byTitle, at: a.createdAt, read: (a.readBy || []).some((r) => String(r) === String(admin._id)), readCount: (a.readBy || []).length, mine: String(a.by) === String(admin._id) });
+
+exports.listAnnouncements = wrap(async (req, res) => {
+    const items = await CoordinationAnnouncement.find({ audience: { $in: announcementAudience(req.admin) } }).sort({ createdAt: -1 }).limit(50).lean();
+    res.json({ success: true, canAnnounce: canAnnounce(req.admin), announcements: items.map((a) => publicAnnouncement(a, req.admin)) });
+});
+exports.createAnnouncement = wrap(async (req, res) => {
+    if (!canAnnounce(req.admin)) fail("Only the Section Head can send announcements.", 403);
+    const title = text(req.body.title, 120);
+    if (!title) fail("Write a short title for the announcement.");
+    const audience = req.body.audience === "coordinators" ? "coordinators" : "all";
+    const item = await CoordinationAnnouncement.create({ title, body: text(req.body.body, 2000), important: Boolean(req.body.important), audience, by: req.admin._id, byName: req.admin.name, byTitle: TITLES[req.admin.coordTitle] || "Admin", readBy: [req.admin._id] });
+    hub.emitRoom(`ann:${audience}`, "announcement", { id: String(item._id), title: item.title, important: item.important, audience, byName: item.byName });
+    res.status(201).json({ success: true, announcement: publicAnnouncement(item.toObject(), req.admin) });
+});
+exports.readAnnouncement = wrap(async (req, res) => {
+    const item = await CoordinationAnnouncement.findOne({ _id: id(req.params.id), audience: { $in: announcementAudience(req.admin) } });
+    if (!item) fail("Not found.", 404);
+    await CoordinationAnnouncement.updateOne({ _id: item._id }, { $addToSet: { readBy: req.admin._id } });
+    res.json({ success: true });
+});
+exports.deleteAnnouncement = wrap(async (req, res) => {
+    const item = await CoordinationAnnouncement.findById(id(req.params.id));
+    if (!item) fail("Not found.", 404);
+    if (String(item.by) !== String(req.admin._id) && !isManager(req.admin)) fail("Only the sender can delete this announcement.", 403);
+    await item.deleteOne();
+    hub.emitRoom(`ann:${item.audience}`, "announcement-deleted", { id: String(item._id) });
+    res.json({ success: true });
+});
