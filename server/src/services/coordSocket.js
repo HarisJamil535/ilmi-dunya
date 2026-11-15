@@ -58,7 +58,7 @@ function attachCoordinationSocket(httpServer) {
     };
     // The session may end (signed in elsewhere, account disabled) while the socket is open.
     const stillValid = async (socket) => {
-        const admin = await Admin.findById(socket.data.admin._id).select("+currentSessionId status name permissions role signatureUrl");
+        const admin = await Admin.findById(socket.data.admin._id).select("+currentSessionId status name permissions role signatureUrl coordTitle coordDepartment");
         if (!admin || admin.status !== "active" || admin.currentSessionId !== socket.data.admin.currentSessionId) { socket.emit("ended", "Your session has ended. Sign in again."); socket.disconnect(true); return null; }
         socket.data.admin = admin;
         return admin;

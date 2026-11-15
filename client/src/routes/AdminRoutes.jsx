@@ -7,6 +7,13 @@ import PageLoader from "../shared/PageLoader";
 import NotFound from '../shared/NotFound';
 import { ThemeProvider } from "../theme/ThemeProvider";
 
+// Staff accounts made only for coordination records have nothing else in the admin to open.
+const coordinationOnly = () => {
+    try {
+        const admin = JSON.parse(localStorage.getItem("adminUser") || "null");
+        return Boolean(admin && admin.role !== "super_admin" && (admin.permissions || []).length && admin.permissions.every((p) => p === "coordination" || p === "coordinationManage"));
+    } catch { return false; }
+};
 const AdminLogin = lazy(() => import("../admin/pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("../admin/pages/AdminDashboard"));
 const AddClass = lazy(() => import("../admin/pages/AddClass"));
@@ -46,8 +53,8 @@ const AdminRoutes = () => {
 
                 <Route element={<ProtectedRoutes />}>
                     <Route path="/admin" element={<AdminLayout />}>
-                        <Route index element={<Navigate to="dashboard" replace />} />
-                        <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route index element={<Navigate to={coordinationOnly() ? "coordination" : "dashboard"} replace />} />
+                        <Route path="dashboard" element={coordinationOnly() ? <Navigate to="/admin/coordination" replace /> : <AdminDashboard />} />
                         <Route path="academic-structure/add-class" element={<AddClass />} />
                         <Route path="academic-structure/add-board" element={<AddBoards />} />
                         <Route path="academic-structure/add-group" element={<AddGroup />} />

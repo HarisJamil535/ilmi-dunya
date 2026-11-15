@@ -5,7 +5,10 @@
 // or foreign markup can be saved.
 //
 // paragraph: { list: "" | "ul" | "ol", align: "left" | "center" | "right", runs: [run] }
-// run:       { t: text, b, i, u, s: booleans, c: "#rrggbb" text colour, h: "#rrggbb" highlight, z: "s" | "m" | "l" size }
+// run:       { t: text, b, i, u, s: booleans, c: "#rrggbb" text colour, h: "#rrggbb" highlight, z: "s" | "m" | "l" size,
+//              f: font key (see coordFonts; empty = the page font) }
+
+const { KEYS: FONT_KEYS, fontFromName } = require("./coordFonts");
 
 const MAX_TEXT = 4000;
 const MAX_PARAGRAPHS = 80;
@@ -62,12 +65,17 @@ function styleFrom(attrs) {
         if (key === "background-color" || key === "background") { const h = nearest(hexOf(value), HIGHLIGHTS); if (h && hexOf(value) !== "#ffffff") out.h = h; }
         if (key === "font-size") { const px = parseFloat(value); if (/small/.test(value) || px < 12) out.z = "s"; else if (/large/.test(value) || px > 15) out.z = "l"; }
         if (key === "text-align" && ["center", "right", "left"].includes(value)) out.align = value;
+        if (key === "font-family") { const f = fontFromName(value); if (f) out.f = f; }
     }
     const colour = /\bcolor\s*=\s*"?([#\w]+)"?/i.exec(attrs);
     if (colour) out.c = nearest(hexOf(colour[1]), COLOURS);
     const size = /\bsize\s*=\s*"?(\d)"?/i.exec(attrs);
     if (size) out.z = Number(size[1]) <= 2 ? "s" : Number(size[1]) >= 4 ? "l" : "m";
+    const face = /\bface\s*=\s*"([^"]*)"/i.exec(attrs);
+    if (face) { const f = fontFromName(face[1]); if (f) out.f = f; }
     const cls = /class\s*=\s*"([^"]*)"/i.exec(attrs)?.[1] || "";
+    const ff = /\bff-([a-z]+)\b/.exec(cls);
+    if (ff && FONT_KEYS.includes(ff[1])) out.f = ff[1];
     if (/\bfs-s\b/.test(cls)) out.z = "s";
     if (/\bfs-l\b/.test(cls)) out.z = "l";
     const align = /\balign\s*=\s*"?(left|center|right)"?/i.exec(attrs);
@@ -85,9 +93,10 @@ function cleanRun(run) {
     if (run.c && run.c !== "#000000") out.c = run.c;
     if (run.h) out.h = run.h;
     if (run.z && run.z !== "m") out.z = run.z;
+    if (run.f && FONT_KEYS.includes(run.f)) out.f = run.f;
     return out;
 }
-const sameStyle = (a, b) => ["b", "i", "u", "s", "c", "h", "z"].every((k) => (a[k] || "") === (b[k] || ""));
+const sameStyle = (a, b) => ["b", "i", "u", "s", "c", "h", "z", "f"].every((k) => (a[k] || "") === (b[k] || ""));
 
 function finishParagraph(p) {
     const runs = [];
@@ -185,7 +194,8 @@ function runHtml(run) {
     const css = [];
     if (run.c) css.push(`color:${run.c}`);
     if (run.h) css.push(`background-color:${run.h}`);
-    if (css.length || run.z) html = `<span${run.z ? ` class="fs-${run.z}"` : ""}${css.length ? ` style="${css.join(";")}"` : ""}>${html}</span>`;
+    const classes = [run.z ? `fs-${run.z}` : "", run.f ? `ff-${run.f}` : ""].filter(Boolean).join(" ");
+    if (css.length || classes) html = `<span${classes ? ` class="${classes}"` : ""}${css.length ? ` style="${css.join(";")}"` : ""}>${html}</span>`;
     if (run.s) html = `<s>${html}</s>`;
     if (run.u) html = `<u>${html}</u>`;
     if (run.i) html = `<i>${html}</i>`;

@@ -19,7 +19,13 @@ router.use(authMiddleware, (req, res, next) => (canUseArea(req.admin) ? next() :
 
 router.get("/files", c.listFiles);
 router.post("/files", c.createFile);
-router.get("/people", c.people);
+router.get("/overview", c.overview);
+router.post("/departments", c.createDepartment);
+router.patch("/departments/:id", c.updateDepartment);
+router.delete("/departments/:id", c.deleteDepartment);
+router.post("/staff", c.createStaff);
+router.patch("/staff/:id", c.updateStaff);
+router.delete("/staff/:id", c.removeStaff);
 router.get("/subjects", c.subjects);
 router.get("/settings", c.getSettings);
 router.put("/settings", c.updateSettings);

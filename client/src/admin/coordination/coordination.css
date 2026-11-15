@@ -36,6 +36,17 @@
 .coord-week-no { display: flex; flex-direction: column; color: var(--app-text-muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; line-height: 1.1; text-transform: uppercase; }
 .coord-week-no b { color: var(--app-text-primary); font-size: 28px; letter-spacing: -.02em; }
 
+/* Departments & staff */
+.coord-dept { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--app-border); border-radius: 20px; padding: 16px; background: var(--app-bg-card); animation: admin-pop-in 200ms ease both; }
+.coord-person { display: flex; width: 100%; align-items: center; gap: 10px; border-radius: 12px; padding: 6px 8px; transition: background 150ms ease; }
+.coord-person:hover { background: var(--brand-primary-soft); }
+.coord-person.is-off { opacity: .55; }
+.coord-slot { display: flex; width: 100%; align-items: center; gap: 8px; border: 1px dashed color-mix(in srgb, var(--brand-primary) 40%, var(--app-border)); border-radius: 12px; padding: 9px 10px; color: var(--brand-primary-dark); font-size: 13px; font-weight: 700; transition: background 150ms ease, border-style 150ms ease; }
+.coord-slot:hover { border-style: solid; background: var(--brand-primary-soft); }
+.coord-org { display: flex; align-items: center; gap: 12px; border: 1px solid var(--app-border); border-radius: 20px; padding: 14px 16px; background: var(--app-bg-card); }
+.coord-org-icon { display: grid; width: 42px; height: 42px; flex-shrink: 0; place-items: center; border-radius: 14px; background: var(--brand-primary-soft); color: var(--brand-primary-dark); }
+.coord-filters button svg { margin-right: 2px; }
+
 /* ===== Week editor chrome ===== */
 .ce-root { display: flex; min-height: 100%; flex-direction: column; gap: 10px; }
 .ce-bar { position: sticky; top: -4px; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: -4px -4px 0; border: 1px solid var(--app-border); border-radius: 18px; padding: 10px 12px; background: color-mix(in srgb, var(--app-bg-card) 96%, transparent); box-shadow: 0 8px 24px -20px rgba(15, 23, 42, .5); }
@@ -109,13 +120,54 @@ td.cr-subject > .cr-topic { display: inline-flex; width: 61%; vertical-align: to
 .cr-inline > .cr-cell { flex: 1; }
 .cr-day td { height: 84px; }
 .cr-dayname { display: block; }
-.cr-attendees { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-left: 24px; }
+.cr-attendees { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 8px; padding-left: 24px; }
+.cf-attendees { margin: 0; padding-left: 1.4em; color: var(--app-text-primary); font-size: 15px; line-height: 1.6; list-style: decimal; }
+
+/* Fonts: the same free font files as the PDF, so the page on screen matches the download. */
+@font-face { font-family: "Coord Arial"; src: url("/api/paper-fonts/LiberationSans-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Coord Arial"; src: url("/api/paper-fonts/LiberationSans-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Coord Arial"; src: url("/api/paper-fonts/LiberationSans-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Arial"; src: url("/api/paper-fonts/LiberationSans-BoldItalic.ttf") format("truetype"); font-weight: 700; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Times New Roman"; src: url("/api/paper-fonts/LiberationSerif-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Coord Times New Roman"; src: url("/api/paper-fonts/LiberationSerif-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Coord Times New Roman"; src: url("/api/paper-fonts/LiberationSerif-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Times New Roman"; src: url("/api/paper-fonts/LiberationSerif-BoldItalic.ttf") format("truetype"); font-weight: 700; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Calibri"; src: url("/api/paper-fonts/Carlito-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Calibri"; src: url("/api/paper-fonts/Carlito-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Coord Calibri"; src: url("/api/paper-fonts/Carlito-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Cambria"; src: url("/api/paper-fonts/Caladea-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Cambria"; src: url("/api/paper-fonts/Caladea-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Coord Cambria"; src: url("/api/paper-fonts/Caladea-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Garamond"; src: url("/api/paper-fonts/EBGaramond-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Garamond"; src: url("/api/paper-fonts/EBGaramond-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Coord Garamond"; src: url("/api/paper-fonts/EBGaramond-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Poppins"; src: url("/api/paper-fonts/Poppins-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Poppins"; src: url("/api/paper-fonts/Poppins-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Coord Poppins"; src: url("/api/paper-fonts/Poppins-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Coord Courier New"; src: url("/api/paper-fonts/LiberationMono-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Courier New"; src: url("/api/paper-fonts/LiberationMono-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Coord Courier New"; src: url("/api/paper-fonts/LiberationMono-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+.cr-page.pf-arial, .ff-arial { font-family: "Coord Arial", Arial, sans-serif !important; }
+.cr-page.pf-times, .ff-times { font-family: "Coord Times New Roman", "Times New Roman", serif !important; }
+.cr-page.pf-calibri, .ff-calibri { font-family: "Coord Calibri", Calibri, sans-serif !important; }
+.cr-page.pf-cambria, .ff-cambria { font-family: "Coord Cambria", Cambria, serif !important; }
+.cr-page.pf-garamond, .ff-garamond { font-family: "Coord Garamond", Garamond, serif !important; }
+.cr-page.pf-poppins, .ff-poppins { font-family: "Coord Poppins", Poppins, sans-serif !important; }
+.cr-page.pf-courier, .ff-courier { font-family: "Coord Courier New", "Courier New", monospace !important; }
+.cr-page .cr-edit font[face] { font-family: inherit; }
+.cr-page .cr-edit font[face*="Arial"] { font-family: "Coord Arial", Arial, sans-serif; }
+.cr-page .cr-edit font[face*="Times"] { font-family: "Coord Times New Roman", serif; }
+.cr-page .cr-edit font[face*="Calibri"] { font-family: "Coord Calibri", sans-serif; }
+.cr-page .cr-edit font[face*="Cambria"] { font-family: "Coord Cambria", serif; }
+.cr-page .cr-edit font[face*="Garamond"] { font-family: "Coord Garamond", serif; }
+.cr-page .cr-edit font[face*="Poppins"] { font-family: "Coord Poppins", sans-serif; }
+.cr-page .cr-edit font[face*="Courier"] { font-family: "Coord Courier New", monospace; }
+.ce-font { min-width: 150px; }
 .cr-signs { display: flex; justify-content: space-around; gap: 30px; margin-top: 16px; font-size: 11.3px; }
 .cr-sign { display: grid; grid-template-columns: auto 200px; align-items: end; column-gap: 6px; }
 .cr-sign-label { padding-bottom: 2px; }
-.cr-sign-line { position: relative; display: block; height: 38px; border-bottom: 0.8px solid #000; }
-.cr-sign-line img { position: absolute; bottom: 2px; left: 50%; max-width: 190px; max-height: 40px; transform: translateX(-50%); }
-.cr-sign-name { grid-column: 2; color: #333; font-size: 9px; text-align: center; }
+.cr-sign-line { position: relative; display: block; height: 30px; border-bottom: 0.8px solid #000; }
+.cr-sign-line img { position: absolute; bottom: 1px; left: 50%; max-width: 186px; max-height: 28px; transform: translateX(-50%); }
 .cr-caption { margin-top: 6px; font-size: 11.3px; font-style: italic; text-align: center; text-decoration: underline; }
 .cr-foot { margin-top: auto; padding-top: 8px; font-size: 9.3px; }
 

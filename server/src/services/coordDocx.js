@@ -1,9 +1,10 @@
 const { LineRuleType, Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ImageRun, TabStopType, PageOrientation, VerticalAlign, HeightRule, Header, Footer, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionAlign, PageNumber, ShadingType } = require("docx");
 const { DAYS, COLUMNS, WIDTHS } = require("./coordTemplate");
+const { FONTS, fontKey } = require("./coordFonts");
 
-// The same record as coordPdf, as an editable Word file: A4 landscape, Arial, one page per week.
+// The same record as coordPdf, as an editable Word file: A4 landscape, one page per week, in the week's font.
 // The text size chosen for the PDF (the size that makes the week fit on one page) is used here too.
-const FONT = "Arial";
+let FONT = "Arial"; // set for each week before its page is built
 const A4 = { w: 16838, h: 11906 };
 const MARGIN = { top: 440, bottom: 300, side: 720 };
 const TABLE_W = A4.w - MARGIN.side * 2;
@@ -35,7 +36,7 @@ const image = (buffer, maxW, maxH, extra = {}) => { try { return new ImageRun({ 
 function runsOf(runs, size, base = {}) {
     return (runs || []).map((r0) => {
         const r = { ...base, ...r0 };
-        return new TextRun({ text: r.t, font: FONT, size: half(size * (SCALE[r.z] || 1)), bold: Boolean(r.b), italics: Boolean(r.i), underline: r.u ? {} : undefined, strike: Boolean(r.s), color: r.c ? r.c.slice(1) : "000000", highlight: r.h ? HIGHLIGHT[r.h] : undefined });
+        return new TextRun({ text: r.t, font: r.f ? FONTS[r.f]?.word || FONT : FONT, size: half(size * (SCALE[r.z] || 1)), bold: Boolean(r.b), italics: Boolean(r.i), underline: r.u ? {} : undefined, strike: Boolean(r.s), color: r.c ? r.c.slice(1) : "000000", highlight: r.h ? HIGHLIGHT[r.h] : undefined });
     });
 }
 const spacing = { before: 0, after: 0, line: 240 };
@@ -91,12 +92,18 @@ function weekBlocks(record, size, assets, first) {
         }));
     }
     rows.push(new TableRow({ children: [cell(paragraphs(c.extraHelp, size, { lead: leadRun("Strategies for Learners requiring extra assistance: ", size, { italics: true }) }), TABLE_W, { columnSpan: span })] }));
-    const quarter = Math.round((TABLE_W - 140) / 4);
+    const quarter = Math.round((TABLE_W - 440) / 4);
+    // Any number of attendees, four to a line.
+    const names = record.attendees?.length ? record.attendees : ["", "", "", ""];
+    const attendeeLines = [];
+    for (let i = 0; i < names.length; i += 4) {
+        attendeeLines.push(new Paragraph({ spacing: lineSpacing(size), indent: { left: 300 }, tabStops: [1, 2, 3].map((n) => ({ type: TabStopType.LEFT, position: quarter * n })),
+            children: names.slice(i, i + 4).flatMap((name, j) => [...(j > 0 ? [new TextRun({ text: "\t", font: FONT })] : []), ...leadRun(`${i + j + 1}. ${name}`, size)]) }));
+    }
     rows.push(new TableRow({ children: [cell([
         ...paragraphs(c.teacher, size, { lead: leadRun("Teacher Responsible for Preparing lesson Plan: ", size) }),
-        new Paragraph({ spacing, children: leadRun("Attendees of Coordination Meeting:", size) }),
-        new Paragraph({ spacing, indent: { left: 300 }, tabStops: [1, 2, 3].map((n) => ({ type: TabStopType.LEFT, position: quarter * n })),
-            children: [1, 2, 3, 4].flatMap((n) => [...(n > 1 ? [new TextRun({ text: "\t", font: FONT })] : []), ...leadRun(`${n}. `, size), ...runsOf(c[`attendee${n}`][0]?.runs, size)]) }),
+        new Paragraph({ spacing: lineSpacing(size), children: leadRun("Attendees of Coordination Meeting:", size) }),
+        ...attendeeLines,
     ], TABLE_W, { columnSpan: span })] }));
     rows.push(new TableRow({ children: [
         cell(paragraphs(c.submitDate, size, { lead: leadRun("Date of submission of the Lesson Plan to the Sec Head: ", size) }), leftW, { columnSpan: 3 }),
@@ -104,25 +111,18 @@ function weekBlocks(record, size, assets, first) {
     ] }));
     blocks.push(new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: WIDTHS, rows, layout: "fixed" }));
 
-    // Signatures: picture above the line, name and date below.
-    const sigCell = (label, sig, name) => {
-        const pic = sig?.image ? image(sig.image, 170, 38) : null;
-        const date = sig?.at ? new Date(sig.at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
+    // Signatures: only the e-signature on the line, about two lines of text tall so the layout stays put.
+    const sigCell = (label, sig) => {
+        const pic = sig?.image ? image(sig.image, 150, 28) : null;
         return [
             new TableCell({ borders: NO_BORDERS, width: { size: 2600, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.RIGHT, spacing, children: leadRun(label, 8.5) })] }),
             new TableCell({ borders: { ...NO_BORDERS, bottom: LINE }, width: { size: 3000, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: pic ? [pic] : [] })] }),
-        ].concat([new TableCell({ borders: NO_BORDERS, width: { size: 1500, type: WidthType.DXA }, children: [new Paragraph({ children: [] })] })]).concat(name || date ? [] : []);
-    };
-    const nameCell = (name, sig) => {
-        const date = sig?.at ? new Date(sig.at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
-        return [new TableCell({ borders: NO_BORDERS, width: { size: 2600, type: WidthType.DXA }, children: [new Paragraph({ children: [] })] }),
-            new TableCell({ borders: NO_BORDERS, width: { size: 3000, type: WidthType.DXA }, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing, children: leadRun([name, date].filter(Boolean).join(" · "), 6.5, { color: "333333" }) })] }),
-            new TableCell({ borders: NO_BORDERS, width: { size: 1500, type: WidthType.DXA }, children: [new Paragraph({ children: [] })] })];
+            new TableCell({ borders: NO_BORDERS, width: { size: 1500, type: WidthType.DXA }, children: [new Paragraph({ children: [] })] }),
+        ];
     };
     blocks.push(new Paragraph({ spacing: { before: 0, after: 0, line: 160 }, children: [] }));
     blocks.push(new Table({ width: { size: 14200, type: WidthType.DXA }, columnWidths: [2600, 3000, 1500, 2600, 3000, 1500], borders: { ...NO_BORDERS, insideHorizontal: NONE, insideVertical: NONE }, rows: [
-        new TableRow({ height: { value: 640, rule: HeightRule.ATLEAST }, children: [...sigCell("Sign: Subject Coordinator:", assets.coordinator, record.coordinatorName), ...sigCell("SH Sign:", assets.sectionHead, record.sectionHeadName)] }),
-        new TableRow({ children: [...nameCell(record.coordinatorName, assets.coordinator), ...nameCell(record.sectionHeadName, assets.sectionHead)] }),
+        new TableRow({ height: { value: 520, rule: HeightRule.ATLEAST }, children: [...sigCell("Sign: Subject Coordinator:", assets.coordinator), ...sigCell("SH Sign:", assets.sectionHead)] }),
     ] }));
     if (record.caption) blocks.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 0 }, children: [new TextRun({ text: record.caption, font: FONT, size: 17, italics: true, underline: {} })] }));
     return blocks;
@@ -157,6 +157,7 @@ function footerFor(record, qr) {
 async function renderCoordinationDocx(records, { sizes = [], watermark = null, title = "Coordination record" } = {}) {
     const sections = records.map((record, i) => {
         const size = sizes[i]?.size || 9;
+        FONT = FONTS[fontKey(record.font)].word;
         return {
             properties: { page: { size: { width: A4.h, height: A4.w, orientation: PageOrientation.LANDSCAPE }, margin: { top: MARGIN.top, bottom: MARGIN.bottom, left: MARGIN.side, right: MARGIN.side, header: 200, footer: 160 } } },
             headers: { default: headerWith(watermark) },
@@ -164,7 +165,7 @@ async function renderCoordinationDocx(records, { sizes = [], watermark = null, t
             children: weekBlocks({ ...record, dayHeights: sizes[i]?.dayHeights }, size, record.assets || {}, true),
         };
     });
-    const doc = new Document({ creator: "IlmiDunya", title, styles: { default: { document: { run: { font: FONT, size: 18 } } } }, sections: sections.length ? sections : [{ children: [new Paragraph("")] }] });
+    const doc = new Document({ creator: "IlmiDunya", title, styles: { default: { document: { run: { font: FONTS[fontKey(records[0]?.font)].word, size: 18 } } } }, sections: sections.length ? sections : [{ children: [new Paragraph("")] }] });
     void ShadingType;
     return Packer.toBuffer(doc);
 }

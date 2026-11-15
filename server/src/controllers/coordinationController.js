@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
 const Admin = require("../models/Admin");
 const Subject = require("../models/Subject");
-const { ROLES, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
+const { CoordinationDepartment, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
 const svc = require("../services/coordService");
-const { isManager, roleIn, capsFor } = require("../services/coordAccess");
+const { isManager, roleIn, capsFor, fileFilter, canCreateFile, seesEverything } = require("../services/coordAccess");
+const { hashPassword } = require("../services/passwords");
+const { FONTS, fontKey } = require("../services/coordFonts");
 const { buildRecords, classLabel } = require("../services/coordRecord");
 const { renderCoordinationPdf, measureFit } = require("../services/coordPdf");
 const { renderCoordinationDocx } = require("../services/coordDocx");
@@ -21,21 +23,44 @@ const wrap = (handler) => async (req, res) => { try { await handler(req, res); }
 const SESSION = /^\d{4}-\d{4}$/;
 const text = (value, max) => String(value ?? "").trim().slice(0, max);
 
-function fileSummary(file, admin, weeks = []) {
+const TITLES = { teacher: "Teacher", coordinator: "Subject Coordinator", sectionHead: "Section Head", principal: "Principal" };
+const USERNAME = /^[a-z0-9][a-z0-9._@-]{2,59}$/;
+
+// Coordination staff grouped by department, plus the school-wide Section Head and Principal.
+async function staffDirectory() {
+    const people = await Admin.find({ coordTitle: { $in: Object.keys(TITLES) } }).select("name email coordTitle coordDepartment status signatureUrl createdAt lastLoginAt").sort({ createdAt: 1 }).lean();
+    const byDepartment = new Map();
+    const org = { sectionHead: null, principal: null };
+    for (const p of people) {
+        const person = { id: String(p._id), name: p.name, username: p.email, title: p.coordTitle, titleLabel: TITLES[p.coordTitle], department: p.coordDepartment ? String(p.coordDepartment) : "", status: p.status, hasSignature: Boolean(p.signatureUrl), lastLoginAt: p.lastLoginAt };
+        if (p.coordTitle === "sectionHead" || p.coordTitle === "principal") { org[p.coordTitle] = person; continue; }
+        if (!person.department) continue;
+        if (!byDepartment.has(person.department)) byDepartment.set(person.department, []);
+        byDepartment.get(person.department).push(person);
+    }
+    // The Subject Coordinator is listed first in each department.
+    for (const list of byDepartment.values()) list.sort((a, b) => Number(b.title === "coordinator") - Number(a.title === "coordinator"));
+    return { byDepartment, org };
+}
+
+function fileSummary(file, admin, weeks = [], directory = null, departments = new Map()) {
     const role = roleIn(file, admin);
     const subject = file.subject || {};
+    const departmentId = file.department ? String(file.department?._id || file.department) : "";
+    const members = directory ? (directory.byDepartment.get(departmentId) || []).filter((p) => p.status === "active") : [];
     return {
         id: String(file._id), session: file.session, sections: file.sections, showQr: file.showQr,
+        department: { id: departmentId, name: departments.get(departmentId) || file.department?.name || "" },
         subject: { id: String(subject._id || ""), name: subject.name || "", className: subject.class?.name || "", classLabel: classLabel(subject.class?.name), board: subject.board?.name || "", group: subject.group?.name || "" },
         role, caps: capsFor(role, admin),
-        members: (file.members || []).map((m) => ({ admin: String(m.admin?._id || m.admin), name: m.admin?.name || "", email: m.admin?.email || "", role: m.role })),
+        members: members.map((m) => ({ admin: m.id, name: m.name, role: m.title === "coordinator" ? "coordinator" : "editor", title: m.titleLabel, hasSignature: m.hasSignature })),
         counts: { total: weeks.length, draft: weeks.filter((w) => w.status === "draft").length, submitted: weeks.filter((w) => w.status === "submitted").length, approved: weeks.filter((w) => w.status === "approved").length, overdue: weeks.filter((w) => w.status !== "approved" && w.dueDate && new Date(w.dueDate) < new Date()).length },
         updatedAt: file.updatedAt,
     };
 }
-// Loads files with their subject and members; board, class and group names are added safely (attachNames).
+// Loads files with their subject; board, class and group names are added safely (attachNames).
 const populateFile = (query) => {
-    const run = query.populate({ path: "subject", select: "name class board group" }).populate("members.admin", "name email");
+    const run = query.populate({ path: "subject", select: "name class board group" });
     const exec = run.exec.bind(run);
     run.exec = async (...args) => {
         const result = await exec(...args);
@@ -45,53 +70,166 @@ const populateFile = (query) => {
     };
     return run;
 };
+const departmentNames = async () => new Map((await CoordinationDepartment.find({}).select("name").lean()).map((d) => [String(d._id), d.name]));
+
+// ----- Overview: departments, staff and what the signed-in person is -----
+exports.overview = wrap(async (req, res) => {
+    const [departments, directory] = await Promise.all([CoordinationDepartment.find({}).sort({ order: 1, name: 1 }).lean(), staffDirectory()]);
+    const fileCounts = new Map((await CoordinationFile.aggregate([{ $group: { _id: "$department", n: { $sum: 1 } } }])).map((r) => [String(r._id), r.n]));
+    const manager = isManager(req.admin);
+    const visible = manager || seesEverything(req.admin) ? departments : departments.filter((d) => String(d._id) === String(req.admin.coordDepartment));
+    res.json({
+        success: true,
+        canManage: manager,
+        me: { id: String(req.admin._id), name: req.admin.name, title: req.admin.coordTitle || "", titleLabel: TITLES[req.admin.coordTitle] || (manager ? "Manager" : ""), department: req.admin.coordDepartment ? String(req.admin.coordDepartment) : "", hasSignature: Boolean(req.admin.signatureUrl), canCreateFiles: manager || ["sectionHead", "coordinator"].includes(req.admin.coordTitle) },
+        departments: visible.map((d) => ({ id: String(d._id), name: d.name, files: fileCounts.get(String(d._id)) || 0, staff: manager || seesEverything(req.admin) || String(d._id) === String(req.admin.coordDepartment) ? directory.byDepartment.get(String(d._id)) || [] : [] })),
+        org: directory.org,
+        unassigned: manager ? (await CoordinationFile.countDocuments({ department: null })) : 0,
+    });
+});
+
+// ----- Departments (managers) -----
+exports.createDepartment = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can add departments.", 403);
+    const name = text(req.body.name, 60);
+    if (!name) fail("Write the department's name.");
+    if (await CoordinationDepartment.findOne({ name }).collation({ locale: "en", strength: 2 })) fail(`The ${name} department already exists.`, 409);
+    const count = await CoordinationDepartment.countDocuments();
+    const dept = await CoordinationDepartment.create({ name, order: count });
+    res.status(201).json({ success: true, department: { id: String(dept._id), name: dept.name } });
+});
+exports.updateDepartment = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can rename departments.", 403);
+    const dept = await CoordinationDepartment.findById(id(req.params.id));
+    if (!dept) fail("Not found.", 404);
+    const name = text(req.body.name, 60);
+    if (!name) fail("Write the department's name.");
+    const other = await CoordinationDepartment.findOne({ name, _id: { $ne: dept._id } }).collation({ locale: "en", strength: 2 });
+    if (other) fail(`The ${name} department already exists.`, 409);
+    dept.name = name; await dept.save();
+    res.json({ success: true });
+});
+exports.deleteDepartment = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can delete departments.", 403);
+    const dept = await CoordinationDepartment.findById(id(req.params.id));
+    if (!dept) fail("Not found.", 404);
+    const files = await CoordinationFile.countDocuments({ department: dept._id });
+    if (files) fail(`This department still has ${files} coordination file${files > 1 ? "s" : ""}. Delete or move them first.`, 409);
+    const staff = await Admin.countDocuments({ coordDepartment: dept._id });
+    if (staff) fail(`This department still has ${staff} staff member${staff > 1 ? "s" : ""}. Move or remove them first.`, 409);
+    await dept.deleteOne();
+    res.json({ success: true });
+});
+
+// ----- Staff (managers) -----
+async function checkTitle(title, departmentId, exceptId) {
+    if (!TITLES[title]) fail("Choose what this person is: teacher, subject coordinator, section head or principal.");
+    if (["teacher", "coordinator"].includes(title)) {
+        if (!departmentId || !(await CoordinationDepartment.exists({ _id: id(departmentId) }))) fail("Choose the person's department.");
+    }
+    const clash = title === "coordinator" ? { coordTitle: "coordinator", coordDepartment: departmentId }
+        : title === "sectionHead" || title === "principal" ? { coordTitle: title } : null;
+    if (clash) {
+        const holder = await Admin.findOne({ ...clash, _id: { $ne: exceptId } }).select("name").lean();
+        if (holder) fail(`${holder.name} is already the ${TITLES[title]}${title === "coordinator" ? " of this department" : ""}. Change ${holder.name} to a teacher first, or remove them.`, 409);
+    }
+}
+exports.createStaff = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can add staff.", 403);
+    const name = text(req.body.name, 80);
+    const username = text(req.body.username, 60).toLowerCase();
+    const password = String(req.body.password || "");
+    const title = String(req.body.title || "");
+    const departmentId = ["teacher", "coordinator"].includes(title) ? String(req.body.departmentId || "") : "";
+    if (!name) fail("Write the person's name.");
+    if (!USERNAME.test(username)) fail("Choose a username of 3 to 60 letters or numbers (dots, dashes and @ are allowed; no spaces).");
+    if (password.length < 8) fail("The password must be at least 8 characters.");
+    if (await Admin.exists({ email: username })) fail("This username is already taken. Choose another one.", 409);
+    await checkTitle(title, departmentId, null);
+    const admin = await Admin.create({ name, email: username, password: await hashPassword(password), role: "admin", permissions: ["coordination"], status: "active", coordTitle: title, coordDepartment: departmentId || null });
+    res.status(201).json({ success: true, id: String(admin._id) });
+});
+exports.updateStaff = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can change staff.", 403);
+    const person = await Admin.findById(id(req.params.id)).select("+currentSessionId");
+    if (!person || !person.coordTitle) fail("Not found.", 404);
+    if (req.body.name !== undefined) { const name = text(req.body.name, 80); if (!name) fail("Write the person's name."); person.name = name; }
+    if (req.body.username !== undefined) {
+        const username = text(req.body.username, 60).toLowerCase();
+        if (!USERNAME.test(username)) fail("Choose a username of 3 to 60 letters or numbers (no spaces).");
+        if (username !== person.email && await Admin.exists({ email: username })) fail("This username is already taken.", 409);
+        person.email = username;
+    }
+    const title = req.body.title !== undefined ? String(req.body.title) : person.coordTitle;
+    const departmentId = ["teacher", "coordinator"].includes(title) ? String(req.body.departmentId ?? person.coordDepartment ?? "") : "";
+    if (req.body.title !== undefined || req.body.departmentId !== undefined) {
+        await checkTitle(title, departmentId, person._id);
+        person.coordTitle = title; person.coordDepartment = departmentId || null;
+    }
+    if (req.body.password) {
+        if (String(req.body.password).length < 8) fail("The password must be at least 8 characters.");
+        person.password = await hashPassword(String(req.body.password));
+        person.currentSessionId = undefined; // signs them out everywhere
+    }
+    if (req.body.status !== undefined) { person.status = req.body.status === "disabled" ? "disabled" : "active"; if (person.status === "disabled") person.currentSessionId = undefined; }
+    if (!person.permissions.includes("coordination")) person.permissions.push("coordination");
+    await person.save();
+    res.json({ success: true });
+});
+exports.removeStaff = wrap(async (req, res) => {
+    if (!isManager(req.admin)) fail("Only the super admin can remove staff.", 403);
+    const person = await Admin.findById(id(req.params.id));
+    if (!person || !person.coordTitle) fail("Not found.", 404);
+    if (person.role === "super_admin") fail("A super admin cannot be removed here.", 403);
+    const other = person.permissions.filter((p) => p !== "coordination");
+    // Accounts made only for coordination are deleted; others just lose coordination access.
+    if (!other.length) await person.deleteOne();
+    else { person.coordTitle = ""; person.coordDepartment = null; person.permissions = other; await person.save(); }
+    res.json({ success: true, deleted: !other.length });
+});
 
 // ----- Files -----
 exports.listFiles = wrap(async (req, res) => {
-    const filter = isManager(req.admin) ? {} : { "members.admin": req.admin._id };
-    const files = await populateFile(CoordinationFile.find(filter).sort({ session: -1, updatedAt: -1 })).lean();
+    const [files, directory, names] = await Promise.all([populateFile(CoordinationFile.find(fileFilter(req.admin)).sort({ session: -1, updatedAt: -1 })).lean(), staffDirectory(), departmentNames()]);
     const weeks = await CoordinationWeek.find({ file: { $in: files.map((f) => f._id) } }).select("file status dueDate").lean();
     const byFile = new Map();
     for (const w of weeks) { const key = String(w.file); if (!byFile.has(key)) byFile.set(key, []); byFile.get(key).push(w); }
-    res.json({ success: true, files: files.map((f) => fileSummary(f, req.admin, byFile.get(String(f._id)) || [])), canManage: isManager(req.admin) });
+    res.json({ success: true, files: files.map((f) => fileSummary(f, req.admin, byFile.get(String(f._id)) || [], directory, names)), canManage: isManager(req.admin) });
 });
 
 exports.createFile = wrap(async (req, res) => {
-    if (!isManager(req.admin)) fail("Only coordination managers can create files.", 403);
+    const departmentId = id(req.body.departmentId);
+    if (!(await CoordinationDepartment.exists({ _id: departmentId }))) fail("Choose a department.");
+    if (!canCreateFile(req.admin, departmentId)) fail("You can only create files for your own department.", 403);
     const subject = await Subject.findById(id(req.body.subjectId)).select("_id");
-    if (!subject) fail("Choose a subject.");
+    if (!subject) fail("Choose a subject and class.");
     const session = text(req.body.session, 9);
     if (!SESSION.test(session)) fail("Write the session like 2026-2027.");
     const exists = await CoordinationFile.findOne({ subject: subject._id, session });
-    if (exists) fail("A coordination file for this subject and session already exists.", 409);
-    const file = await CoordinationFile.create({ subject: subject._id, session, sections: text(req.body.sections, 20), createdBy: req.admin._id, members: [] });
-    res.status(201).json({ success: true, file: fileSummary(await populateFile(CoordinationFile.findById(file._id)).lean(), req.admin) });
+    if (exists) fail("A coordination file for this subject, class and session already exists.", 409);
+    const file = await CoordinationFile.create({ subject: subject._id, department: departmentId, session, sections: text(req.body.sections, 20), createdBy: req.admin._id });
+    res.status(201).json({ success: true, id: String(file._id) });
 });
 
 exports.updateFile = wrap(async (req, res) => {
-    if (!isManager(req.admin)) fail("Only coordination managers can change files.", 403);
     const file = await CoordinationFile.findById(id(req.params.id));
     if (!file) fail("Not found.", 404);
+    const caps = capsFor(roleIn(file, req.admin), req.admin);
+    if (!caps.manage && !(caps.signCoordinator || caps.signSectionHead)) fail("Only the Subject Coordinator, the Section Head or the super admin can change this file.", 403);
     if (req.body.sections !== undefined) file.sections = text(req.body.sections, 20);
     if (req.body.showQr !== undefined) file.showQr = Boolean(req.body.showQr);
-    if (Array.isArray(req.body.members)) {
-        const members = [];
-        const seen = new Set();
-        for (const m of req.body.members.slice(0, 60)) {
-            const adminId = id(m.admin);
-            if (seen.has(adminId) || !ROLES.includes(m.role)) continue;
-            seen.add(adminId); members.push({ admin: adminId, role: m.role });
-        }
-        const found = await Admin.countDocuments({ _id: { $in: members.map((m) => m.admin) } });
-        if (found !== members.length) fail("One of the chosen people no longer exists.");
-        file.members = members;
+    if (req.body.departmentId !== undefined) {
+        if (!caps.manage) fail("Only the super admin can move a file to another department.", 403);
+        const departmentId = id(req.body.departmentId);
+        if (!(await CoordinationDepartment.exists({ _id: departmentId }))) fail("Choose a department.");
+        file.department = departmentId;
     }
     await file.save();
-    res.json({ success: true, file: fileSummary(await populateFile(CoordinationFile.findById(file._id)).lean(), req.admin) });
+    res.json({ success: true });
 });
 
 exports.deleteFile = wrap(async (req, res) => {
-    if (!isManager(req.admin)) fail("Only coordination managers can delete files.", 403);
+    if (!isManager(req.admin)) fail("Only the super admin can delete files.", 403);
     const file = await CoordinationFile.findById(id(req.params.id));
     if (!file) fail("Not found.", 404);
     const weekIds = (await CoordinationWeek.find({ file: file._id }).select("_id").lean()).map((w) => w._id);
@@ -100,15 +238,8 @@ exports.deleteFile = wrap(async (req, res) => {
     res.json({ success: true });
 });
 
-// People who can be added to a file: admins with access to the Coordination area.
-exports.people = wrap(async (req, res) => {
-    if (!isManager(req.admin)) fail("Only coordination managers can choose people.", 403);
-    const admins = await Admin.find({ status: "active", $or: [{ role: "super_admin" }, { permissions: { $in: ["coordination", "coordinationManage"] } }] }).select("name email role").sort({ name: 1 }).lean();
-    res.json({ success: true, people: admins.map((a) => ({ id: String(a._id), name: a.name, email: a.email, role: a.role })) });
-});
-
 exports.subjects = wrap(async (req, res) => {
-    if (!isManager(req.admin)) fail("Only coordination managers can create files.", 403);
+    if (!isManager(req.admin) && !["sectionHead", "coordinator"].includes(req.admin.coordTitle)) fail("You cannot create files.", 403);
     // Names are looked up separately (not populated), so an old subject with a missing or malformed
     // board, class or group still lists instead of failing the whole request.
     const Board = mongoose.model("Board"), Class = mongoose.model("Class"), Group = mongoose.model("Group");
@@ -125,13 +256,13 @@ exports.subjects = wrap(async (req, res) => {
 
 exports.getFile = wrap(async (req, res) => {
     const { file, role, caps } = await svc.accessFile(id(req.params.id), req.admin);
-    await file.populate("members.admin", "name email");
+    const [directory, names] = await Promise.all([staffDirectory(), departmentNames()]);
     const weeks = await CoordinationWeek.find({ file: file._id }).select("week term dueDate status lastEditAt updatedBy signatures rev").populate("updatedBy", "name").sort({ week: 1 }).lean();
     const openComments = await CoordinationComment.aggregate([{ $match: { week: { $in: weeks.map((w) => w._id) }, resolved: false } }, { $group: { _id: "$week", n: { $sum: 1 } } }]);
     const commentCount = new Map(openComments.map((c) => [String(c._id), c.n]));
     res.json({
         success: true,
-        file: { ...fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, weeks), role, caps },
+        file: { ...fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, weeks, directory, names), role, caps },
         weeks: weeks.map((w) => ({ id: String(w._id), week: w.week, term: w.term, dueDate: w.dueDate, status: w.status, lastEditAt: w.lastEditAt, lastEditBy: w.updatedBy?.name || "", openComments: commentCount.get(String(w._id)) || 0, signed: { coordinator: Boolean(w.signatures?.coordinator?.admin), sectionHead: Boolean(w.signatures?.sectionHead?.admin) } })),
     });
 });
@@ -139,7 +270,7 @@ exports.getFile = wrap(async (req, res) => {
 // ----- Weeks -----
 exports.createWeek = wrap(async (req, res) => {
     const { file, caps } = await svc.accessFile(id(req.params.id), req.admin);
-    if (!caps.edit) fail("You can view this file but not add weeks.", 403);
+    if (!caps.addWeeks) fail("You can view this file but not add weeks.", 403);
     const number = Number(req.body.week);
     if (!Number.isInteger(number) || number < 1 || number > 60) fail("Choose a week between 1 and 60.");
     if (await CoordinationWeek.exists({ file: file._id, week: number })) fail(`Week ${number} already exists.`, 409);
@@ -171,7 +302,7 @@ exports.copySources = wrap(async (req, res) => {
 
 exports.getWeek = wrap(async (req, res) => {
     const { week, file, role, caps } = await svc.accessWeek(id(req.params.id), req.admin);
-    await file.populate("members.admin", "name email");
+    const [directory, names] = await Promise.all([staffDirectory(), departmentNames()]);
     const [comments, activity, versions, siblings, settings] = await Promise.all([
         CoordinationComment.find({ week: week._id }).sort({ createdAt: 1 }).lean(),
         CoordinationActivity.find({ week: week._id }).sort({ createdAt: -1 }).limit(60).lean(),
@@ -182,9 +313,11 @@ exports.getWeek = wrap(async (req, res) => {
     const [record] = await buildRecords(file, [week], settings);
     res.json({
         success: true,
-        week: { id: String(week._id), week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
+        attendees: record.attendees,
+        fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
+        week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
         defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: classLabel(file.subject?.class?.name), sections: file.sections, subject: file.subject?.name || "" },
-        file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin), role, caps,
+        file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, [], directory, names), role, caps,
         me: { id: String(req.admin._id), name: req.admin.name, hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },
         settings: { title: (settings.title || "").replace("{session}", file.session), footerText: (settings.footerText || "").replace("{session}", file.session), caption: settings.caption, watermarkUrl: settings.watermarkUrl, watermarkOpacity: settings.watermarkOpacity, quickPicks: settings.quickPicks },
         fit: measureFit(record),
@@ -205,6 +338,10 @@ exports.updateWeek = wrap(async (req, res) => {
     const { week, caps } = await svc.accessWeek(id(req.params.id), req.admin);
     if (!caps.edit) fail("You cannot change this week.", 403);
     if (req.body.term !== undefined) week.term = text(req.body.term, 30);
+    if (req.body.font !== undefined) {
+        if (week.status !== "draft") fail("Reopen this week before changing its font.", 409);
+        week.font = fontKey(String(req.body.font));
+    }
     if (req.body.dueDate !== undefined) week.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : undefined;
     if (req.body.week !== undefined) {
         const number = Number(req.body.week);
@@ -213,7 +350,7 @@ exports.updateWeek = wrap(async (req, res) => {
         week.week = number;
     }
     await week.save();
-    hub.emit(week._id, "meta", { week: week.week, term: week.term, dueDate: week.dueDate });
+    hub.emit(week._id, "meta", { week: week.week, term: week.term, dueDate: week.dueDate, font: week.font, by: req.admin.name });
     res.json({ success: true });
 });
 

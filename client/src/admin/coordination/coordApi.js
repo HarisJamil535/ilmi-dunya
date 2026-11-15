@@ -20,7 +20,7 @@ export async function download(path) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export const ROLE_LABEL = { viewer: "Viewer", editor: "Editor", coordinator: "Subject Coordinator", sectionHead: "Section Head", manager: "Manager" };
+export const ROLE_LABEL = { viewer: "Viewer", editor: "Teacher (editor)", coordinator: "Subject Coordinator", sectionHead: "Section Head", principal: "Principal", manager: "Manager" };
 export const ROLE_HINT = {
   viewer: "Can read, download and comment.",
   editor: "Can also edit the weekly records.",

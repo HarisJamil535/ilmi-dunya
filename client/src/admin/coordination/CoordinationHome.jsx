@@ -1,31 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, ChevronRight, FilePlus2, PenLine, Plus, Settings2, Trash2, Users, UsersRound } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Building2, Check, ChevronRight, Copy, Crown, FilePlus2, FolderOpen, KeyRound, PenLine, Plus, Settings2, ShieldCheck, Trash2, UserPlus, Users, UsersRound } from "lucide-react";
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
 import ImagePicker from "../../shared/ImagePicker";
 import ConfirmModal from "../../shared/ConfirmModal";
 import { Avatar, Dialog, Field, inputClass } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
-import { ROLE_HINT, ROLE_LABEL, api, messageOf } from "./coordApi";
+import { api, messageOf } from "./coordApi";
 import "./coordination.css";
 
 const thisSession = () => { const now = new Date(); const start = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1; return `${start}-${start + 1}`; };
+const TITLE_OPTIONS = [
+  ["teacher", "Teacher", "Views and edits their department's files."],
+  ["coordinator", "Subject Coordinator", "Also submits and signs. One per department."],
+  ["sectionHead", "Section Head", "Every department. Edits, approves and signs. One for the school."],
+  ["principal", "Principal", "Every department. Views, comments and downloads. One for the school."],
+];
+const toast = (message, type = "success") => window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type, message } }));
 
-function NewFileDialog({ onClose, onCreated }) {
+function NewFileDialog({ overview, onClose, onCreated }) {
+  const mine = overview.me.title === "coordinator" ? overview.me.department : "";
   const [subjects, setSubjects] = useState(null);
-  const [form, setForm] = useState({ subjectId: "", session: thisSession(), sections: "" });
+  const [form, setForm] = useState({ departmentId: mine || (overview.departments.length === 1 ? overview.departments[0].id : ""), subjectId: "", session: thisSession(), sections: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => { api.get("/subjects").then((d) => setSubjects(d.subjects || [])).catch((e) => { setSubjects([]); setError(messageOf(e, "The subject list could not be loaded. Close this window and try again.")); }); }, []);
   const create = async () => {
     setBusy(true); setError("");
-    try { const d = await api.post("/files", form); onCreated(d.file); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
+    try { const d = await api.post("/files", form); onCreated(d.id); } catch (e) { setError(messageOf(e)); setBusy(false); }
   };
-  return <Dialog title="New coordination file" subtitle="One file per subject and class for a session. Each week of the session is one page." onClose={onClose} busy={busy}
-    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FilePlus2} loading={busy} disabled={!form.subjectId || !/^\d{4}-\d{4}$/.test(form.session)} onClick={create}>Create file</AdminActionButton></>}>
+  return <Dialog title="New coordination file" subtitle="One file per subject and class for a session, for example Computer Science Class 9 and Class 10. Each week is one page." onClose={onClose} busy={busy}
+    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FilePlus2} loading={busy} disabled={!form.departmentId || !form.subjectId || !/^\d{4}-\d{4}$/.test(form.session)} onClick={create}>Create file</AdminActionButton></>}>
+    {overview.departments.length === 0 ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Add a department first (Departments &amp; staff).</p>
+      : <SharedSelect label="Department" allowClear={false} disabled={Boolean(mine)} value={form.departmentId} onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder="Choose a department" options={overview.departments.map((d) => ({ value: d.id, label: d.name }))} />}
     <SharedSelect label="Subject and class" searchable isLoading={!subjects} value={form.subjectId} onChange={(subjectId) => setForm({ ...form, subjectId })} placeholder="Choose a subject"
-      options={(subjects || []).map((s) => ({ value: s.id, label: `${s.name} — ${s.className}${s.group ? ` (${s.group})` : ""} · ${s.board}` }))} />
+      options={(subjects || []).map((s) => ({ value: s.id, label: `${s.name} — ${s.className || "No class"}${s.group ? ` (${s.group})` : ""}${s.board ? ` · ${s.board}` : ""}` }))} />
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Session" hint="For example 2026-2027"><input className={inputClass} value={form.session} maxLength={9} onChange={(e) => setForm({ ...form, session: e.target.value })} /></Field>
       <Field label="No. of sections" hint="Printed at the top of every week"><input className={inputClass} value={form.sections} maxLength={20} onChange={(e) => setForm({ ...form, sections: e.target.value })} placeholder="e.g. 5" /></Field>
@@ -34,39 +44,122 @@ function NewFileDialog({ onClose, onCreated }) {
   </Dialog>;
 }
 
-function MembersDialog({ file, onClose, onSaved }) {
-  const [people, setPeople] = useState(null);
-  const [members, setMembers] = useState(file.members.map((m) => ({ admin: m.admin, role: m.role })));
-  const [adding, setAdding] = useState("");
+function StaffDialog({ person, preset, departments, onClose, onSaved }) {
+  const editing = Boolean(person);
+  const [form, setForm] = useState({ name: person?.name || "", username: person?.username || "", password: "", title: person?.title || preset?.title || "teacher", departmentId: person?.department || preset?.departmentId || "", status: person?.status || "active" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { api.get("/people").then((d) => setPeople(d.people || [])).catch((e) => { setPeople([]); setError(messageOf(e)); }); }, []);
-  const byId = useMemo(() => new Map((people || []).map((p) => [p.id, p])), [people]);
-  const add = (id) => { if (id && !members.some((m) => m.admin === id)) setMembers([...members, { admin: id, role: "editor" }]); setAdding(""); };
+  const [created, setCreated] = useState(null);
+  const [confirm, setConfirm] = useState(false);
+  const needsDept = ["teacher", "coordinator"].includes(form.title);
+  const suggest = () => setForm((f) => ({ ...f, username: f.username || f.name.toLowerCase().replace(/^(mr|ms|mrs|miss|dr|sir)\.?\s+/i, "").trim().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") }));
+  const randomPassword = () => setForm((f) => ({ ...f, password: Array.from(crypto.getRandomValues(new Uint32Array(3))).map((n) => n.toString(36)).join("").slice(0, 10) }));
   const save = async () => {
     setBusy(true); setError("");
-    try { const d = await api.patch(`/files/${file.id}`, { members }); onSaved(d.file); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
+    try {
+      const body = { name: form.name, username: form.username, title: form.title, departmentId: needsDept ? form.departmentId : "", ...(form.password ? { password: form.password } : {}), ...(editing ? { status: form.status } : {}) };
+      if (editing) { await api.patch(`/staff/${person.id}`, body); onSaved(); onClose(); toast("Saved."); }
+      else { await api.post("/staff", body); setCreated({ username: form.username.toLowerCase(), password: form.password }); onSaved(); }
+    } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
   };
-  const roleOptions = Object.keys(ROLE_HINT).map((value) => ({ value, label: ROLE_LABEL[value] }));
-  return <Dialog wide title={`People — ${file.subject.name} ${file.subject.classLabel ? `(Class ${file.subject.classLabel})` : ""}`} subtitle="Only the people listed here can open this file. Choose what each person may do." onClose={onClose} busy={busy}
-    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={Users} loading={busy} onClick={save}>Save people</AdminActionButton></>}>
-    <SharedSelect label="Add a person" searchable isLoading={!people} value={adding} onChange={add} placeholder="Choose someone to add"
-      options={(people || []).filter((p) => !members.some((m) => m.admin === p.id)).map((p) => ({ value: p.id, label: `${p.name} · ${p.email}` }))} />
-    <p className="text-xs text-slate-500">Not in the list? In <Link to="/admin/admin-management" className="font-bold text-primary underline">Admin Management</Link>, create the account (or edit an existing one) and tick “Coordination records”.</p>
-    {members.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No one is added yet.</p>
-      : <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200">{members.map((m, i) => {
-        const p = byId.get(m.admin) || file.members.find((x) => x.admin === m.admin) || {};
-        return <li key={m.admin} className="flex flex-wrap items-center gap-3 p-3">
-          <Avatar name={p.name} size={36} />
-          <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{p.name || "Unknown"}</p><p className="truncate text-xs text-slate-500">{p.email}</p></div>
-          <div className="w-full sm:w-56"><SharedSelect size="sm" allowClear={false} value={m.role} onChange={(role) => setMembers(members.map((x, j) => (j === i ? { ...x, role } : x)))} options={roleOptions} /><p className="mt-1 text-[11px] text-slate-500">{ROLE_HINT[m.role]}</p></div>
-          <button type="button" onClick={() => setMembers(members.filter((_, j) => j !== i))} aria-label={`Remove ${p.name}`} className="grid h-9 w-9 place-items-center rounded-xl text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
-        </li>;
-      })}</ul>}
-    {members.length > 0 && !members.some((m) => m.role === "coordinator") && <p className="flex items-center gap-2 text-xs font-bold text-amber-700"><AlertTriangle className="h-4 w-4" />Add a Subject Coordinator so weeks can be submitted.</p>}
-    {members.length > 0 && !members.some((m) => m.role === "sectionHead") && <p className="flex items-center gap-2 text-xs font-bold text-amber-700"><AlertTriangle className="h-4 w-4" />Add a Section Head so weeks can be approved.</p>}
-    {error && <p role="alert" className="text-sm font-bold text-rose-600">{error}</p>}
+  const remove = async () => {
+    setBusy(true);
+    try { const d = await api.del(`/staff/${person.id}`); toast(d.deleted ? `${person.name}'s account was deleted.` : `${person.name} no longer has coordination access.`); onSaved(); onClose(); }
+    catch (e) { setError(messageOf(e)); setBusy(false); setConfirm(false); }
+  };
+  const copy = () => { navigator.clipboard?.writeText(`Sign in at ${window.location.origin}/admin/login\nUsername: ${created.username}\nPassword: ${created.password}`); toast("Sign-in details copied."); };
+
+  if (created) return <Dialog title={`${form.name} is added`} subtitle="Share these sign-in details with them. For safety the password is not shown again." onClose={onClose}
+    footer={<><AdminActionButton variant="secondary" icon={Copy} onClick={copy}>Copy details</AdminActionButton><AdminActionButton icon={Check} onClick={onClose}>Done</AdminActionButton></>}>
+    <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 font-mono text-sm">
+      <p><span className="text-slate-500">Sign in at</span> {window.location.origin}/admin/login</p>
+      <p><span className="text-slate-500">Username</span> <b>{created.username}</b></p>
+      <p><span className="text-slate-500">Password</span> <b>{created.password}</b></p>
+    </div>
+    <p className="text-xs text-slate-500">They will see only {needsDept ? "their department's files" : "the coordination files"} when they sign in, and can add their e-signature from “My signature”.</p>
   </Dialog>;
+
+  return <Dialog title={editing ? `Edit ${person.name}` : "Add a staff member"} subtitle={editing ? "Change their details, role, department or password." : "Create their sign-in. They will only see what their role allows."} onClose={onClose} busy={busy}
+    footer={<>{editing && <AdminActionButton variant="delete" icon={Trash2} onClick={() => setConfirm(true)} className="mr-auto">Remove</AdminActionButton>}<AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={editing ? Check : UserPlus} loading={busy} disabled={!form.name.trim() || !form.username.trim() || (!editing && form.password.length < 8) || (needsDept && !form.departmentId)} onClick={save}>{editing ? "Save" : "Add person"}</AdminActionButton></>}>
+    <Field label="Full name"><input className={inputClass} value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} onBlur={() => !editing && suggest()} placeholder="e.g. Ms. Ammara Khan" /></Field>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Username" hint="Used to sign in. No spaces."><input className={inputClass} value={form.username} maxLength={60} autoCapitalize="none" spellCheck={false} onChange={(e) => setForm({ ...form, username: e.target.value.replace(/\s/g, "") })} placeholder="e.g. ammara.khan" /></Field>
+      <Field label={editing ? "New password (optional)" : "Password"} hint="At least 8 characters."><div className="flex gap-2"><input className={inputClass} value={form.password} maxLength={100} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editing ? "Leave empty to keep" : ""} /><button type="button" onClick={randomPassword} title="Make a password" aria-label="Make a password" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-primary-muted hover:text-primary"><KeyRound className="h-4 w-4" /></button></div></Field>
+    </div>
+    <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Role</legend>
+      <div className="grid gap-2 sm:grid-cols-2">{TITLE_OPTIONS.map(([value, label, hint]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 transition-colors ${form.title === value ? "border-primary bg-primary-soft" : "border-slate-200 hover:border-primary-muted"}`}>
+        <input type="radio" name="title" className="sr-only" checked={form.title === value} onChange={() => setForm({ ...form, title: value })} />
+        <span className={`block text-sm font-black ${form.title === value ? "text-primary-dark" : "text-slate-800"}`}>{label}</span><span className="block text-xs text-slate-500">{hint}</span>
+      </label>)}</div>
+    </fieldset>
+    {needsDept && <SharedSelect label="Department" allowClear={false} value={form.departmentId} onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder="Choose a department" options={departments.map((d) => ({ value: d.id, label: d.name }))} />}
+    {editing && <label className="flex items-center gap-2 text-sm font-bold text-slate-700"><input type="checkbox" className="accent-[var(--brand-primary)]" checked={form.status === "active"} onChange={(e) => setForm({ ...form, status: e.target.checked ? "active" : "disabled" })} />Account active (untick to block sign-in)</label>}
+    {error && <p role="alert" className="text-sm font-bold text-rose-600">{error}</p>}
+    <ConfirmModal isOpen={confirm} tone="danger" title={`Remove ${person?.name}?`} description="They will no longer be able to open coordination files. Their past comments and signatures stay on the records." confirmLabel="Remove" isLoading={busy} onConfirm={remove} onClose={() => setConfirm(false)} />
+  </Dialog>;
+}
+
+function PersonRow({ person, onEdit, badge }) {
+  return <button type="button" onClick={onEdit} className={`coord-person ${person.status !== "active" ? "is-off" : ""}`}>
+    <Avatar name={person.name} size={32} />
+    <span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-bold text-slate-800">{person.name}</span><span className="block truncate text-xs text-slate-500">@{person.username}{person.status !== "active" ? " · blocked" : ""}</span></span>
+    {badge}
+    {person.hasSignature ? <PenLine className="h-4 w-4 text-emerald-600" aria-label="Has an e-signature" /> : null}
+  </button>;
+}
+
+function StaffTab({ overview, reload }) {
+  const [dialog, setDialog] = useState(null);
+  const [newDept, setNewDept] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [renaming, setRenaming] = useState(null);
+  const addDept = async () => {
+    setBusy(true);
+    try { await api.post("/departments", { name: newDept }); setNewDept(""); reload(); toast(`${newDept} department added.`); } catch (e) { toast(messageOf(e), "error"); } finally { setBusy(false); }
+  };
+  const rename = async () => { try { await api.patch(`/departments/${renaming.id}`, { name: renaming.name }); setRenaming(null); reload(); } catch (e) { toast(messageOf(e), "error"); } };
+  const removeDept = async () => { try { await api.del(`/departments/${confirm.id}`); reload(); toast("Department deleted."); } catch (e) { toast(messageOf(e), "error"); } finally { setConfirm(null); } };
+  const orgSlot = (key, label, Icon, hint) => {
+    const person = overview.org[key];
+    return <div className="coord-org">
+      <span className="coord-org-icon"><Icon className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1"><p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+        {person ? <PersonRow person={person} onEdit={() => setDialog({ person })} /> : <p className="mt-1 text-sm text-slate-500">{hint}</p>}</div>
+      {!person && <AdminActionButton variant="secondary" icon={UserPlus} onClick={() => setDialog({ preset: { title: key } })}>Add</AdminActionButton>}
+    </div>;
+  };
+  return <div className="space-y-6">
+    <section className="space-y-3"><h2 className="coord-group">School-wide</h2>
+      <div className="grid gap-3 md:grid-cols-2">{orgSlot("sectionHead", "Section Head", ShieldCheck, "Sees every department; approves and signs every week.")}{orgSlot("principal", "Principal", Crown, "Sees and downloads every department's files.")}</div>
+    </section>
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3"><h2 className="coord-group">Departments</h2>
+        <div className="flex w-full gap-2 sm:w-auto"><input className={`${inputClass} sm:w-64`} value={newDept} maxLength={60} onChange={(e) => setNewDept(e.target.value)} onKeyDown={(e) => e.key === "Enter" && newDept.trim() && addDept()} placeholder="New department, e.g. Chemistry" /><AdminActionButton icon={Plus} loading={busy} disabled={!newDept.trim()} onClick={addDept}>Add</AdminActionButton></div>
+      </div>
+      {overview.departments.length === 0 ? <div className="coord-empty"><Building2 className="h-10 w-10 text-primary" /><h2>Add your first department</h2><p>For example Computer Science, Chemistry or English. Then add its teachers and its Subject Coordinator.</p></div>
+        : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{overview.departments.map((d) => {
+          const coordinator = d.staff.find((p) => p.title === "coordinator");
+          const teachers = d.staff.filter((p) => p.title !== "coordinator");
+          return <article key={d.id} className="coord-dept">
+            <div className="flex items-start justify-between gap-2">
+              {renaming?.id === d.id ? <div className="flex flex-1 gap-2"><input autoFocus className={`${inputClass} !min-h-9`} value={renaming.name} maxLength={60} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") rename(); if (e.key === "Escape") setRenaming(null); }} /><AdminActionButton className="!min-h-9" onClick={rename}>Save</AdminActionButton></div>
+                : <button type="button" onClick={() => setRenaming({ id: d.id, name: d.name })} className="min-w-0 text-left" title="Rename"><h3 className="truncate text-lg font-black text-slate-900">{d.name}</h3><p className="text-xs text-slate-500">{d.staff.length} staff · {d.files} file{d.files === 1 ? "" : "s"}</p></button>}
+              {renaming?.id !== d.id && <button type="button" onClick={() => setConfirm(d)} aria-label={`Delete ${d.name}`} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+            </div>
+            <div className="space-y-1"><p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Subject Coordinator</p>
+              {coordinator ? <PersonRow person={coordinator} onEdit={() => setDialog({ person: coordinator })} /> : <button type="button" onClick={() => setDialog({ preset: { title: "coordinator", departmentId: d.id } })} className="coord-slot"><UserPlus className="h-4 w-4" />Add the Subject Coordinator</button>}
+            </div>
+            <div className="space-y-1"><p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Teachers</p>
+              {teachers.map((p) => <PersonRow key={p.id} person={p} onEdit={() => setDialog({ person: p })} />)}
+              <button type="button" onClick={() => setDialog({ preset: { title: "teacher", departmentId: d.id } })} className="coord-slot"><UserPlus className="h-4 w-4" />Add a teacher</button>
+            </div>
+          </article>;
+        })}</div>}
+    </section>
+    {dialog && <StaffDialog person={dialog.person} preset={dialog.preset} departments={overview.departments} onClose={() => setDialog(null)} onSaved={reload} />}
+    <ConfirmModal isOpen={Boolean(confirm)} tone="danger" title={`Delete the ${confirm?.name} department?`} description="Only an empty department (no staff and no files) can be deleted." confirmLabel="Delete" onConfirm={removeDept} onClose={() => setConfirm(null)} />
+  </div>;
 }
 
 function SettingsDialog({ onClose }) {
@@ -83,7 +176,7 @@ function SettingsDialog({ onClose }) {
     setBusy(true); setError("");
     try {
       await api.put("/settings", { title: settings.title, footerText: settings.footerText, caption: settings.caption, watermarkUrl: settings.watermarkUrl, watermarkOpacity: settings.watermarkOpacity, quickPicks: Object.fromEntries(Object.entries(settings.picks).map(([k, v]) => [k, v.split("\n").map((x) => x.trim()).filter(Boolean)])) });
-      onClose();
+      onClose(); toast("Record settings saved.");
     } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
   };
   return <Dialog wide title="Record settings" subtitle="The look of every coordination record: title, watermark, footer and the quick-pick lists." onClose={onClose} busy={busy}
@@ -108,73 +201,91 @@ function SettingsDialog({ onClose }) {
   </Dialog>;
 }
 
+function FileCard({ f, departments, onMove, onDelete }) {
+  const pct = f.counts.total ? Math.round((f.counts.approved / f.counts.total) * 100) : 0;
+  return <article className="coord-card">
+    <Link to={`/admin/coordination/${f.id}`} className="coord-card-main">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><h3>{f.subject.name} <span className="text-slate-400">·</span> {f.subject.className || "No class"}</h3><p>{[f.session, f.subject.group, f.subject.board].filter(Boolean).join(" · ")}</p></div>
+        <ChevronRight className="coord-arrow mt-1 h-5 w-5 shrink-0" />
+      </div>
+      <div className="coord-progress" aria-label={`${f.counts.approved} of ${f.counts.total} weeks approved`}><span style={{ width: `${pct}%` }} /></div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
+        <span><b className="text-slate-800">{f.counts.total}</b> week{f.counts.total === 1 ? "" : "s"}</span>
+        <span className="text-emerald-700">{f.counts.approved} approved</span>
+        {f.counts.submitted > 0 && <span className="text-sky-700">{f.counts.submitted} awaiting approval</span>}
+        {f.counts.overdue > 0 && <span className="text-rose-600">{f.counts.overdue} overdue</span>}
+      </div>
+      <div className="flex -space-x-2">{f.members.slice(0, 7).map((m) => <Avatar key={m.admin} name={m.name} size={26} ring title={`${m.name} — ${m.title}`} />)}</div>
+    </Link>
+    {f.caps.manage && <div className="coord-card-tools">
+      {!f.department.id && <div className="flex-1 p-1.5"><SharedSelect size="sm" placeholder="Move to a department" value="" onChange={(id) => id && onMove(f, id)} options={departments.map((d) => ({ value: d.id, label: d.name }))} /></div>}
+      <button type="button" className="is-danger" onClick={() => onDelete(f)}><Trash2 className="h-4 w-4" />Delete</button>
+    </div>}
+  </article>;
+}
+
 export default function CoordinationHome() {
-  const [data, setData] = useState(null);
+  const navigate = useNavigate();
+  const [overview, setOverview] = useState(null);
+  const [files, setFiles] = useState(null);
   const [error, setError] = useState("");
-  const [dialog, setDialog] = useState(null);
+  const [tab, setTab] = useState("files");
+  const [dialog, setDialog] = useState("");
   const [confirm, setConfirm] = useState(null);
-  const load = () => api.get("/files").then(setData).catch((e) => setError(messageOf(e)));
+  const load = () => Promise.all([api.get("/overview"), api.get("/files")]).then(([o, f]) => { setOverview(o); setFiles(f.files); setError(""); }).catch((e) => setError(messageOf(e)));
   useEffect(() => { load(); }, []);
   const groups = useMemo(() => {
+    if (!overview || !files) return [];
+    const order = new Map(overview.departments.map((d, i) => [d.id, i]));
     const map = new Map();
-    for (const f of data?.files || []) { const key = `${f.session} · ${f.subject.className || "Other"}`; if (!map.has(key)) map.set(key, []); map.get(key).push(f); }
-    return [...map.entries()];
-  }, [data]);
-  const remove = async (file) => { try { await api.del(`/files/${file.id}`); load(); } catch (e) { setError(messageOf(e)); } finally { setConfirm(null); } };
+    for (const f of files) { const key = f.department.id || ""; if (!map.has(key)) map.set(key, { id: key, name: f.department.name || "Not in a department yet", files: [] }); map.get(key).files.push(f); }
+    for (const d of overview.departments) if (!map.has(d.id) && (overview.canManage || overview.me.department === d.id || ["sectionHead", "principal"].includes(overview.me.title))) map.set(d.id, { id: d.id, name: d.name, files: [] });
+    return [...map.values()].sort((a, b) => (a.id ? order.get(a.id) ?? 99 : 100) - (b.id ? order.get(b.id) ?? 99 : 100));
+  }, [overview, files]);
+  const remove = async (file) => { try { await api.del(`/files/${file.id}`); load(); toast("File deleted."); } catch (e) { toast(messageOf(e), "error"); } finally { setConfirm(null); } };
+  const move = async (file, departmentId) => { try { await api.patch(`/files/${file.id}`, { departmentId }); load(); } catch (e) { toast(messageOf(e), "error"); } };
+
+  if (error && !overview) return <div className="mx-auto max-w-3xl"><p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p></div>;
+  if (!overview || !files) return <AdminLoader label="Loading coordination..." />;
+  const me = overview.me;
+  const myDept = overview.departments.find((d) => d.id === me.department);
+  const intro = overview.canManage ? "Add departments and staff, then create a file for each subject and class." : me.title === "principal" ? "You can open and download every department's records." : me.title === "sectionHead" ? "You can review, approve and sign every department's weekly records." : `${myDept?.name || "Your department"}: plan each week together, live.`;
 
   return <div className="coord-root mx-auto max-w-6xl space-y-6">
     <header className="coord-hero">
       <div className="min-w-0">
-        <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination</p>
+        <p className="coord-eyebrow"><UsersRound className="h-4 w-4" />Weekly Subject Coordination{me.titleLabel ? ` · ${me.titleLabel}${myDept ? `, ${myDept.name}` : ""}` : ""}</p>
         <h1>Coordination records</h1>
-        <p className="coord-lead">Plan each week together, live. Comment, sign and download the finished record in Word or PDF.</p>
+        <p className="coord-lead">{intro}</p>
+        {!me.hasSignature && ["coordinator", "sectionHead"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
       </div>
       <div className="flex flex-wrap gap-2">
-        <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog({ type: "signature" })}>My signature</AdminActionButton>
-        {data?.canManage && <AdminActionButton variant="secondary" icon={Settings2} onClick={() => setDialog({ type: "settings" })}>Record settings</AdminActionButton>}
-        {data?.canManage && <AdminActionButton icon={Plus} onClick={() => setDialog({ type: "new" })}>New file</AdminActionButton>}
+        <AdminActionButton variant="secondary" icon={PenLine} onClick={() => setDialog("signature")}>My signature</AdminActionButton>
+        {overview.canManage && <AdminActionButton variant="secondary" icon={Settings2} onClick={() => setDialog("settings")}>Record settings</AdminActionButton>}
+        {me.canCreateFiles && <AdminActionButton icon={Plus} onClick={() => setDialog("new")}>New file</AdminActionButton>}
       </div>
     </header>
-    {error && <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p>}
-    {!data ? <AdminLoader label="Loading coordination files..." /> : data.files.length === 0 ? <div className="coord-empty">
-      <UsersRound className="h-10 w-10 text-primary" />
-      <h2>{data.canManage ? "Create the first coordination file" : "No coordination files yet"}</h2>
-      <p>{data.canManage ? "Choose a subject and class, then add the people who will plan, sign and approve it." : "When a manager adds you to a subject's file, it will appear here."}</p>
-      {data.canManage && <AdminActionButton icon={Plus} onClick={() => setDialog({ type: "new" })}>New file</AdminActionButton>}
-    </div> : groups.map(([group, files]) => <section key={group} className="space-y-3">
-      <h2 className="coord-group">{group}</h2>
-      <div className="grid gap-3 md:grid-cols-2">{files.map((f) => {
-        const pct = f.counts.total ? Math.round((f.counts.approved / f.counts.total) * 100) : 0;
-        return <article key={f.id} className="coord-card">
-          <Link to={`/admin/coordination/${f.id}`} className="coord-card-main">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0"><h3>{f.subject.name}</h3><p>{[f.subject.className, f.subject.group, f.subject.board].filter(Boolean).join(" · ")}</p></div>
-              <span className="coord-role">{ROLE_LABEL[f.role] || f.role}</span>
-            </div>
-            <div className="coord-progress" aria-label={`${f.counts.approved} of ${f.counts.total} weeks approved`}><span style={{ width: `${pct}%` }} /></div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
-              <span><b className="text-slate-800">{f.counts.total}</b> weeks</span>
-              <span className="text-emerald-700">{f.counts.approved} approved</span>
-              {f.counts.submitted > 0 && <span className="text-sky-700">{f.counts.submitted} awaiting approval</span>}
-              {f.counts.overdue > 0 && <span className="text-rose-600">{f.counts.overdue} overdue</span>}
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex -space-x-2">{f.members.slice(0, 6).map((m) => <Avatar key={m.admin} name={m.name} size={28} ring title={`${m.name} — ${ROLE_LABEL[m.role]}`} />)}{f.members.length > 6 && <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-200 text-[10px] font-black text-slate-600 ring-2 ring-white">+{f.members.length - 6}</span>}</div>
-              <ChevronRight className="coord-arrow h-5 w-5" />
-            </div>
-          </Link>
-          {f.caps.manage && <div className="coord-card-tools">
-            <button type="button" onClick={() => setDialog({ type: "members", file: f })}><Users className="h-4 w-4" />People ({f.members.length})</button>
-            <button type="button" className="is-danger" onClick={() => setConfirm(f)}><Trash2 className="h-4 w-4" />Delete</button>
-          </div>}
-        </article>;
-      })}</div>
+
+    {overview.canManage && <div className="coord-filters" role="tablist" aria-label="Coordination sections">
+      <button type="button" role="tab" aria-selected={tab === "files"} onClick={() => setTab("files")}><FolderOpen className="h-4 w-4" />Files<span>{files.length}</span></button>
+      <button type="button" role="tab" aria-selected={tab === "staff"} onClick={() => setTab("staff")}><Users className="h-4 w-4" />Departments &amp; staff<span>{overview.departments.length}</span></button>
+    </div>}
+
+    {tab === "staff" && overview.canManage ? <StaffTab overview={overview} reload={load} /> : groups.length === 0 ? <div className="coord-empty">
+      <FolderOpen className="h-10 w-10 text-primary" />
+      <h2>{overview.canManage ? "Start with your departments" : "No coordination files yet"}</h2>
+      <p>{overview.canManage ? "Add departments and their staff, then create a file for each subject and class." : me.title ? "When a file is created for your department, it will appear here." : "Ask the super admin to add you to a department."}</p>
+      {overview.canManage && <AdminActionButton icon={Building2} onClick={() => setTab("staff")}>Set up departments</AdminActionButton>}
+    </div> : groups.map((g) => <section key={g.id || "none"} className="space-y-3">
+      <h2 className="coord-group flex items-center gap-2"><Building2 className="h-4 w-4" />{g.name}<span className="font-bold normal-case tracking-normal text-slate-400">· {g.files.length} file{g.files.length === 1 ? "" : "s"}</span></h2>
+      {g.files.length ? <div className="grid gap-3 md:grid-cols-2">{g.files.map((f) => <FileCard key={f.id} f={f} departments={overview.departments} onMove={move} onDelete={setConfirm} />)}</div>
+        : <p className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500">No files yet.{me.canCreateFiles && <> <button type="button" onClick={() => setDialog("new")} className="font-bold text-primary hover:underline">Create one</button>.</>}</p>}
     </section>)}
 
-    {dialog?.type === "new" && <NewFileDialog onClose={() => setDialog(null)} onCreated={(file) => { load(); setDialog({ type: "members", file }); }} />}
-    {dialog?.type === "members" && <MembersDialog file={dialog.file} onClose={() => setDialog(null)} onSaved={() => { load(); setDialog(null); }} />}
-    {dialog?.type === "settings" && <SettingsDialog onClose={() => setDialog(null)} />}
-    {dialog?.type === "signature" && <SignatureDialog onClose={() => setDialog(null)} />}
-    <ConfirmModal isOpen={Boolean(confirm)} tone="danger" title="Delete this coordination file?" description={confirm ? `${confirm.subject.name} (${confirm.session}) and all its weeks, comments and history will be deleted. This cannot be undone.` : ""} confirmLabel="Delete file" onConfirm={() => remove(confirm)} onClose={() => setConfirm(null)} />
+    {dialog === "new" && <NewFileDialog overview={overview} onClose={() => setDialog("")} onCreated={(id) => { setDialog(""); navigate(`/admin/coordination/${id}`); }} />}
+    {dialog === "settings" && <SettingsDialog onClose={() => setDialog("")} />}
+    {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} onSaved={load} />}
+    <ConfirmModal isOpen={Boolean(confirm)} tone="danger" title="Delete this coordination file?" description={confirm ? `${confirm.subject.name} ${confirm.subject.className} (${confirm.session}) and all its weeks, comments and history will be deleted. This cannot be undone.` : ""} confirmLabel="Delete file" onConfirm={() => remove(confirm)} onClose={() => setConfirm(null)} />
   </div>;
 }

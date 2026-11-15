@@ -49,6 +49,7 @@ const standardSidebarItems = [
 ];
 
 // The server enforces permissions; the menu only hides pages an admin cannot use.
+const coordinationOnlyAccount = (admin) => Boolean(admin && admin.role !== "super_admin" && (admin.permissions || []).length && admin.permissions.every((p) => p === "coordination" || p === "coordinationManage"));
 const canOpen = (admin, item) => admin?.role === "super_admin" || (!item.superAdminOnly && (!item.permission || [].concat(item.permission).some((permission) => admin?.permissions?.includes(permission))));
 
 const AdminSidebar = () => {
@@ -59,6 +60,7 @@ const AdminSidebar = () => {
     try { return JSON.parse(localStorage.getItem("adminUser") || "null"); } catch { return null; }
   })();
   const [collapsed, setCollapsed] = useState(false);
+  const coordinationOnly = coordinationOnlyAccount(adminUser);
   const [mobileOpen, setMobileOpen] = useState(false);
   
   // State to handle the open/close dropdown for Academic Structure
@@ -157,7 +159,7 @@ const AdminSidebar = () => {
         <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 space-y-1.5 custom-scrollbar">
           
           {/* OPTION 1: HOME / DASHBOARD */}
-          <Link
+          {!coordinationOnly && <Link
             to="/admin/dashboard"
             onClick={() => handleItemClick("dashboard")}
             className={`group relative w-full flex items-center ${
@@ -180,7 +182,7 @@ const AdminSidebar = () => {
                 Dashboard
               </span>
             </div>
-          </Link>
+          </Link>}
 
           {/* OPTION 2: COLLAPSIBLE ACADEMIC STRUCTURE */}
           {canOpen(adminUser, { permission: "academic" }) && <div className="w-full">

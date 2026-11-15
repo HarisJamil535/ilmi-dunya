@@ -1,5 +1,13 @@
 const mongoose = require("mongoose");
 
+// A department (Computer Science, Chemistry, ...). Its teachers and its Subject Coordinator are the
+// staff whose Admin.coordDepartment points here.
+const departmentSchema = new mongoose.Schema({
+    name: { type: String, required: true, trim: true, maxlength: 60 },
+    order: { type: Number, default: 0 },
+}, { timestamps: true });
+departmentSchema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+
 // One coordination file: a subject (which already belongs to one class, e.g. Computer Science Class 9) for one
 // academic session. Its members decide who may see, edit, comment on and sign its weekly records.
 const ROLES = ["viewer", "editor", "coordinator", "sectionHead"];
@@ -10,6 +18,7 @@ const memberSchema = new mongoose.Schema({
 
 const fileSchema = new mongoose.Schema({
     subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
+    department: { type: mongoose.Schema.Types.ObjectId, ref: "CoordinationDepartment", index: true, default: null },
     session: { type: String, required: true, trim: true, match: /^\d{4}-\d{4}$/ },
     sections: { type: String, default: "", maxlength: 20 },
     showQr: { type: Boolean, default: true },
@@ -40,7 +49,8 @@ const weekSchema = new mongoose.Schema({
     },
     verifyCode: { type: String, index: true, sparse: true },
     fingerprint: String,
-    fontSize: { type: Number, default: 0 }, // the size that fits the page, worked out when the PDF is made
+    fontSize: { type: Number, default: 0 },
+    font: { type: String, default: "arial" }, // the page's main font (see coordFonts) // the size that fits the page, worked out when the PDF is made
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     lastEditAt: Date,
 }, { timestamps: true, minimize: false });
@@ -103,6 +113,7 @@ const settingSchema = new mongoose.Schema({
 
 module.exports = {
     ROLES,
+    CoordinationDepartment: mongoose.model("CoordinationDepartment", departmentSchema),
     CoordinationFile: mongoose.model("CoordinationFile", fileSchema),
     CoordinationWeek: mongoose.model("CoordinationWeek", weekSchema),
     CoordinationVersion: mongoose.model("CoordinationVersion", versionSchema),
