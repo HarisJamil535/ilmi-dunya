@@ -27,6 +27,9 @@ const pages = [
   () => import("../pba/PbaManagement"),
   () => import("../paperMaker/PaperEditor"),
   () => import("../paperMaker/PbaPaperEditor"),
+  () => import("../coordination/CoordinationHome"),
+  () => import("../coordination/CoordinationFile"),
+  () => import("../coordination/WeekEditor"),
 ];
 
 let started = false;

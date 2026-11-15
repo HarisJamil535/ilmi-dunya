@@ -143,6 +143,9 @@ app.use("/api/papers", require("./src/routes/paperRoutes"));
 const pbaRoutes = require("./src/routes/pbaRoutes");
 app.use("/api/pba-manage", pbaRoutes.manageRouter);
 app.use("/api/pba", pbaRoutes.publicRouter);
+app.use("/api/coordination", require("./src/routes/coordinationRoutes"));
+// The QR code on an approved coordination record opens /verify/coordination/<code>, which reads this.
+app.get("/api/verify/coordination/:code", limits.reportVerifyLimiter, require("./src/controllers/coordinationController").verify);
 app.get("/api/verify/:reference", limits.reportVerifyLimiter, require("./src/controllers/schoolResultsController").verifyReport);
 
 app.use(publicRoutes());
@@ -193,6 +196,8 @@ if (require.main === module) {
         process.exit(1);
     }
     const server = app.listen(PORT);
+    // Live editing for coordination records (Socket.IO, at /api/live).
+    require('./src/services/coordSocket').attachCoordinationSocket(server);
     // Longer than typical proxy idle timeouts (60 s), so a proxy never reuses a connection this server just closed.
     server.keepAliveTimeout = 65000;
     server.headersTimeout = 66000;

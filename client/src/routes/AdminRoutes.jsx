@@ -34,6 +34,9 @@ const PaperList = lazy(() => import("@/admin/paperMaker/PaperList"));
 const PaperEditor = lazy(() => import("@/admin/paperMaker/PaperEditor"));
 const PbaPaperEditor = lazy(() => import("@/admin/paperMaker/PbaPaperEditor"));
 const SchoolResults = lazy(() => import("@/admin/pages/SchoolResults"));
+const CoordinationHome = lazy(() => import("@/admin/coordination/CoordinationHome"));
+const CoordinationFile = lazy(() => import("@/admin/coordination/CoordinationFile"));
+const WeekEditor = lazy(() => import("@/admin/coordination/WeekEditor"));
 
 const AdminRoutes = () => {
     return (
@@ -73,6 +76,9 @@ const AdminRoutes = () => {
                         <Route path="papers/pba/new" element={<PbaPaperEditor key="new" />} />
                         <Route path="papers/pba/:id" element={<PbaPaperEditor />} />
                         <Route path="papers/:id" element={<PaperEditor />} />
+                        <Route path="coordination" element={<CoordinationHome />} />
+                        <Route path="coordination/week/:weekId" element={<WeekEditor />} />
+                        <Route path="coordination/:fileId" element={<CoordinationFile />} />
                     </Route>
                 </Route>
 

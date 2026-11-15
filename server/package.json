@@ -34,6 +34,7 @@
     "pngjs": "^7.0.0",
     "qrcode": "^1.5.4",
     "read-excel-file": "^9.3.10",
+    "socket.io": "^4.8.4",
     "write-excel-file": "^4.1.1"
   },
   "devDependencies": {

@@ -10,6 +10,8 @@ const adminPermissions = [
     "schools",
     "papers",
     "pba",
+    "coordination",        // can open the Coordination area and the files they are a member of
+    "coordinationManage",  // can create files, choose members and change the record's look
 ];
 
 const adminSchema = new mongoose.Schema(
@@ -48,6 +50,7 @@ const adminSchema = new mongoose.Schema(
             enum: ["active", "disabled"],
             default: "active",
         },
+        signatureUrl: { type: String, default: "" }, // e-signature picture for coordination records
         currentSessionId: { type: String, select: false },
         lastLoginAt: Date,
         passwordResetOtpHash: { type: String, select: false },
