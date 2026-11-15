@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import { acquireSocket, releaseSocket } from "./liveSocket";
 import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Eye, Megaphone, Send, Trash2, X } from "lucide-react";
 import { AdminActionButton } from "../components/AdminUI";
 import { Dialog, Field, inputClass } from "./CoordUI";
@@ -64,10 +64,11 @@ export default function AnnouncementCenter({ compact = false, left = null }) {
   const load = useCallback(() => api.get("/announcements").then((d) => setState({ items: d.announcements || [], canAnnounce: d.canAnnounce, canSeeReaders: d.canSeeReaders })).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    const socket = io("/coordination", { path: "/api/live", auth: { token: localStorage.getItem("adminToken") }, transports: ["websocket", "polling"] });
-    socket.on("announcement", (a) => { load(); toast(`${a.important ? "Important: " : "New announcement: "}${a.title}`, a.important ? "error" : "success"); });
+    const socket = acquireSocket();
+    const arrived = (a) => { load(); toast(`${a.important ? "Important: " : "New announcement: "}${a.title}`, a.important ? "error" : "success"); };
+    socket.on("announcement", arrived);
     socket.on("announcement-deleted", load);
-    return () => socket.disconnect();
+    return () => { socket.off("announcement", arrived); socket.off("announcement-deleted", load); releaseSocket(); };
   }, [load]);
   useEffect(() => {
     if (!open) return undefined;
