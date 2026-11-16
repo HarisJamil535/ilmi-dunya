@@ -23,6 +23,7 @@ async function peopleFor(file) {
 // Keeps only mentioned people who can open the file. "all" (@all) means everyone in the file's department
 // plus the Section Head (not the Principal).
 async function validMentions(file, ids) {
+    if (!Array.isArray(ids) || !ids.length) return [];
     const people = await peopleFor(file);
     const allowed = new Set(people.map((p) => p.id));
     const wanted = (Array.isArray(ids) ? ids : []).map(String);

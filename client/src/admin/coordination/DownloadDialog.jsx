@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckSquare, Download, FileText, Square, Trash2 } from "lucide-react";
 import ConfirmModal from "../../shared/ConfirmModal";
-import { AdminActionButton, AdminLoader } from "../components/AdminUI";
-import { Dialog } from "./CoordUI";
+import { AdminActionButton } from "../components/AdminUI";
+import { CoordLoader, Dialog } from "./CoordUI";
 import { api, download, messageOf } from "./coordApi";
 
 const STATUS_DOT = { draft: "bg-amber-400", submitted: "bg-sky-500", approved: "bg-emerald-500" };
@@ -41,7 +41,7 @@ export default function DownloadDialog({ fileId, title, weeks: given, onClose, m
   const quick = deleting ? [["All", () => true], ["Drafts", (w) => w.status === "draft"], ["None", () => false]] : [["All", () => true], ["Approved", (w) => w.status === "approved"], ["Last 4", (w) => all.slice(-4).includes(w.week)], ["None", () => false]];
   return <Dialog title={deleting ? "Delete weeks" : "Download weeks"} subtitle={deleting ? `${title || "This file"} — tick the weeks to delete. Their content, comments and history are removed for everyone.` : title ? `${title} — tick the weeks you want. They come as one document, one page per week.` : "Tick the weeks you want."} onClose={onClose} busy={Boolean(busy)}
     footer={deleting ? <><span className="mr-auto self-center text-sm font-bold text-slate-500">{picked.size} week{picked.size === 1 ? "" : "s"} selected</span><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton variant="delete" icon={Trash2} loading={busy === "delete"} disabled={!picked.size || Boolean(busy)} onClick={() => setConfirm(true)}>{picked.size && picked.size === all.length ? "Delete all weeks" : `Delete ${picked.size || ""} week${picked.size === 1 ? "" : "s"}`}</AdminActionButton></> : <><span className="mr-auto self-center text-sm font-bold text-slate-500">{picked.size} week{picked.size === 1 ? "" : "s"} selected</span><AdminActionButton variant="secondary" icon={FileText} loading={busy === "docx"} disabled={!picked.size || Boolean(busy)} onClick={() => get("docx")}>Word</AdminActionButton><AdminActionButton icon={Download} loading={busy === "pdf"} disabled={!picked.size || Boolean(busy)} onClick={() => get("pdf")}>PDF</AdminActionButton></>}>
-    {!weeks ? <AdminLoader /> : weeks.length === 0 ? <p className="text-sm text-slate-500">No weeks have been made yet.</p> : <>
+    {!weeks ? <CoordLoader /> : weeks.length === 0 ? <p className="text-sm text-slate-500">No weeks have been made yet.</p> : <>
       <div className="flex flex-wrap gap-1.5">{quick.map(([label, fn]) => <button key={label} type="button" onClick={() => choose(fn)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-primary hover:text-primary">{label}</button>)}</div>
       <div className="dl-grid">{weeks.map((w) => { const on = picked.has(w.week); return <button key={w.id} type="button" aria-pressed={on} onClick={() => toggle(w.week)} className={`dl-week ${deleting ? "is-del" : ""} ${on ? "is-on" : ""}`}>
         {on ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}<span className="text-sm font-black">Week {w.week}</span><span className={`ml-auto h-2 w-2 rounded-full ${STATUS_DOT[w.status]}`} title={w.status} />

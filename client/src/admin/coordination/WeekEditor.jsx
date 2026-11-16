@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Highlighter, Italic, LayoutTemplate, List, ListOrdered, Loader2, MessageSquare, PanelRight, PenLine, Redo2, RemoveFormatting, RotateCcw, Send, ShieldCheck, Strikethrough, Underline, Undo2, Wifi, WifiOff, X } from "lucide-react";
-import { AdminActionButton, AdminLoader } from "../components/AdminUI";
-import { Avatar, Dialog, StatusChip } from "./CoordUI";
+import { AdminActionButton } from "../components/AdminUI";
+import { ApprovedSeal, CoordLoader, Avatar, Dialog, StatusChip } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
 import FontPicker from "./FontPicker";
 import AnnouncementCenter from "./AnnouncementCenter";
@@ -82,6 +82,8 @@ function WeekEditorView({ weekId }) {
   const [busy, setBusy] = useState("");
   const [dialog, setDialog] = useState("");
   const [menu, setMenu] = useState(false);
+  const [seal, setSeal] = useState(false);
+  const ownAction = useRef(0); // when this person last submitted, approved or reopened (to skip their own echo)
   const activeEl = useRef(null);
   const timers = useRef({});
   const pending = useRef(new Map());
@@ -111,7 +113,7 @@ function WeekEditorView({ weekId }) {
     onComment: (comment) => setComments((list) => (list.some((c) => c.id === comment.id) ? list.map((c) => (c.id === comment.id ? comment : c)) : [...list, comment])),
     onCommentDeleted: ({ id }) => setComments((list) => list.filter((c) => c.id !== id)),
     onActivity: (entry) => setActivity((list) => [entry, ...list.filter((a) => a.id !== entry.id)].slice(0, 80)),
-    onStatus: ({ by }) => { load(); toast(`${by} changed the week's status.`, "success"); },
+    onStatus: ({ by }) => { load(); if (Date.now() - ownAction.current > 4000) toast(`${by} changed the week's status.`, "success"); },
     onReload: ({ by, note }) => { load(); if (by) toast(`${by}: ${note || "updated the week"}`, "success"); },
     onMeta: ({ font, by } = {}) => { load(); if (font && by) toast(`${by} changed the page font.`, "success"); },
     onDeleted: ({ by }) => { toast(`${by} deleted this week.`); navigate(-1); },
@@ -187,7 +189,9 @@ function WeekEditorView({ weekId }) {
     try {
       // Anything still being typed is saved first.
       for (const [c, html] of pending.current) await save(c, html);
+      ownAction.current = Date.now();
       await api.post(`/weeks/${weekId}/${action}`);
+      if (action === "approve") setSeal(true);
       toast({ submit: "Submitted and signed. The Section Head can now approve it.", approve: "Approved and signed. The record is final.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
       await load();
     } catch (e) { toast(messageOf(e)); } finally { setBusy(""); }
@@ -201,7 +205,7 @@ function WeekEditorView({ weekId }) {
   }, []);
 
   if (error && !data) return <div className="mx-auto max-w-3xl"><p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p><Link to="/admin/coordination" className="mt-3 inline-block text-sm font-bold text-primary">Back to coordination files</Link></div>;
-  if (!data) return <AdminLoader label="Opening the week..." />;
+  if (!data) return <CoordLoader label="Opening the week..." />;
   const { week, file, caps } = data;
   const index = data.siblings.findIndex((s) => s.id === week.id);
   const prev = data.siblings[index - 1], next = data.siblings[index + 1];
@@ -287,6 +291,7 @@ function WeekEditorView({ weekId }) {
       {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel flashId={flashId} tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 
+    {seal && <ApprovedSeal onDone={() => setSeal(false)} />}
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}
     {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : ""; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after), 50); }} />}
     {dialog === "reopen" && <Dialog title="Reopen this week?" subtitle="Both signatures are removed and the week becomes editable again. It will need to be submitted and approved again." onClose={() => setDialog("")}

@@ -136,8 +136,8 @@ async function checkTitle(title, departmentId, exceptId) {
     const clash = title === "coordinator" ? { coordTitle: "coordinator", coordDepartment: departmentId }
         : title === "sectionHead" || title === "principal" ? { coordTitle: title } : null;
     if (clash) {
-        const holder = await Admin.findOne({ ...clash, _id: { $ne: exceptId } }).select("name").lean();
-        if (holder) fail(`${holder.name} is already the ${TITLES[title]}${title === "coordinator" ? " of this department" : ""}. Change ${holder.name} to a teacher first, or remove them.`, 409);
+        const holder = await Admin.findOne({ ...clash, _id: { $ne: exceptId } }).select("name salutation").lean();
+        if (holder) { const n = displayName(holder); fail(`${n} is already the ${TITLES[title]}${title === "coordinator" ? " of this department" : ""}. Change ${n} to a teacher first, or remove them.`, 409); }
     }
 }
 exports.createStaff = wrap(async (req, res) => {
@@ -391,10 +391,10 @@ exports.deleteWeek = wrap(async (req, res) => {
 // Saves several cells at once (used when the live connection is not available).
 exports.saveCells = wrap(async (req, res) => {
     // [{ key: "mon.methods", html }] (a list, because dotted field names are refused by the request filter)
-    const cells = Array.isArray(req.body.cells) ? req.body.cells : [];
-    let week;
+    if (!Array.isArray(req.body.cells)) fail("Send the boxes as a list: [{ key, html }].");
+    const cells = req.body.cells.filter((c) => c && typeof c.key === "string" && KEYS.has(c.key)); // unknown boxes are skipped
+    let week = (await svc.accessWeek(id(req.params.id), req.admin)).week;
     for (const { key, html } of cells.slice(0, 80)) {
-        if (typeof key !== "string") continue;
         const result = await svc.saveCell({ weekId: id(req.params.id), admin: req.admin, key, content: String(html ?? "") });
         week = result.week;
         if (result.changed) hub.emit(week._id, "cell", { cell: key, html: svc.htmlCells(week.cells)[key], rev: week.rev, by: req.admin.name, byId: String(req.admin._id) });
@@ -612,7 +612,7 @@ exports.updateSettings = wrap(async (req, res) => {
     if (req.body.quickPicks && typeof req.body.quickPicks === "object") {
         for (const group of ["methods", "afl", "resources"]) if (Array.isArray(req.body.quickPicks[group])) update[`quickPicks.${group}`] = [...new Set(req.body.quickPicks[group].map((v) => text(v, 60)).filter(Boolean))].slice(0, 40);
     }
-    const settings = await CoordinationSetting.findOneAndUpdate({ key: "main" }, { $set: update }, { new: true, upsert: true });
+    const settings = await CoordinationSetting.findOneAndUpdate({ key: "main" }, { $set: update }, { returnDocument: "after", upsert: true });
     res.json({ success: true, settings });
 });
 exports.uploadWatermark = wrap(async (req, res) => {

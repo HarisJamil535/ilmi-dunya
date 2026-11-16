@@ -1,5 +1,6 @@
 import { BookOpen, Crown, ShieldCheck, Sparkles, Star, X } from "lucide-react";
 import ModalViewport from "../../shared/ModalViewport";
+import BookLoader from "../../shared/BookLoader";
 import { STATUS, initials } from "./coordApi";
 
 // A window with a title, a scrolling body and buttons at the bottom.
@@ -42,3 +43,15 @@ export function RoleBadge({ role, small = false, className = "" }) {
   return <span className={`role-badge ${r.cls} ${small ? "is-small" : ""} ${className}`}><Icon aria-hidden="true" />{r.label}</span>;
 }
 
+
+// The site's book loader, centred, for Coordination pages and panels.
+export function CoordLoader({ label = "Loading ...", small = false }) {
+  return <div className={`coord-loader ${small ? "is-small" : ""}`}><BookLoader size={small ? 52 : 84} label={label} /><p>{label}</p></div>;
+}
+
+// A short "Approved" seal animation shown when the Section Head signs a week off.
+export function ApprovedSeal({ onDone }) {
+  return <div className="coord-seal" onAnimationEnd={(e) => e.target === e.currentTarget && onDone?.()} role="status" aria-live="polite">
+    <div className="coord-seal-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg><b>Approved</b><span>Signed by the Section Head</span></div>
+  </div>;
+}

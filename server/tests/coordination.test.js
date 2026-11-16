@@ -55,3 +55,12 @@ test("departments decide who can see, edit and sign", () => {
     const superAdmin = person("", null, { role: "super_admin" });
     assert.deepEqual([roleIn(csFile, superAdmin), caps(superAdmin).signCoordinator], ["manager", false]);
 });
+
+test("a very long word (a pasted link) is laid out quickly without huge memory use", () => {
+    const start = Date.now();
+    const before = process.memoryUsage().heapUsed;
+    const fit = measureFit({ ...base, cells: { extraHelp: fromHtml("A".repeat(4000)), "mon.work": fromHtml(`https://example.com/${"x".repeat(3000)}`) } });
+    assert.ok(fit.size >= 5);
+    assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
+    assert.ok(process.memoryUsage().heapUsed - before < 300 * 1024 * 1024, "memory stays reasonable");
+});

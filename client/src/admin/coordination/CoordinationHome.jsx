@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle, Building2, CalendarCheck2, Check, ChevronRight, Clock3, Copy, Crown, Download, FilePlus2, FolderOpen, KeyRound, PenLine, Plus, Settings2, ShieldCheck, Trash2, UserPlus, Users, UsersRound } from "lucide-react";
-import { AdminActionButton, AdminLoader } from "../components/AdminUI";
+import { AdminActionButton } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
 import ImagePicker from "../../shared/ImagePicker";
 import ConfirmModal from "../../shared/ConfirmModal";
-import { Avatar, Dialog, Field, RoleBadge, inputClass } from "./CoordUI";
+import { CoordLoader, Avatar, Dialog, Field, RoleBadge, inputClass } from "./CoordUI";
 import AnnouncementCenter from "./AnnouncementCenter";
 import DownloadDialog from "./DownloadDialog";
 import { useLiveRefresh } from "./useCoordEvent";
@@ -148,10 +148,10 @@ function StaffTab({ overview, reload }) {
         <div className="flex w-full gap-2 sm:w-auto"><input className={`${inputClass} sm:w-64`} value={newDept} maxLength={60} onChange={(e) => setNewDept(e.target.value)} onKeyDown={(e) => e.key === "Enter" && newDept.trim() && addDept()} placeholder="New department, e.g. Chemistry" /><AdminActionButton icon={Plus} loading={busy} disabled={!newDept.trim()} onClick={addDept}>Add</AdminActionButton></div>
       </div>
       {overview.departments.length === 0 ? <div className="coord-empty"><Building2 className="h-10 w-10 text-primary" /><h2>Add your first department</h2><p>For example Computer Science, Chemistry or English. Then add its teachers and its Subject Coordinator.</p></div>
-        : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{overview.departments.map((d) => {
+        : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{overview.departments.map((d, di) => {
           const coordinator = d.staff.find((p) => p.title === "coordinator");
           const teachers = d.staff.filter((p) => p.title !== "coordinator");
-          return <article key={d.id} className="coord-dept" style={{ "--dept": deptColour(d.id) }}>
+          return <article key={d.id} className="coord-dept coord-stagger" style={{ "--dept": deptColour(d.id), "--i": di }}>
             <div className="flex items-start justify-between gap-2">
               {renaming?.id === d.id ? <div className="flex flex-1 gap-2"><input autoFocus className={`${inputClass} !min-h-9`} value={renaming.name} maxLength={60} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") rename(); if (e.key === "Escape") setRenaming(null); }} /><AdminActionButton className="!min-h-9" onClick={rename}>Save</AdminActionButton></div>
                 : <button type="button" onClick={() => setRenaming({ id: d.id, name: d.name })} className="min-w-0 text-left" title="Rename"><h3 className="truncate text-lg font-black text-slate-900">{d.name}</h3><p className="text-xs text-slate-500">{d.staff.length} staff · {d.files} file{d.files === 1 ? "" : "s"}</p></button>}
@@ -191,7 +191,7 @@ function SettingsDialog({ onClose }) {
   };
   return <Dialog wide title="Record settings" subtitle="The look of every coordination record: title, watermark, footer and the quick-pick lists." onClose={onClose} busy={busy}
     footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={Settings2} loading={busy} disabled={!settings} onClick={save}>Save settings</AdminActionButton></>}>
-    {!settings ? <AdminLoader /> : <>
+    {!settings ? <CoordLoader /> : <>
       <Field label="Title" hint="{session} is replaced with the file's session, e.g. 2026-2027."><input className={inputClass} maxLength={140} value={settings.title} onChange={(e) => set({ title: e.target.value })} /></Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Footer text"><input className={inputClass} maxLength={140} value={settings.footerText} onChange={(e) => set({ footerText: e.target.value })} /></Field>
@@ -211,9 +211,9 @@ function SettingsDialog({ onClose }) {
   </Dialog>;
 }
 
-function FileCard({ f, departments, onMove, onDelete, onDownload }) {
+function FileCard({ f, departments, onMove, onDelete, onDownload, index = 0 }) {
   const pct = f.counts.total ? Math.round((f.counts.approved / f.counts.total) * 100) : 0;
-  return <article className="coord-card" style={{ "--dept": deptColour(f.department.id) }}>
+  return <article className="coord-card coord-stagger" style={{ "--dept": deptColour(f.department.id), "--i": index }}>
     <Link to={`/admin/coordination/${f.id}`} className="coord-card-main">
       <div className="flex items-center gap-4">
         <span className="coord-classbig"><b>{f.subject.className || "–"}</b><small>class</small></span>
@@ -260,7 +260,7 @@ export default function CoordinationHome() {
   const move = async (file, departmentId) => { try { await api.patch(`/files/${file.id}`, { departmentId }); load(); } catch (e) { toast(messageOf(e), "error"); } };
 
   if (error && !overview) return <div className="mx-auto max-w-3xl"><p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p></div>;
-  if (!overview || !files) return <AdminLoader label="Loading coordination..." />;
+  if (!overview || !files) return <CoordLoader label="Loading coordination..." />;
   const me = overview.me;
   const myDept = overview.departments.find((d) => d.id === me.department);
   const intro = overview.canManage ? "Add departments and staff, then create a file for each subject and class." : me.title === "principal" ? "You can open and download every department's records." : me.title === "sectionHead" ? "You can review, approve and sign every department's weekly records." : `${myDept?.name || "Your department"}: plan each week together, live.`;
@@ -302,7 +302,7 @@ export default function CoordinationHome() {
       {overview.canManage && <AdminActionButton icon={Building2} onClick={() => setTab("staff")}>Set up departments</AdminActionButton>}
     </div> : groups.map((g) => <section key={g.id || "none"} className="space-y-3">
       <h2 className="coord-group flex items-center gap-2" style={{ "--dept": deptColour(g.id) }}><span className="coord-dot" />{g.name}<span className="font-bold normal-case tracking-normal text-slate-400">· {g.files.length} file{g.files.length === 1 ? "" : "s"}</span></h2>
-      {g.files.length ? <div className="grid gap-3 md:grid-cols-2">{g.files.map((f) => <FileCard key={f.id} f={f} departments={overview.departments} onMove={move} onDelete={setConfirm} onDownload={setDownloadFile} />)}</div>
+      {g.files.length ? <div className="grid gap-3 md:grid-cols-2">{g.files.map((f, i) => <FileCard index={i} key={f.id} f={f} departments={overview.departments} onMove={move} onDelete={setConfirm} onDownload={setDownloadFile} />)}</div>
         : <p className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500">No files yet.{me.canCreateFiles && <> <button type="button" onClick={() => setDialog("new")} className="font-bold text-primary hover:underline">Create one</button>.</>}</p>}
     </section>)}
 
