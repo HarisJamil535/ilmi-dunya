@@ -57,3 +57,6 @@ export const ROLE_THEME = {
   manager: "#4338ca",     // indigo header; super admin badge is green
 };
 export const roleTheme = (role) => ROLE_THEME[role] || ROLE_THEME.manager;
+
+// The ids of people whose "@Name" is in the text.
+export const mentionIds = (text, people) => people.filter((p) => text.includes(`@${p.name}`)).map((p) => p.id);

@@ -262,7 +262,7 @@ html.dark .ce-fit span { background: #064e3b; }
 .ann-bell.is-new svg { animation: ann-ring 2.4s ease-in-out infinite; transform-origin: top center; }
 .ann-bell.is-alert { border-color: #fecdd3; background: #fff1f2; color: #f43f5e; }
 .ann-bell.is-alert span { background: #f43f5e; animation: ann-pulse 1.6s ease-in-out infinite; }
-.ann-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: min(380px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--app-border); border-radius: 18px; background: var(--app-bg-card); box-shadow: 0 24px 50px -16px rgba(15, 23, 42, .35); animation: admin-pop-in 180ms ease both; }
+.ann-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: min(420px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--app-border); border-radius: 18px; background: var(--app-bg-card); box-shadow: 0 24px 50px -16px rgba(15, 23, 42, .35); animation: admin-pop-in 180ms ease both; }
 .ann-item { cursor: pointer; border-radius: 12px; padding: 10px; transition: background 150ms ease; }
 .ann-item:hover { background: color-mix(in srgb, var(--app-text-primary) 4%, transparent); }
 .ann-item.is-unread { background: color-mix(in srgb, var(--brand-primary) 7%, transparent); }
@@ -370,3 +370,26 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .ann-readers li { display: flex; justify-content: space-between; gap: 8px; color: var(--app-text-primary); font-size: 13px; font-weight: 600; }
 .ann-readers li span { color: var(--app-text-muted); font-size: 11.5px; font-weight: 500; }
 .ann-readers-empty { color: var(--app-text-muted); font-size: 12px; }
+.ann-tabs { display: inline-flex; gap: 2px; border-radius: 12px; padding: 3px; background: color-mix(in srgb, var(--app-text-primary) 5%, transparent); }
+.ann-tabs button { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border-radius: 9px; padding: 6px 10px; color: var(--app-text-muted); font-size: 12.5px; font-weight: 700; }
+.ann-tabs button[aria-selected="true"] { background: var(--app-bg-card); color: var(--app-text-primary); box-shadow: 0 1px 2px rgba(15, 23, 42, .12); }
+.ann-tabs button span { border-radius: 999px; padding: 0 6px; background: var(--brand-primary); color: #fff; font-size: 10.5px; }
+.ann-note-icon { display: grid; width: 30px; height: 30px; flex-shrink: 0; place-items: center; border-radius: 10px; background: var(--brand-primary-soft); color: var(--brand-primary-dark); }
+.ann-note-icon.is-mention { background: #fce7f3; color: #be185d; }
+.ann-note-icon.is-reply { background: #e0f2fe; color: #0369a1; }
+.ann-note-icon.is-submitted { background: #ede9fe; color: #6d28d9; }
+.ann-note-icon.is-approved { background: #dcfce7; color: #15803d; }
+.ann-note-icon.is-reopened { background: #ffedd5; color: #c2410c; }
+.mention-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 70; width: min(300px, 90vw); border: 1px solid var(--app-border); border-radius: 14px; padding: 6px; background: var(--app-bg-card); box-shadow: 0 18px 40px -14px rgba(15, 23, 42, .35); animation: admin-pop-in 140ms ease both; }
+.mention-menu button { display: flex; width: 100%; align-items: center; gap: 8px; border-radius: 10px; padding: 6px 8px; color: var(--app-text-primary); font-size: 13.5px; font-weight: 600; }
+.mention-menu button.is-active, .mention-menu button:hover { background: var(--brand-primary-soft); }
+.mention { border-radius: 6px; padding: 0 3px; background: #fce7f3; color: #be185d; font-weight: 700; }
+.mention.is-me { background: #be185d; color: #fff; }
+.cp-thread.is-flash { animation: cp-flash 1.6s ease both; }
+@keyframes cp-flash { 0%, 60% { box-shadow: 0 0 0 3px #ec4899; } 100% { box-shadow: none; } }
+
+.ann-panel .ann-tabs + div button { white-space: nowrap; }
+@media (max-width: 640px) {
+  .ann-panel { position: fixed; top: 76px; right: 12px; left: 12px; width: auto; }
+  .ann-panel .ann-tabs button { padding: 6px 8px; font-size: 12px; }
+}

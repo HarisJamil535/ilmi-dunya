@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { acquireSocket, releaseSocket } from "./liveSocket";
-import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Eye, Megaphone, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, AtSign, Bell, Check, CheckCheck, Clock3, Eye, Megaphone, MessageSquare, RotateCcw, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { AdminActionButton } from "../components/AdminUI";
 import { Dialog, Field, inputClass } from "./CoordUI";
 import { api, messageOf, timeAgo } from "./coordApi";
@@ -60,36 +61,61 @@ export default function AnnouncementCenter({ compact = false, left = null }) {
   const [state, setState] = useState({ items: [], canAnnounce: false, canSeeReaders: false });
   const [open, setOpen] = useState(false);
   const [compose, setCompose] = useState(false);
+  const [notes, setNotes] = useState({ items: [], unread: 0 });
+  const [tab, setTab] = useState("you");
+  const navigate = useNavigate();
   const panel = useRef(null);
+  const loadNotes = useCallback(() => api.get("/notifications").then((d) => setNotes({ items: d.notifications || [], unread: d.unread || 0 })).catch(() => {}), []);
+  useEffect(() => { loadNotes(); }, [loadNotes]);
   const load = useCallback(() => api.get("/announcements").then((d) => setState({ items: d.announcements || [], canAnnounce: d.canAnnounce, canSeeReaders: d.canSeeReaders })).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const socket = acquireSocket();
     const arrived = (a) => { load(); toast(`${a.important ? "Important: " : "New announcement: "}${a.title}`, a.important ? "error" : "success"); };
+    // Mentions, replies and approvals arrive here live, on every open tab.
+    const personal = (n) => { setNotes((s) => ({ items: [n, ...s.items.filter((x) => x.id !== n.id)].slice(0, 60), unread: s.unread + 1 })); toast(n.title, "success"); };
     socket.on("announcement", arrived);
     socket.on("announcement-deleted", load);
-    return () => { socket.off("announcement", arrived); socket.off("announcement-deleted", load); releaseSocket(); };
-  }, [load]);
+    socket.on("notification", personal);
+    // After a dropped connection, catch up on anything missed.
+    socket.on("connect", loadNotes);
+    return () => { socket.off("announcement", arrived); socket.off("announcement-deleted", load); socket.off("notification", personal); socket.off("connect", loadNotes); releaseSocket(); };
+  }, [load, loadNotes]);
   useEffect(() => {
     if (!open) return undefined;
     const close = (e) => { if (!panel.current?.contains(e.target)) setOpen(false); };
+    const escape = (e) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
   }, [open]);
 
   const markRead = async (item) => { setState((s) => ({ ...s, items: s.items.map((x) => (x.id === item.id ? { ...x, read: true } : x)) })); await api.post(`/announcements/${item.id}/read`).catch(() => {}); };
   const remove = async (item) => { try { await api.del(`/announcements/${item.id}`); load(); } catch (e) { toast(messageOf(e), "error"); } };
   const unread = state.items.filter((a) => !a.read);
   const alerts = unread.filter((a) => a.important);
+  const total = unread.length + notes.unread;
+  const openNote = (n) => {
+    if (!n.read) { setNotes((s) => ({ items: s.items.map((x) => (x.id === n.id ? { ...x, read: true } : x)), unread: Math.max(0, s.unread - 1) })); api.post(`/notifications/${n.id}/read`).catch(() => {}); }
+    setOpen(false);
+    if (n.week) navigate(`/admin/coordination/week/${n.week}${n.cell || n.comment ? `?${new URLSearchParams({ ...(n.cell ? { cell: n.cell } : {}), ...(n.comment ? { comment: n.comment } : {}) })}` : ""}`);
+  };
+  const readAll = () => { setNotes((s) => ({ items: s.items.map((x) => ({ ...x, read: true })), unread: 0 })); api.post("/notifications/read-all").catch(() => {}); };
+  const NOTE_ICON = { mention: AtSign, reply: MessageSquare, submitted: Send, approved: ShieldCheck, reopened: RotateCcw };
 
   const bell = <div ref={panel} className="relative">
-      <button type="button" onClick={() => setOpen(!open)} aria-label={`Announcements${unread.length ? `, ${unread.length} unread` : ""}`} aria-expanded={open} className={`ann-bell ${alerts.length ? "is-alert" : unread.length ? "is-new" : ""}`}>
-        <Bell className="h-5 w-5" />{unread.length > 0 && <span>{unread.length > 9 ? "9+" : unread.length}</span>}
+      <button type="button" onClick={() => { if (!open) setTab(notes.unread || !unread.length ? "you" : "ann"); setOpen(!open); }} aria-label={`Notifications${total ? `, ${total} unread` : ""}`} aria-expanded={open} className={`ann-bell ${alerts.length ? "is-alert" : total ? "is-new" : ""}`}>
+        <Bell className="h-5 w-5" />{total > 0 && <span>{total > 9 ? "9+" : total}</span>}
       </button>
       {open && <div className="ann-panel">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-3"><p className="flex items-center gap-2 text-sm font-black text-slate-900"><Megaphone className="h-4 w-4 text-primary" />Announcements</p>
-          <div className="flex items-center gap-1">{state.canAnnounce && <AdminActionButton icon={Send} className="!min-h-8 !px-3 !text-xs" onClick={() => { setOpen(false); setCompose(true); }}>New</AdminActionButton>}<button type="button" onClick={() => setOpen(false)} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div></div>
-        <div className="max-h-[60vh] overflow-y-auto p-2">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-2">
+          <div role="tablist" className="ann-tabs"><button type="button" role="tab" aria-selected={tab === "you"} onClick={() => setTab("you")}><AtSign className="h-3.5 w-3.5" />For you{notes.unread ? <span>{notes.unread}</span> : null}</button><button type="button" role="tab" aria-selected={tab === "ann"} onClick={() => setTab("ann")}><Megaphone className="h-3.5 w-3.5" />Announcements{unread.length ? <span>{unread.length}</span> : null}</button></div>
+          <div className="flex items-center gap-1">{tab === "ann" && state.canAnnounce && <AdminActionButton icon={Send} className="!min-h-8 !px-3 !text-xs" onClick={() => { setOpen(false); setCompose(true); }}>New</AdminActionButton>}{tab === "you" && notes.unread > 0 && <button type="button" onClick={readAll} className="rounded-lg px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary-soft">Mark all read</button>}<button type="button" onClick={() => setOpen(false)} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div></div>
+        {tab === "you" ? <div className="max-h-[60vh] overflow-y-auto p-2">{notes.items.length === 0 ? <p className="p-6 text-center text-sm text-slate-500">Nothing yet. When someone @mentions you, replies to you, or a week is submitted or approved, it appears here.</p> : notes.items.map((n) => { const Icon = NOTE_ICON[n.kind] || Bell; return <button key={n.id} type="button" onClick={() => openNote(n)} className={`ann-item w-full text-left ${n.read ? "" : "is-unread"}`}>
+          <div className="flex items-start gap-2.5"><span className={`ann-note-icon is-${n.kind}`}><Icon className="h-4 w-4" /></span>
+            <div className="min-w-0 flex-1"><p className="text-sm font-bold text-slate-900">{n.title}</p>{n.body && <p className="mt-0.5 line-clamp-2 text-sm text-slate-600">{n.body}</p>}<p className="mt-1 text-[11px] text-slate-500">{timeAgo(n.at)}</p></div>
+            {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}</div>
+        </button>; })}</div> : <div className="max-h-[60vh] overflow-y-auto p-2">
           {state.items.length === 0 ? <p className="p-6 text-center text-sm text-slate-500">No announcements yet.</p> : state.items.map((a) => <article key={a.id} onClick={() => !a.read && markRead(a)} className={`ann-item ${a.important ? "is-important" : ""} ${a.read ? "" : "is-unread"}`}>
             <div className="flex items-start gap-2">
               {a.important ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" /> : <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
@@ -100,7 +126,7 @@ export default function AnnouncementCenter({ compact = false, left = null }) {
               {a.mine && <button type="button" onClick={(e) => { e.stopPropagation(); remove(a); }} aria-label="Delete announcement" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}
             </div>
           </article>)}
-        </div>
+        </div>}
       </div>}
     </div>;
   const alertList = alerts.length > 0 && !compact ? <div className="ann-alerts">{alerts.slice(0, 3).map((a) => <div key={a.id} role="alert" className="ann-alert">

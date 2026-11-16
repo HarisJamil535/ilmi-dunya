@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Admin = require("../models/Admin");
 const Subject = require("../models/Subject");
-const { CLASS_LEVELS, CoordinationAnnouncement, CoordinationDepartment, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
+const { CoordinationNotification, CLASS_LEVELS, CoordinationAnnouncement, CoordinationDepartment, CoordinationFile, CoordinationWeek, CoordinationVersion, CoordinationComment, CoordinationActivity, CoordinationSetting } = require("../models/Coordination");
 const svc = require("../services/coordService");
 const { isManager, roleIn, capsFor, fileFilter, canCreateFile, seesEverything } = require("../services/coordAccess");
 const { hashPassword } = require("../services/passwords");
@@ -26,8 +26,8 @@ const text = (value, max) => String(value ?? "").trim().slice(0, max);
 const TITLES = { teacher: "Teacher", coordinator: "Subject Coordinator", sectionHead: "Section Head", principal: "Principal" };
 const USERNAME = /^[a-z0-9][a-z0-9._@-]{2,59}$/;
 const SALUTATIONS = ["", "Mr.", "Ms.", "Mrs.", "Miss", "Dr.", "Sir", "Madam"];
-// "Ms. Sadaf" — the chosen title, unless the name already starts with one.
-const displayName = (p) => (p?.salutation && !/^(mr|ms|mrs|miss|dr|sir|madam)\.?\s/i.test(p.name || "") ? `${p.salutation} ${p.name}` : p?.name || "");
+const { displayName } = require("../services/coordPeople");
+const { notify, publicNotification, peopleFor, validMentions } = require("../services/coordNotify");
 
 // Coordination staff grouped by department, plus the school-wide Section Head and Principal.
 async function staffDirectory() {
@@ -294,6 +294,7 @@ exports.createWeek = wrap(async (req, res) => {
     }
     const week = await CoordinationWeek.create({ file: file._id, week: number, term: text(req.body.term, 30), dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined, cells, updatedBy: req.admin._id, lastEditAt: new Date() });
     await svc.logActivity(week, req.admin, "created", "", req.body.copyFrom ? "Started from a copy of another week" : "");
+    hub.changed(file._id);
     res.status(201).json({ success: true, id: String(week._id) });
 });
 
@@ -307,7 +308,8 @@ exports.deleteWeeks = wrap(async (req, res) => {
     const weeks = await CoordinationWeek.find({ file: file._id, ...(req.query.all === "1" ? {} : { week: { $in: picked } }) }).select("_id week").lean();
     const ids = weeks.map((w) => w._id);
     await Promise.all([CoordinationVersion.deleteMany({ week: { $in: ids } }), CoordinationComment.deleteMany({ week: { $in: ids } }), CoordinationActivity.deleteMany({ week: { $in: ids } }), CoordinationWeek.deleteMany({ _id: { $in: ids } })]);
-    for (const w of weeks) hub.emit(w._id, "deleted", { by: req.admin.name });
+    for (const w of weeks) hub.emit(w._id, "deleted", { by: displayName(req.admin) });
+    hub.changed(file._id);
     res.json({ success: true, deleted: weeks.length });
 });
 
@@ -335,6 +337,7 @@ exports.getWeek = wrap(async (req, res) => {
     res.json({
         success: true,
         attendees: record.attendees,
+        people: await peopleFor(file),
         fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
         week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
         defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: fileTitle(file, names.get(String(file.department || ""))).className, sections: file.sections, subject: fileTitle(file, names.get(String(file.department || ""))).subject },
@@ -380,7 +383,8 @@ exports.deleteWeek = wrap(async (req, res) => {
     if (!caps.deleteWeek) fail("Only the Subject Coordinator, the Section Head or the Principal can delete weeks.", 403);
     await Promise.all([CoordinationVersion.deleteMany({ week: week._id }), CoordinationComment.deleteMany({ week: week._id }), CoordinationActivity.deleteMany({ week: week._id })]);
     await week.deleteOne();
-    hub.emit(week._id, "deleted", { by: req.admin.name });
+    hub.emit(week._id, "deleted", { by: displayName(req.admin) });
+    hub.changed(week.file);
     res.json({ success: true });
 });
 
@@ -399,7 +403,16 @@ exports.saveCells = wrap(async (req, res) => {
 });
 
 exports.status = wrap(async (req, res) => {
-    const { week } = await svc.changeStatus({ weekId: id(req.params.id), admin: req.admin, action: req.params.action });
+    const { week, file } = await svc.changeStatus({ weekId: id(req.params.id), admin: req.admin, action: req.params.action });
+    hub.changed(file._id);
+    // Tell the people who act next.
+    const who = displayName(req.admin);
+    const label = `${fileTitle(file, await departmentNameOf(file)).subject} ${fileTitle(file, "").className} · Week ${week.week}`;
+    const staff = await Admin.find({ status: "active", coordTitle: { $in: ["coordinator", "sectionHead", "principal", "teacher"] } }).select("coordTitle coordDepartment").lean();
+    const inDept = (p) => String(p.coordDepartment || "") === String(file.department || "");
+    if (req.params.action === "submit") await notify(staff.filter((p) => p.coordTitle === "sectionHead").map((p) => p._id), { kind: "submitted", from: req.admin._id, byName: who, title: `${who} submitted ${label} for approval`, week: week._id });
+    if (req.params.action === "approve") await notify(staff.filter((p) => inDept(p) || p.coordTitle === "principal").map((p) => p._id), { kind: "approved", from: req.admin._id, byName: who, title: `${who} approved and signed ${label}`, week: week._id });
+    if (req.params.action === "reopen") await notify(staff.filter((p) => inDept(p) && p.coordTitle === "coordinator").map((p) => p._id), { kind: "reopened", from: req.admin._id, byName: who, title: `${who} reopened ${label} for changes`, week: week._id });
     res.json({ success: true, status: week.status, signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "" });
 });
 
@@ -508,16 +521,20 @@ exports.restoreVersion = wrap(async (req, res) => {
 });
 
 // ----- Comments -----
-const publicComment = (c) => ({ id: String(c._id), cell: c.cell, cellLabel: c.cell ? labelOf(c.cell) : "", kind: c.kind, text: c.text, author: String(c.author), authorName: c.authorName, resolved: c.resolved, resolvedByName: c.resolvedByName || "", at: c.createdAt, replies: (c.replies || []).map((r) => ({ id: String(r._id), author: String(r.author), authorName: r.authorName, text: r.text, at: r.at })) });
+const publicComment = (c) => ({ id: String(c._id), cell: c.cell, cellLabel: c.cell ? labelOf(c.cell) : "", kind: c.kind, text: c.text, mentions: (c.mentions || []).map(String), author: String(c.author), authorName: c.authorName, resolved: c.resolved, resolvedByName: c.resolvedByName || "", at: c.createdAt, replies: (c.replies || []).map((r) => ({ id: String(r._id), author: String(r.author), authorName: r.authorName, text: r.text, mentions: (r.mentions || []).map(String), at: r.at })) });
+const weekLabel = (file, week) => `Week ${week.week}`;
 
 exports.addComment = wrap(async (req, res) => {
-    const { week, caps } = await svc.accessWeek(id(req.params.id), req.admin);
+    const { week, caps, file } = await svc.accessWeek(id(req.params.id), req.admin);
     if (!caps.comment) fail("You cannot comment here.", 403);
     const body = text(req.body.text, 1000);
     if (!body) fail("Write a comment first.");
-    const comment = await CoordinationComment.create({ week: week._id, cell: KEYS.has(req.body.cell) ? req.body.cell : "", kind: ["question", "change"].includes(req.body.kind) ? req.body.kind : "comment", text: body, author: req.admin._id, authorName: req.admin.name });
+    const mentions = await validMentions(file, req.body.mentions);
+    const comment = await CoordinationComment.create({ week: week._id, cell: KEYS.has(req.body.cell) ? req.body.cell : "", kind: ["question", "change"].includes(req.body.kind) ? req.body.kind : "comment", text: body, mentions, author: req.admin._id, authorName: displayName(req.admin) });
     await svc.logActivity(week, req.admin, { question: "asked a question", change: "requested a change", comment: "commented" }[comment.kind], comment.cell, body.slice(0, 120));
     hub.emit(week._id, "comment", publicComment(comment));
+    hub.changed(file._id);
+    await notify(mentions, { kind: "mention", from: req.admin._id, byName: displayName(req.admin), title: `${displayName(req.admin)} mentioned you in ${weekLabel(file, week)}${comment.cell ? ` · ${labelOf(comment.cell)}` : ""}`, body, week: week._id, cell: comment.cell, comment: comment._id });
     res.status(201).json({ success: true, comment: publicComment(comment) });
 });
 
@@ -529,15 +546,23 @@ async function commentFor(req) {
 }
 
 exports.replyComment = wrap(async (req, res) => {
-    const { comment, week, caps } = await commentFor(req);
+    const { comment, week, caps, file } = await commentFor(req);
     if (!caps.comment) fail("You cannot reply here.", 403);
     const body = text(req.body.text, 1000);
     if (!body) fail("Write a reply first.");
     if (comment.replies.length >= 100) fail("This thread is full. Start a new comment.");
-    comment.replies.push({ author: req.admin._id, authorName: req.admin.name, text: body });
+    const mentions = await validMentions(file, req.body.mentions);
+    comment.replies.push({ author: req.admin._id, authorName: displayName(req.admin), text: body, mentions });
     await comment.save();
     await svc.logActivity(week, req.admin, "replied", comment.cell, body.slice(0, 120));
     hub.emit(week._id, "comment", publicComment(comment));
+    hub.changed(file._id);
+    const who = displayName(req.admin);
+    const where = `${weekLabel(file, week)}${comment.cell ? ` · ${labelOf(comment.cell)}` : ""}`;
+    await notify(mentions, { kind: "mention", from: req.admin._id, byName: who, title: `${who} mentioned you in ${where}`, body, week: week._id, cell: comment.cell, comment: comment._id });
+    // Everyone already in the conversation hears about the reply (unless they were just mentioned).
+    const thread = [comment.author, ...comment.replies.map((r) => r.author)].map(String).filter((x) => !mentions.includes(x));
+    await notify(thread, { kind: "reply", from: req.admin._id, byName: who, title: `${who} replied in ${where}`, body, week: week._id, cell: comment.cell, comment: comment._id });
     res.json({ success: true, comment: publicComment(comment) });
 });
 
@@ -546,7 +571,7 @@ exports.updateComment = wrap(async (req, res) => {
     if (!caps.comment) fail("You cannot change this comment.", 403);
     if (req.body.resolved !== undefined) {
         comment.resolved = Boolean(req.body.resolved);
-        comment.resolvedByName = comment.resolved ? req.admin.name : "";
+        comment.resolvedByName = comment.resolved ? displayName(req.admin) : "";
         await svc.logActivity(week, req.admin, comment.resolved ? "resolved a comment" : "reopened a comment", comment.cell);
     }
     await comment.save();
@@ -667,5 +692,19 @@ exports.deleteAnnouncement = wrap(async (req, res) => {
     if (String(item.by) !== String(req.admin._id) && !isManager(req.admin)) fail("Only the sender can delete this announcement.", 403);
     await item.deleteOne();
     hub.emitRoom(`ann:${item.audience}`, "announcement-deleted", { id: String(item._id) });
+    res.json({ success: true });
+});
+
+// ----- Personal notifications -----
+exports.listNotifications = wrap(async (req, res) => {
+    const items = await CoordinationNotification.find({ to: req.admin._id }).sort({ createdAt: -1 }).limit(60).lean();
+    res.json({ success: true, notifications: items.map(publicNotification), unread: items.filter((n) => !n.read).length });
+});
+exports.readNotification = wrap(async (req, res) => {
+    await CoordinationNotification.updateOne({ _id: id(req.params.id), to: req.admin._id }, { read: true });
+    res.json({ success: true });
+});
+exports.readAllNotifications = wrap(async (req, res) => {
+    await CoordinationNotification.updateMany({ to: req.admin._id, read: false }, { read: true });
     res.json({ success: true });
 });

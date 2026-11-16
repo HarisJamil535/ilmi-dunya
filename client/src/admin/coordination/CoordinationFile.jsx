@@ -8,6 +8,7 @@ import SignatureDialog from "./SignatureDialog";
 import ConfirmModal from "../../shared/ConfirmModal";
 import DownloadDialog from "./DownloadDialog";
 import AnnouncementCenter from "./AnnouncementCenter";
+import { useLiveRefresh } from "./useCoordEvent";
 import { ROLE_LABEL, api, messageOf, roleTheme, timeAgo } from "./coordApi";
 import "./coordination.css";
 
@@ -79,6 +80,7 @@ export default function CoordinationFile() {
   const [deleting, setDeleting] = useState(null);
   const load = () => api.get(`/files/${fileId}`).then(setData).catch((e) => setError(messageOf(e)));
   useEffect(() => { load(); }, [fileId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLiveRefresh(load, fileId); // other people's edits, new weeks and signatures appear without a refresh
   const weeks = useMemo(() => (data?.weeks || []).filter((w) => (filter === "all" || (filter === "overdue" ? w.status !== "approved" && w.dueDate && new Date(w.dueDate) < new Date() : filter === "comments" ? w.openComments > 0 : w.status === filter)) && (!query || `week ${w.week} ${w.term}`.toLowerCase().includes(query.toLowerCase()))), [data, filter, query]);
   const removeWeek = async (w) => {
     try { await api.del(`/weeks/${w.id}`); window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type: "success", message: `Week ${w.week} deleted.` } })); load(); }

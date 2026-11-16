@@ -841,7 +841,7 @@ html.dark .admin-table tbody > tr:not([data-tone]):hover > td { background-color
 html.dark .admin-table .admin-sno { color: #9a93b8; }
 
 /* ===== Admin motion: short, calm and only on opacity/transform (cheap for the browser) ===== */
-.admin-page-enter { animation: admin-page-in 220ms cubic-bezier(.2, .8, .2, 1) both; }
+.admin-page-enter { animation: admin-page-in 220ms cubic-bezier(.2, .8, .2, 1) backwards; } /* "backwards": no transform is left behind, which would trap position:fixed panels inside the page */
 .admin-modal-viewport, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed { animation: admin-fade-in 160ms ease-out both; }
 .admin-modal-viewport > *, [data-admin-workspace] [role="dialog"][aria-modal="true"].fixed > * { animation: admin-pop-in 200ms cubic-bezier(.2, .9, .3, 1.1) both; }
 [data-admin-workspace] .admin-theme-root button, [data-admin-workspace] .admin-theme-root a { -webkit-tap-highlight-color: transparent; }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Highlighter, Italic, LayoutTemplate, List, ListOrdered, Loader2, MessageSquare, PanelRight, PenLine, Redo2, RemoveFormatting, RotateCcw, Send, ShieldCheck, Strikethrough, Underline, Undo2, Wifi, WifiOff, X } from "lucide-react";
 import { AdminActionButton, AdminLoader } from "../components/AdminUI";
 import { Avatar, Dialog, StatusChip } from "./CoordUI";
@@ -63,6 +63,8 @@ export default function WeekEditor() {
 }
 
 function WeekEditorView({ weekId }) {
+  const [params, setParams] = useSearchParams();
+  const [flashId, setFlashId] = useState("");
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -89,6 +91,18 @@ function WeekEditorView({ weekId }) {
     .then((d) => { setData(d); setCells(d.week.cells); setComments(d.comments); setActivity(d.activity); setFit(d.fit); setError(""); })
     .catch((e) => setError(messageOf(e))), [weekId]);
   useEffect(() => { load(); }, [load]);
+  // Opened from a notification: show that comment (and its box) straight away.
+  const target = useRef({ cell: params.get("cell") || "", comment: params.get("comment") || "" });
+  useEffect(() => {
+    if (!data || (!target.current.cell && !target.current.comment)) return;
+    const { cell: c, comment } = target.current;
+    target.current = { cell: "", comment: "" };
+    setParams({}, { replace: true });
+    setTimeout(() => {
+      if (comment) { setTab("comments"); setPanel(true); setFlashId(comment); setTimeout(() => document.getElementById(`comment-${comment}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 250); }
+      if (c) document.querySelector(`[data-cell="${CSS.escape(c)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 300);
+  }, [data, setParams]);
 
   const refreshFit = () => { clearTimeout(fitTimer.current); fitTimer.current = setTimeout(() => api.get(`/weeks/${weekId}/fit`).then((d) => setFit(d.fit)).catch(() => {}), 2500); };
 
@@ -270,7 +284,7 @@ function WeekEditorView({ weekId }) {
 
     <div className={`ce-main ${panel ? "with-panel" : ""}`}>
       <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} attendees={file.department?.id ? data.attendees : null} />}</div>
-      {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
+      {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel flashId={flashId} tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}

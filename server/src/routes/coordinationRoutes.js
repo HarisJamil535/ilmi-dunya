@@ -20,6 +20,9 @@ router.use(authMiddleware, (req, res, next) => (canUseArea(req.admin) ? next() :
 router.get("/files", c.listFiles);
 router.post("/files", c.createFile);
 router.get("/overview", c.overview);
+router.get("/notifications", c.listNotifications);
+router.post("/notifications/read-all", c.readAllNotifications);
+router.post("/notifications/:id/read", c.readNotification);
 router.get("/announcements", c.listAnnouncements);
 router.post("/announcements", c.createAnnouncement);
 router.post("/announcements/:id/read", c.readAnnouncement);

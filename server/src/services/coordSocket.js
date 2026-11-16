@@ -6,6 +6,7 @@ const { accessWeek, saveCell } = require("./coordService");
 const { toHtml } = require("./coordRichText");
 const { KEYS } = require("./coordTemplate");
 const hub = require("./coordHub");
+const { displayName } = require("./coordPeople");
 
 // Live editing for coordination weeks.
 // Everyone viewing a week joins its room. The room knows who is there and which cell each person is typing
@@ -58,7 +59,7 @@ function attachCoordinationSocket(httpServer) {
     };
     // The session may end (signed in elsewhere, account disabled) while the socket is open.
     const stillValid = async (socket) => {
-        const admin = await Admin.findById(socket.data.admin._id).select("+currentSessionId status name permissions role signatureUrl coordTitle coordDepartment");
+        const admin = await Admin.findById(socket.data.admin._id).select("+currentSessionId status name salutation permissions role signatureUrl coordTitle coordDepartment");
         if (!admin || admin.status !== "active" || admin.currentSessionId !== socket.data.admin.currentSessionId) { socket.emit("ended", "Your session has ended. Sign in again."); socket.disconnect(true); return null; }
         socket.data.admin = admin;
         return admin;
@@ -68,6 +69,7 @@ function attachCoordinationSocket(httpServer) {
         // Rooms for announcements, by who should receive them.
         const me = socket.data.admin;
         socket.join("ann:all");
+        socket.join(`user:${me._id}`);
         if (isManager(me) || ["coordinator", "sectionHead", "principal"].includes(me.coordTitle)) socket.join("ann:coordinators");
 
         socket.on("join", async ({ weekId } = {}, reply = () => {}) => {
@@ -79,7 +81,7 @@ function attachCoordinationSocket(httpServer) {
                 socket.data.weekId = id;
                 socket.join(hub.room(id));
                 if (!presence.has(id)) presence.set(id, new Map());
-                presence.get(id).set(socket.id, { adminId: String(admin._id), name: admin.name, colour: colourFor(admin._id), cell: "", at: Date.now() });
+                presence.get(id).set(socket.id, { adminId: String(admin._id), name: displayName(admin), colour: colourFor(admin._id), cell: "", at: Date.now() });
                 reply({ ok: true, me: socket.id });
                 broadcastPresence(id);
             } catch (error) { reply({ ok: false, message: error.message }); }
