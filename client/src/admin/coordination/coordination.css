@@ -393,3 +393,6 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
   .ann-panel { position: fixed; top: 76px; right: 12px; left: 12px; width: auto; }
   .ann-panel .ann-tabs button { padding: 6px 8px; font-size: 12px; }
 }
+
+.mention.is-all { background: #db2777; color: #fff; }
+.mention-menu.is-below { top: calc(100% + 6px); bottom: auto; }

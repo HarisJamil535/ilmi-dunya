@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
+import { Users } from "lucide-react";
 import { Avatar, RoleBadge } from "./CoordUI";
+import { ALL_MENTION } from "./coordApi";
 
 // A text box where typing "@" lists the people who can see this week; picking one inserts "@Name".
-export default function MentionInput({ value, onChange, people = [], multiline = false, onEnter, className = "", ...props }) {
+export default function MentionInput({ value, onChange, people = [], multiline = false, onEnter, className = "", below = false, ...props }) {
   const ref = useRef(null);
   const [query, setQuery] = useState(null); // text typed after "@", or null when the list is closed
   const [active, setActive] = useState(0);
-  const matches = query === null ? [] : people.filter((p) => p.name.toLowerCase().replace(/^(mr|ms|mrs|miss|dr|sir|madam)\.?\s+/, "").includes(query.toLowerCase()) || p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
+  const everyone = query !== null && "all".startsWith(query.toLowerCase()) ? [ALL_MENTION] : [];
+  const matches = query === null ? [] : [...everyone, ...people.filter((p) => p.name.toLowerCase().replace(/^(mr|ms|mrs|miss|dr|sir|madam)\.?\s+/, "").includes(query.toLowerCase()) || p.name.toLowerCase().includes(query.toLowerCase()))].slice(0, 7);
 
   const update = (text, caret) => {
     onChange(text);
@@ -36,10 +39,11 @@ export default function MentionInput({ value, onChange, people = [], multiline =
   const Tag = multiline ? "textarea" : "input";
   return <div className="relative min-w-0 flex-1">
     <Tag ref={ref} value={value} onChange={(e) => update(e.target.value, e.target.selectionStart)} onKeyDown={keys} onBlur={() => setTimeout(() => setQuery(null), 150)} className={className} {...props} />
-    {query !== null && matches.length > 0 && <div className="mention-menu" role="listbox">
+    {query !== null && matches.length > 0 && <div className={`mention-menu ${below ? "is-below" : ""}`} role="listbox">
       <p className="px-2 pb-1 pt-0.5 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Mention someone</p>
       {matches.map((p, i) => <button key={p.id} type="button" role="option" aria-selected={i === active} onMouseDown={(e) => { e.preventDefault(); pick(p); }} className={i === active ? "is-active" : ""}>
-        <Avatar name={p.name} size={24} /><span className="min-w-0 flex-1 truncate text-left">{p.name}</span><RoleBadge role={p.title === "teacher" ? "teacher" : p.title} small />
+        {p.id === "all" ? <><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-pink-600 text-white"><Users className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1 text-left"><b>@all</b><span className="block text-[11px] font-medium text-slate-500">Everyone in this department and the Section Head</span></span></>
+          : <><Avatar name={p.name} size={24} /><span className="min-w-0 flex-1 truncate text-left">{p.name}</span><RoleBadge role={p.title === "teacher" ? "teacher" : p.title} small /></>}
       </button>)}
     </div>}
   </div>;

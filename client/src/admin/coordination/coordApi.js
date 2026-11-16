@@ -59,4 +59,6 @@ export const ROLE_THEME = {
 export const roleTheme = (role) => ROLE_THEME[role] || ROLE_THEME.manager;
 
 // The ids of people whose "@Name" is in the text.
-export const mentionIds = (text, people) => people.filter((p) => text.includes(`@${p.name}`)).map((p) => p.id);
+export const mentionIds = (text, people) => [...people.filter((p) => text.includes(`@${p.name}`)).map((p) => p.id), ...(/(^|\s)@all\b/i.test(text) ? ["all"] : [])];
+// "@all" in the mention list: everyone in the department and the Section Head.
+export const ALL_MENTION = { id: "all", name: "all", title: "all" };
