@@ -5,15 +5,16 @@ const { flatCells, plainText } = require("./coordService");
 const { fromText } = require("./coordRichText");
 const Admin = require("../models/Admin");
 const { fileTitle, departmentNameOf } = require("./coordSubjects");
+const { displayName } = require("./coordPeople");
 
 // The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
 // (as in the school's form: "1. Section Head  2. Ms. Ammara  3. Ms. Tahniyat"). Files without a department
 // fall back to the names typed in the week.
 async function attendeesOf(file) {
     if (!file.department) return null;
-    const staff = await Admin.find({ coordDepartment: file.department?._id || file.department, coordTitle: { $in: ["teacher", "coordinator"] }, status: "active" }).select("name coordTitle createdAt").sort({ createdAt: 1 }).lean();
+    const staff = await Admin.find({ coordDepartment: file.department?._id || file.department, coordTitle: { $in: ["teacher", "coordinator"] }, status: "active" }).select("name salutation coordTitle createdAt").sort({ createdAt: 1 }).lean();
     staff.sort((a, b) => Number(a.coordTitle === "coordinator") - Number(b.coordTitle === "coordinator"));
-    return ["Section Head", ...staff.map((p) => p.name)];
+    return ["Section Head", ...staff.map(displayName)];
 }
 
 // Prepares one week for printing: fills in what the system already knows (week, class, subject,

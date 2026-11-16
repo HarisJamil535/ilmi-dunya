@@ -74,6 +74,7 @@ const replySchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     authorName: String,
     text: { type: String, maxlength: 1000 },
+    mentions: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     at: { type: Date, default: Date.now },
 }, { _id: true });
 // Comments, questions and change requests, optionally pinned to one cell.
@@ -84,6 +85,7 @@ const commentSchema = new mongoose.Schema({
     text: { type: String, required: true, maxlength: 1000 },
     author: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     authorName: String,
+    mentions: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     resolved: { type: Boolean, default: false },
     resolvedByName: String,
     replies: { type: [replySchema], default: [] },
@@ -128,8 +130,24 @@ const announcementSchema = new mongoose.Schema({
 }, { timestamps: true });
 announcementSchema.index({ createdAt: -1 });
 
+// Personal notifications: someone mentioned you, replied to you, or a week you work on changed status.
+const notificationSchema = new mongoose.Schema({
+    to: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true, index: true },
+    kind: { type: String, enum: ["mention", "reply", "submitted", "approved", "reopened"], required: true },
+    title: { type: String, maxlength: 200 },
+    body: { type: String, maxlength: 300 },
+    byName: String,
+    week: { type: mongoose.Schema.Types.ObjectId, ref: "CoordinationWeek" },
+    cell: { type: String, default: "" },
+    comment: { type: mongoose.Schema.Types.ObjectId },
+    read: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 120 },
+});
+notificationSchema.index({ to: 1, createdAt: -1 });
+
 module.exports = {
     ROLES,
+    CoordinationNotification: mongoose.model("CoordinationNotification", notificationSchema),
     CLASS_LEVELS,
     CoordinationAnnouncement: mongoose.model("CoordinationAnnouncement", announcementSchema),
     CoordinationDepartment: mongoose.model("CoordinationDepartment", departmentSchema),

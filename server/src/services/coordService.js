@@ -4,6 +4,7 @@ const { KEYS, labelOf } = require("./coordTemplate");
 const { fromHtml, toHtml, normalise, plainText } = require("./coordRichText");
 const { roleIn, capsFor } = require("./coordAccess");
 const hub = require("./coordHub");
+const { displayName } = require("./coordPeople");
 const { attachNames } = require("./coordSubjects");
 
 const SNAPSHOT_EVERY_MS = 10 * 60 * 1000;
@@ -47,13 +48,13 @@ async function logActivity(week, admin, action, cell = "", detail = "") {
         const recent = await CoordinationActivity.findOne({ week: week._id, by: admin._id, action, cell, createdAt: { $gte: new Date(Date.now() - 2 * 60 * 1000) } });
         if (recent) { recent.createdAt = new Date(); await recent.save(); hub.emit(week._id, "activity", publicActivity(recent)); return; }
     }
-    const entry = await CoordinationActivity.create({ week: week._id, by: admin._id, byName: admin.name, action, cell, detail });
+    const entry = await CoordinationActivity.create({ week: week._id, by: admin._id, byName: displayName(admin), action, cell, detail });
     hub.emit(week._id, "activity", publicActivity(entry));
 }
 const publicActivity = (a) => ({ id: String(a._id), by: String(a.by), byName: a.byName, action: a.action, cell: a.cell, cellLabel: a.cell ? labelOf(a.cell) : "", detail: a.detail, at: a.createdAt });
 
 async function snapshot(week, admin, note) {
-    await CoordinationVersion.create({ week: week._id, cells: week.cells || {}, status: week.status, note, by: admin?._id, byName: admin?.name || "" });
+    await CoordinationVersion.create({ week: week._id, cells: week.cells || {}, status: week.status, note, by: admin?._id, byName: displayName(admin) });
 }
 async function snapshotIfDue(week, admin) {
     const last = await CoordinationVersion.findOne({ week: week._id }).sort({ createdAt: -1 }).select("createdAt").lean();
@@ -80,6 +81,7 @@ async function saveCell({ weekId, admin, key, content }) {
     );
     if (!updated) fail("This week was submitted a moment ago. Reopen it to make changes.", 409);
     await logActivity(updated, admin, "edited", key);
+    hub.changed(updated.file);
     return { week: updated, paragraphs, changed: true };
 }
 
@@ -94,7 +96,8 @@ async function replaceCells(week, admin, flat, note) {
     week.updatedBy = admin._id;
     week.lastEditAt = new Date();
     await week.save();
-    hub.emit(week._id, "reload", { by: admin.name, note: note || "" });
+    hub.emit(week._id, "reload", { by: displayName(admin), note: note || "" });
+    hub.changed(week.file);
     await logActivity(week, admin, "replaced", "", note || "");
     return week;
 }
@@ -103,7 +106,7 @@ const fingerprintOf = (week) => crypto.createHash("sha256").update(JSON.stringif
 
 function signatureOf(admin) {
     if (!admin.signatureUrl) fail("Add your e-signature first (My signature), then sign.", 409);
-    return { admin: admin._id, name: admin.name, imageUrl: admin.signatureUrl, at: new Date() };
+    return { admin: admin._id, name: displayName(admin), imageUrl: admin.signatureUrl, at: new Date() };
 }
 
 async function changeStatus({ weekId, admin, action }) {
@@ -131,7 +134,7 @@ async function changeStatus({ weekId, admin, action }) {
     await week.save();
     await snapshot(week, admin, { submit: "Submitted and signed by the Subject Coordinator", approve: "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
     await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened" }[action]);
-    hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: admin.name });
+    hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: displayName(admin) });
     return { week, file };
 }
 

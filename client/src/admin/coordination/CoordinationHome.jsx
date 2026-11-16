@@ -8,6 +8,7 @@ import ConfirmModal from "../../shared/ConfirmModal";
 import { Avatar, Dialog, Field, RoleBadge, inputClass } from "./CoordUI";
 import AnnouncementCenter from "./AnnouncementCenter";
 import DownloadDialog from "./DownloadDialog";
+import { useLiveRefresh } from "./useCoordEvent";
 import SignatureDialog from "./SignatureDialog";
 import { api, deptColour, messageOf, roleTheme } from "./coordApi";
 import "./coordination.css";
@@ -246,6 +247,7 @@ export default function CoordinationHome() {
   const [downloadFile, setDownloadFile] = useState(null);
   const load = () => Promise.all([api.get("/overview"), api.get("/files")]).then(([o, f]) => { setOverview(o); setFiles(f.files); setError(""); }).catch((e) => setError(messageOf(e)));
   useEffect(() => { load(); }, []);
+  useLiveRefresh(load);
   const groups = useMemo(() => {
     if (!overview || !files) return [];
     const order = new Map(overview.departments.map((d, i) => [d.id, i]));
