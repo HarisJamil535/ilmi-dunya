@@ -5,9 +5,15 @@ import { MessageSquare } from "lucide-react";
 // types; changes from other people replace it only when this box is not being edited here.
 export default function RichCell({ cellKey, html, editable, holder, single = false, placeholder = "", comments = 0, onFocusCell, onInputCell, onBlurCell, onComments, className = "", label }) {
   const ref = useRef(null);
+  const first = useRef(true);
   useLayoutEffect(() => {
     const el = ref.current;
-    if (el && document.activeElement !== el && el.innerHTML !== (html || "")) el.innerHTML = html || "";
+    if (el && document.activeElement !== el && el.innerHTML !== (html || "")) {
+      el.innerHTML = html || "";
+      // Someone else's change arrived: a short glow shows where.
+      if (!first.current) { el.classList.remove("cr-flash"); void el.offsetWidth; el.classList.add("cr-flash"); }
+    }
+    first.current = false;
   }, [html]);
   const locked = Boolean(holder);
   const keyDown = (e) => {

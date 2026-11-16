@@ -52,12 +52,23 @@ function layout(doc, paragraphs, width, size, { base = {} } = {}) {
             if (x + w > avail && line.length && !token.space) { push(first); first = false; }
             if (token.space && x + w > avail) continue;
             // A single word longer than the box is split across lines.
-            while (!token.space && w > avail) {
-                let cut = token.text.length - 1;
-                while (cut > 1 && doc.widthOfString(token.text.slice(0, cut)) > avail - x) cut--;
-                line.push({ text: token.text.slice(0, cut), run: token.run, x, w: doc.widthOfString(token.text.slice(0, cut)) });
-                x += line[line.length - 1].w; push(first); first = false;
-                token.text = token.text.slice(cut); w = doc.widthOfString(token.text);
+            // A word wider than the box (a long pasted link or code) is cut into pieces that fit. The cut is
+            // estimated from the average letter width and then fine-tuned, and only short pieces are measured:
+            // measuring the whole long word again and again used seconds and hundreds of megabytes.
+            if (!token.space && w > avail) {
+                let rest = token.text;
+                const perChar = w / rest.length;
+                while (rest) {
+                    const room = Math.max(perChar, avail - x);
+                    let cut = Math.max(1, Math.min(rest.length, Math.floor(room / perChar)));
+                    while (cut > 1 && doc.widthOfString(rest.slice(0, cut)) > room) cut--;
+                    while (cut < rest.length && doc.widthOfString(rest.slice(0, cut + 1)) <= room) cut++;
+                    const piece = rest.slice(0, cut);
+                    rest = rest.slice(cut);
+                    if (!rest) { token.text = piece; w = doc.widthOfString(piece); break; }
+                    line.push({ text: piece, run: token.run, x, w: doc.widthOfString(piece) });
+                    x += line[line.length - 1].w; push(first); first = false;
+                }
             }
             line.push({ text: token.text, run: token.run, x, w, space: token.space }); x += w;
         }
@@ -275,12 +286,23 @@ async function renderCoordinationPdf(records, { title = "Coordination record" } 
 }
 
 // Works out the text size that makes a week fit, without drawing it (used by the editor's fit meter).
+// Results are remembered for identical content, so many people opening the same week cost one layout.
+const fitCache = new Map();
 function measureFit(record) {
-    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: false });
-    registerPdfFonts(doc);
-    const p = choosePlan(doc, record);
+    const key = require("node:crypto").createHash("sha1").update(JSON.stringify([record.cells, record.font, record.attendees, record.title, record.caption])).digest("base64");
+    if (fitCache.has(key)) return fitCache.get(key);
+    const result = measureFitNow(record);
+    fitCache.set(key, result);
+    if (fitCache.size > 400) fitCache.delete(fitCache.keys().next().value);
+    return result;
+}
+// One document is kept just for measuring text: creating a new one for every check kept about 4 MB each in memory.
+let measuringDoc = null;
+function measureFitNow(record) {
+    if (!measuringDoc) { measuringDoc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: false }); registerPdfFonts(measuringDoc); }
+    const p = choosePlan(measuringDoc, record);
     const used = (p.fixed + p.daysH) / p.room;
-    return { size: p.size, overflow: p.overflow, fullness: Math.round(Math.min(1.5, p.overflow ? used : (p.fixed + p.daysH) / p.room) * 100) / 100 };
+    return { size: p.size, overflow: p.overflow, fullness: Math.round(Math.min(1.5, p.overflow ? used : used) * 100) / 100 };
 }
 
 module.exports = { renderCoordinationPdf, measureFit, PAGE };

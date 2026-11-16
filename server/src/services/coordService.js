@@ -42,23 +42,46 @@ async function accessFile(fileId, admin) {
     return { file, role, caps: capsFor(role, admin) };
 }
 
+// Typing in one box for a while shows as one line in the activity feed, not hundreds. The last "edited"
+// entry per person and box is remembered here, so each keystroke batch costs one small update.
+const recentEdits = new Map();
 async function logActivity(week, admin, action, cell = "", detail = "") {
-    // Typing in one cell for a while shows as one line, not hundreds.
+    const memo = `${week._id}:${admin._id}:${cell}`;
     if (action === "edited") {
-        const recent = await CoordinationActivity.findOne({ week: week._id, by: admin._id, action, cell, createdAt: { $gte: new Date(Date.now() - 2 * 60 * 1000) } });
-        if (recent) { recent.createdAt = new Date(); await recent.save(); hub.emit(week._id, "activity", publicActivity(recent)); return; }
+        const recent = recentEdits.get(memo);
+        if (recent && Date.now() - recent.at < 2 * 60 * 1000) {
+            recent.at = Date.now();
+            await CoordinationActivity.updateOne({ _id: recent.entry._id }, { createdAt: new Date() });
+            hub.emit(week._id, "activity", publicActivity({ ...recent.entry, createdAt: new Date() }));
+            return;
+        }
     }
     const entry = await CoordinationActivity.create({ week: week._id, by: admin._id, byName: displayName(admin), action, cell, detail });
+    if (action === "edited") {
+        recentEdits.set(memo, { at: Date.now(), entry: entry.toObject() });
+        if (recentEdits.size > 5000) recentEdits.delete(recentEdits.keys().next().value);
+    }
     hub.emit(week._id, "activity", publicActivity(entry));
 }
 const publicActivity = (a) => ({ id: String(a._id), by: String(a.by), byName: a.byName, action: a.action, cell: a.cell, cellLabel: a.cell ? labelOf(a.cell) : "", detail: a.detail, at: a.createdAt });
 
 async function snapshot(week, admin, note) {
+    lastSnapshot.set(String(week._id), Date.now());
     await CoordinationVersion.create({ week: week._id, cells: week.cells || {}, status: week.status, note, by: admin?._id, byName: displayName(admin) });
 }
+// When each week was last copied into its history (looked up once, then remembered).
+const lastSnapshot = new Map();
 async function snapshotIfDue(week, admin) {
-    const last = await CoordinationVersion.findOne({ week: week._id }).sort({ createdAt: -1 }).select("createdAt").lean();
-    if (!last || Date.now() - new Date(last.createdAt).getTime() > SNAPSHOT_EVERY_MS) await snapshot(week, admin, "Autosaved copy");
+    const id = String(week._id);
+    if (!lastSnapshot.has(id)) {
+        const last = await CoordinationVersion.findOne({ week: week._id }).sort({ createdAt: -1 }).select("createdAt").lean();
+        lastSnapshot.set(id, last ? new Date(last.createdAt).getTime() : 0);
+    }
+    if (Date.now() - lastSnapshot.get(id) > SNAPSHOT_EVERY_MS) {
+        lastSnapshot.set(id, Date.now());
+        const full = await CoordinationWeek.findById(week._id).lean(); // the caller may hold only part of the week
+        await snapshot(full, admin, "Autosaved copy");
+    }
 }
 
 function assertEditable(week, caps) {
@@ -66,10 +89,26 @@ function assertEditable(week, caps) {
     if (week.status !== "draft") fail(week.status === "approved" ? "This week is approved and signed. Reopen it to make changes." : "This week has been submitted for approval. Reopen it to make changes.", 409);
 }
 
+// Who may edit which week, remembered for 20 seconds per person so typing does not re-check every time.
+// (The save itself still only succeeds while the week is a draft.)
+const editAccess = new Map();
+async function editCaps(weekId, admin) {
+    const memo = `${admin._id}:${weekId}`;
+    const hit = editAccess.get(memo);
+    if (hit && Date.now() - hit.at < 20000) return hit;
+    const { caps, file } = await accessWeek(weekId, admin);
+    const entry = { caps, fileId: file._id, at: Date.now() };
+    editAccess.set(memo, entry);
+    if (editAccess.size > 5000) editAccess.delete(editAccess.keys().next().value);
+    return entry;
+}
+
 // Saves one cell. `content` is editor HTML (string) or the stored structure (array).
 async function saveCell({ weekId, admin, key, content }) {
     if (!KEYS.has(key)) fail("Unknown cell.");
-    const { week, caps } = await accessWeek(weekId, admin);
+    const { caps } = await editCaps(weekId, admin);
+    const week = await CoordinationWeek.findById(weekId).select(`status file rev ${cellPath(key)}`).lean();
+    if (!week) fail("This week was not found.", 404);
     assertEditable(week, caps);
     const paragraphs = Array.isArray(content) ? normalise(content) : fromHtml(content);
     if (JSON.stringify(getCell(week.cells, key)) === JSON.stringify(paragraphs)) return { week, paragraphs, changed: false };
@@ -77,7 +116,7 @@ async function saveCell({ weekId, admin, key, content }) {
     const updated = await CoordinationWeek.findOneAndUpdate(
         { _id: week._id, status: "draft" },
         { $set: { [cellPath(key)]: paragraphs, updatedBy: admin._id, lastEditAt: new Date() }, $inc: { rev: 1 } },
-        { new: true },
+        { returnDocument: "after" },
     );
     if (!updated) fail("This week was submitted a moment ago. Reopen it to make changes.", 409);
     await logActivity(updated, admin, "edited", key);

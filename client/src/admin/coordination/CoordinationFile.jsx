@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Trash2, ArrowLeft, CalendarClock, CheckCircle2, Download, FileText, FileUp, MessageSquare, PenLine, Plus, QrCode, Search } from "lucide-react";
-import { AdminActionButton, AdminLoader } from "../components/AdminUI";
+import { AdminActionButton } from "../components/AdminUI";
 import SharedSelect from "../../shared/CustomSelect";
-import { Avatar, Dialog, Field, RoleBadge, StatusChip, inputClass } from "./CoordUI";
+import { CoordLoader, Avatar, Dialog, Field, RoleBadge, StatusChip, inputClass } from "./CoordUI";
 import SignatureDialog from "./SignatureDialog";
 import ConfirmModal from "../../shared/ConfirmModal";
 import DownloadDialog from "./DownloadDialog";
@@ -90,7 +90,7 @@ export default function CoordinationFile() {
   const saveSections = async (sections) => { try { await api.patch(`/files/${fileId}`, { sections }); load(); } catch (e) { setError(messageOf(e)); } };
 
   if (error && !data) return <div className="mx-auto max-w-3xl"><p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p><Link to="/admin/coordination" className="mt-3 inline-block text-sm font-bold text-primary">Back to coordination files</Link></div>;
-  if (!data) return <AdminLoader label="Loading the file..." />;
+  if (!data) return <CoordLoader label="Loading the file..." />;
   const { file } = data;
   const counts = file.counts;
   const filters = [["all", "All", data.weeks.length], ["draft", "Drafts", counts.draft], ["submitted", "Awaiting approval", counts.submitted], ["approved", "Approved", counts.approved], ["overdue", "Overdue", counts.overdue], ["comments", "Open comments", data.weeks.filter((w) => w.openComments).length]];
@@ -132,9 +132,9 @@ export default function CoordinationFile() {
       <h2>No weeks yet</h2>
       <p>Add the first week, or import a ready coordination file from Word.</p>
       {file.caps.edit && <div className="flex flex-wrap justify-center gap-2"><AdminActionButton variant="secondary" icon={FileUp} onClick={() => setDialog("import")}>Import Word</AdminActionButton><AdminActionButton icon={Plus} onClick={() => setDialog("new")}>Add week</AdminActionButton></div>}
-    </div> : <div className="coord-weeks">{weeks.map((w) => {
+    </div> : <div className="coord-weeks">{weeks.map((w, wi) => {
       const overdue = w.status !== "approved" && w.dueDate && new Date(w.dueDate) < new Date();
-      return <Link key={w.id} to={`/admin/coordination/week/${w.id}`} className={`coord-week is-${w.status}`}>
+      return <Link key={w.id} to={`/admin/coordination/week/${w.id}`} className={`coord-week coord-stagger is-${w.status}`} style={{ "--i": Math.min(wi, 14) }}>
         <div className="flex items-start justify-between gap-2"><span className="coord-week-no">Week<b>{w.week}</b></span><StatusChip status={w.status} /></div>
         {w.term && <p className="text-xs font-bold text-slate-500">{w.term}</p>}
         <div className="mt-auto space-y-1.5 text-xs text-slate-500">

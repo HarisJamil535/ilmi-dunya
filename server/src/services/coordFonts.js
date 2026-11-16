@@ -28,10 +28,15 @@ function fontFromName(name) {
     return "";
 }
 
+// The font files are read from disk once and kept in memory (each PDF used to read all 28 again).
+const fs = require("node:fs");
+const fontData = new Map();
+const fontBuffer = (file) => { if (!fontData.has(file)) fontData.set(file, fs.readFileSync(path.join(DIR, file))); return fontData.get(file); };
+
 // Registers every font with a PDF document as "<key>-<style>" (missing bold-italic falls back to bold).
 function registerPdfFonts(doc) {
     for (const [key, font] of Object.entries(FONTS)) {
-        for (const style of ["r", "b", "i", "bi"]) doc.registerFont(`${key}-${style}`, path.join(DIR, font.files[style] || font.files[style === "bi" ? "b" : "r"]));
+        for (const style of ["r", "b", "i", "bi"]) doc.registerFont(`${key}-${style}`, fontBuffer(font.files[style] || font.files[style === "bi" ? "b" : "r"]));
     }
 }
 

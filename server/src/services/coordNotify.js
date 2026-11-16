@@ -20,10 +20,15 @@ async function peopleFor(file) {
     return staff.filter((p) => roleIn(file, p)).map((p) => ({ id: String(p._id), name: displayName(p), title: p.coordTitle }));
 }
 
-// Keeps only mentioned people who can open the file.
+// Keeps only mentioned people who can open the file. "all" (@all) means everyone in the file's department
+// plus the Section Head (not the Principal).
 async function validMentions(file, ids) {
-    const allowed = new Set((await peopleFor(file)).map((p) => p.id));
-    return [...new Set((Array.isArray(ids) ? ids : []).map(String))].filter((id) => allowed.has(id)).slice(0, 20);
+    if (!Array.isArray(ids) || !ids.length) return [];
+    const people = await peopleFor(file);
+    const allowed = new Set(people.map((p) => p.id));
+    const wanted = (Array.isArray(ids) ? ids : []).map(String);
+    const everyone = wanted.includes("all") ? people.filter((p) => p.title !== "principal").map((p) => p.id) : [];
+    return [...new Set([...wanted.filter((id) => allowed.has(id)), ...everyone])].slice(0, 60);
 }
 
 module.exports = { notify, publicNotification, peopleFor, validMentions };
