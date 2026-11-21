@@ -236,3 +236,53 @@ html.dark .ls-stage, html.dark .ls-list { background: #15130f; border-color: #3a
 html.dark .ls-step:not(.is-gold) .ls-bar-fill { background: #2a261d !important; }
 html.dark .ls-step:not(.is-gold) .ls-place, html.dark .ls-step.is-gold .ls-person h3, html.dark .ls-row-rank { color: var(--g); }
 html.dark .ls-step.is-gold .ls-bar-fill { background: #000 !important; }
+
+/* ===== Final palette: theme purple leads; gold and black support it. ===== */
+.ls-stage, .ls-list { --tp: var(--brand-primary, #623fcd); --tl: #ece6fd; --tg: #d4a017; --tgl: #f6e7b8; --tk: #15130f; }
+.ls-stage { background: radial-gradient(80% 60% at 50% 0%, #efe9fe 0%, transparent 70%), #fff; border-color: #e4dcfa; box-shadow: 0 20px 44px -30px rgba(98,63,205,.4); }
+.ls-stage-head { border-color: #eee9fb; }
+.ls-live { color: var(--tp); }
+.ls-sparkles i { background: var(--tg); }
+
+/* #1: theme purple bar, gold accents. */
+.ls-step.is-gold .ls-bar-fill { background: var(--tp) !important; outline: 4px solid var(--tl); box-shadow: 0 -16px 36px -18px rgba(98,63,205,.8); }
+.ls-step.is-gold .ls-bar-fill::before { background: var(--tg); }
+.ls-step.is-gold .ls-place { color: var(--tg); }
+.ls-step.is-gold .ls-label { color: var(--tgl); }
+.ls-step.is-gold .ls-pts { background: var(--tg); color: var(--tk); }
+.ls-step.is-gold .ls-pts small { color: var(--tk); }
+.ls-step.is-gold .ls-acc { color: #fff; background: rgba(255,255,255,.16); }
+
+/* #2 and #3: light theme bars, black numbers, black badges with gold. */
+.ls-step:not(.is-gold) .ls-bar-fill { background: var(--tl) !important; }
+.ls-step:not(.is-gold) .ls-place { color: var(--tk); }
+.ls-step:not(.is-gold) .ls-label { color: var(--tp); }
+.ls-step:not(.is-gold) .ls-pts { background: var(--tk); color: var(--tg); }
+.ls-step:not(.is-gold) .ls-pts small { color: var(--tgl); }
+.ls-step:not(.is-gold) .ls-acc { color: var(--tk); background: #fff; }
+
+/* Name circles: purple for #1 with a gold ring; light purple for the others with a black badge. */
+.ls-step.is-gold .ls-avatar { background: var(--tg); box-shadow: 0 0 0 5px #fff, 0 0 0 9px var(--tg), 0 16px 32px -12px rgba(98,63,205,.6); }
+.ls-step.is-gold .ls-avatar span { background: var(--tp) !important; color: #fff !important; }
+.ls-step.is-gold .ls-avatar b { background: var(--tg); color: var(--tk); }
+.ls-step:not(.is-gold) .ls-avatar { background: var(--tl); box-shadow: 0 0 0 4px #fff, 0 0 0 6px var(--tl); }
+.ls-step:not(.is-gold) .ls-avatar span { background: var(--tl) !important; color: var(--tp) !important; }
+.ls-step:not(.is-gold) .ls-avatar b { background: var(--tk); color: var(--tg); }
+.ls-crown { color: var(--tg); fill: var(--tgl); }
+.ls-step.is-gold .ls-person h3 { color: var(--tp); }
+
+/* Honourable mentions: purple leads, black and gold for the points. */
+.ls-list { background: #fff; border-color: #e4dcfa; }
+.ls-list-icon, .ls-list > header > span { color: var(--tp); }
+.ls-row, .ls-row:nth-child(n) { --rc: var(--tp); --rs: var(--tl); border-color: #f1edfc; }
+.ls-row:hover { background: #f8f6fe; }
+.ls-row-rank { color: var(--tk); }
+.ls-row-avatar { background: var(--tl); color: var(--tp); }
+.ls-row-graph::before { background: var(--tl); }
+.ls-row-graph div { background: var(--tp); }
+.ls-row-graph em { color: var(--tp); }
+.ls-chip.is-pts { background: var(--tk); color: var(--tg); }
+html.dark .ls-stage, html.dark .ls-list { background: #1b1830; border-color: #2f2a4f; }
+html.dark .ls-step:not(.is-gold) .ls-bar-fill { background: #2f2a4f !important; }
+html.dark .ls-step:not(.is-gold) .ls-place, html.dark .ls-row-rank { color: #f2f0ff; }
+html.dark .ls-step.is-gold .ls-bar-fill { background: var(--tp) !important; }
