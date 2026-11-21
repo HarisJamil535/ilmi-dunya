@@ -244,8 +244,14 @@ function drawWeek(doc, record, assets) {
         doc.save().lineWidth(0.6).moveTo(sx, signY + 23).lineTo(sx + lineW, signY + 23).stroke().restore();
         if (sig?.image) { try { doc.image(sig.image, sx + 4, signY + 1, { fit: [lineW - 8, 21], align: "center", valign: "bottom" }); } catch { /* skip */ } }
     };
-    signLine(x0 + width * 0.12, "Sign: Subject Coordinator:", assets.coordinator, 150);
-    signLine(x0 + width * 0.56, "SH Sign:", assets.sectionHead, 150);
+    if (assets.principal) {
+        signLine(x0 + width * 0.02, "Sign: Subject Coordinator:", assets.coordinator, 130);
+        signLine(x0 + width * 0.40, "SH Sign:", assets.sectionHead, 130);
+        signLine(x0 + width * 0.68, "Principal Sign:", assets.principal, 130);
+    } else {
+        signLine(x0 + width * 0.12, "Sign: Subject Coordinator:", assets.coordinator, 150);
+        signLine(x0 + width * 0.56, "SH Sign:", assets.sectionHead, 150);
+    }
 
     let fy = signY + SIGN_H;
     if (record.caption) {

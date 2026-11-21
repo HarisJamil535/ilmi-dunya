@@ -132,3 +132,7 @@ html.dark .ls-row-avatar, html.dark .ls-row-rank, html.dark .ls-acc { color: #d9
 .ls-row-graph { background: var(--rs); }
 .ls-row-graph div { background: var(--rc); }
 .ls-row-stats svg { color: var(--rc); }
+
+/* The champion's bar stands clearly taller than the others. */
+.ls-step.is-gold .ls-bar { height: 280px; }
+@media (max-width: 640px) { .ls-step.is-gold .ls-bar { height: 215px; } }

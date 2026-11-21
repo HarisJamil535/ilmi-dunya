@@ -62,6 +62,7 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
       <div className="cr-signs">
         <Signature title="Sign: Subject Coordinator:" sig={signatures.coordinator} />
         <Signature title="SH Sign:" sig={signatures.sectionHead} />
+        {signatures.principal && <Signature title="Principal Sign:" sig={signatures.principal} />}
       </div>
       {settings.caption && <p className="cr-caption">{settings.caption}</p>}
       <div className="cr-foot"><span>{settings.footerText}</span></div>
@@ -80,6 +81,7 @@ export function FormView({ cell, signatures, attendees }) {
     <section className="cf-card"><h3>Signatures</h3><div className="cf-grid">
       <div className="cf-field"><span className="cf-label">Subject Coordinator</span>{signatures.coordinator?.imageUrl ? <img className="cf-sig" src={signatures.coordinator.imageUrl} alt="Subject Coordinator's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
       <div className="cf-field"><span className="cf-label">Section Head</span>{signatures.sectionHead?.imageUrl ? <img className="cf-sig" src={signatures.sectionHead.imageUrl} alt="Section Head's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
+      {signatures.principal?.imageUrl && <div className="cf-field"><span className="cf-label">Principal</span><img className="cf-sig" src={signatures.principal.imageUrl} alt="Principal's signature" /></div>}
     </div></section>
   </div>;
 }

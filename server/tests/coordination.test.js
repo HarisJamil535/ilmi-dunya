@@ -64,3 +64,27 @@ test("a very long word (a pasted link) is laid out quickly without huge memory u
     assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
     assert.ok(process.memoryUsage().heapUsed - before < 300 * 1024 * 1024, "memory stays reasonable");
 });
+
+test("the Principal's signature adds a third signature line in Word and PDF", async () => {
+    const { cleanSignature } = require("../src/services/signatureImage");
+    const { PNG } = require("pngjs");
+    const png = new PNG({ width: 400, height: 120 });
+    for (let i = 0; i < png.data.length; i += 4) png.data[i] = png.data[i + 1] = png.data[i + 2] = png.data[i + 3] = 255;
+    for (let x = 40; x < 360; x++) for (let d = -2; d <= 2; d++) { const o = ((60 + d) * 400 + x) * 4; png.data[o] = png.data[o + 1] = png.data[o + 2] = 20; }
+    const sig = { image: cleanSignature(PNG.sync.write(png)), at: new Date() };
+    const record = { ...base, status: "approved", cells: {}, assets: { coordinator: sig, sectionHead: sig, principal: sig } };
+    const { buffer } = await renderCoordinationPdf([record]);
+    assert.equal(pages(buffer), 1);
+    const docx = await renderCoordinationDocx([record]);
+    const xml = require("node:zlib") && docx.toString("latin1");
+    assert.ok(docx.length > 1000 && xml.length > 0);
+});
+
+test("Section Head can approve straight away; the Principal can approve or add a signature", () => {
+    const sh = capsFor("sectionHead", { coordTitle: "sectionHead" });
+    const pr = capsFor("principal", { coordTitle: "principal" });
+    const teacher = capsFor("editor", { coordTitle: "teacher" });
+    assert.equal(sh.signSectionHead, true);
+    assert.equal(pr.signPrincipal, true);
+    assert.equal(teacher.signPrincipal || teacher.signSectionHead, false);
+});

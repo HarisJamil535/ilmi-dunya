@@ -410,7 +410,7 @@ exports.status = wrap(async (req, res) => {
     const label = `${fileTitle(file, await departmentNameOf(file)).subject} ${fileTitle(file, "").className} · Week ${week.week}`;
     const staff = await Admin.find({ status: "active", coordTitle: { $in: ["coordinator", "sectionHead", "principal", "teacher"] } }).select("coordTitle coordDepartment").lean();
     const inDept = (p) => String(p.coordDepartment || "") === String(file.department || "");
-    if (req.params.action === "submit") await notify(staff.filter((p) => p.coordTitle === "sectionHead").map((p) => p._id), { kind: "submitted", from: req.admin._id, byName: who, title: `${who} submitted ${label} for approval`, week: week._id });
+    if (req.params.action === "submit") await notify(staff.filter((p) => ["sectionHead", "principal"].includes(p.coordTitle)).map((p) => p._id), { kind: "submitted", from: req.admin._id, byName: who, title: `${who} submitted ${label} for approval`, week: week._id });
     if (req.params.action === "approve") await notify(staff.filter((p) => inDept(p) || p.coordTitle === "principal").map((p) => p._id), { kind: "approved", from: req.admin._id, byName: who, title: `${who} approved and signed ${label}`, week: week._id });
     if (req.params.action === "reopen") await notify(staff.filter((p) => inDept(p) && p.coordTitle === "coordinator").map((p) => p._id), { kind: "reopened", from: req.admin._id, byName: who, title: `${who} reopened ${label} for changes`, week: week._id });
     res.json({ success: true, status: week.status, signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "" });
@@ -642,6 +642,7 @@ exports.verify = async (req, res) => {
                 subject: fileTitle(file, await departmentNameOf(file)).subject, className: fileTitle(file, "").className, session: file?.session || "", week: week.week, term: week.term || "",
                 coordinator: week.signatures?.coordinator ? { name: week.signatures.coordinator.name, at: week.signatures.coordinator.at } : null,
                 sectionHead: week.signatures?.sectionHead ? { name: week.signatures.sectionHead.name, at: week.signatures.sectionHead.at } : null,
+                principal: week.signatures?.principal ? { name: week.signatures.principal.name, at: week.signatures.principal.at } : null,
             },
         });
     } catch { res.status(500).json({ success: false, message: "Please try again." }); }

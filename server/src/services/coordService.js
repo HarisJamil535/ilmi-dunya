@@ -156,9 +156,13 @@ async function changeStatus({ weekId, admin, action }) {
         week.signatures = { ...(week.signatures?.toObject?.() || week.signatures || {}), coordinator: signatureOf(admin) };
         week.status = "submitted";
     } else if (action === "approve") {
-        if (!caps.signSectionHead) fail("Only the Section Head of this file can approve and sign.", 403);
-        if (week.status !== "submitted") fail("The Subject Coordinator must submit this week before it can be approved.", 409);
-        week.signatures = { ...(week.signatures?.toObject?.() || week.signatures || {}), sectionHead: signatureOf(admin) };
+        // The Section Head approves (with or without the coordinator's submission). The Principal can also
+        // approve, or add their signature to a week that is already approved.
+        if (!caps.signSectionHead && !caps.signPrincipal) fail("Only the Section Head or the Principal can approve and sign.", 403);
+        const slot = caps.signPrincipal ? "principal" : "sectionHead";
+        if (week.signatures?.[slot]?.admin) fail("You have already signed this week.", 409);
+        if (week.status === "approved" && slot === "sectionHead") fail("This week is already approved.", 409);
+        week.signatures = { ...(week.signatures?.toObject?.() || week.signatures || {}), [slot]: signatureOf(admin) };
         week.status = "approved";
         week.verifyCode = week.verifyCode || crypto.randomBytes(9).toString("base64url");
         week.fingerprint = fingerprintOf(week);
@@ -171,7 +175,7 @@ async function changeStatus({ weekId, admin, action }) {
     } else fail("Unknown action.");
     week.markModified("signatures");
     await week.save();
-    await snapshot(week, admin, { submit: "Submitted and signed by the Subject Coordinator", approve: "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
+    await snapshot(week, admin, { submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
     await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened" }[action]);
     hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: displayName(admin) });
     return { week, file };
@@ -180,7 +184,7 @@ async function changeStatus({ weekId, admin, action }) {
 const publicSignatures = (week) => {
     const s = week.signatures || {};
     const one = (x) => (x && x.admin ? { name: x.name, imageUrl: x.imageUrl, at: x.at, admin: String(x.admin) } : null);
-    return { coordinator: one(s.coordinator), sectionHead: one(s.sectionHead) };
+    return { coordinator: one(s.coordinator), sectionHead: one(s.sectionHead), principal: one(s.principal) };
 };
 
 module.exports = { fail, getCell, flatCells, htmlCells, nestCells, settings, accessWeek, accessFile, saveCell, replaceCells, changeStatus, snapshot, logActivity, publicActivity, publicSignatures, fingerprintOf, plainText };

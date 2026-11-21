@@ -112,17 +112,19 @@ function weekBlocks(record, size, assets, first) {
     blocks.push(new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: WIDTHS, rows, layout: "fixed" }));
 
     // Signatures: only the e-signature on the line, about two lines of text tall so the layout stays put.
-    const sigCell = (label, sig) => {
-        const pic = sig?.image ? image(sig.image, 150, 28) : null;
+    const sigCell = (label, sig, k = 1) => {
+        const pic = sig?.image ? image(sig.image, Math.round(150 * k), 28) : null;
         return [
-            new TableCell({ borders: NO_BORDERS, width: { size: 2600, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.RIGHT, spacing, children: leadRun(label, 8.5) })] }),
-            new TableCell({ borders: { ...NO_BORDERS, bottom: LINE }, width: { size: 3000, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: pic ? [pic] : [] })] }),
-            new TableCell({ borders: NO_BORDERS, width: { size: 1500, type: WidthType.DXA }, children: [new Paragraph({ children: [] })] }),
+            new TableCell({ borders: NO_BORDERS, width: { size: Math.round(2600 * k), type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.RIGHT, spacing, children: leadRun(label, 8.5) })] }),
+            new TableCell({ borders: { ...NO_BORDERS, bottom: LINE }, width: { size: Math.round(3000 * k), type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: pic ? [pic] : [] })] }),
+            new TableCell({ borders: NO_BORDERS, width: { size: Math.round(1500 * k), type: WidthType.DXA }, children: [new Paragraph({ children: [] })] }),
         ];
     };
     blocks.push(new Paragraph({ spacing: { before: 0, after: 0, line: 160 }, children: [] }));
-    blocks.push(new Table({ width: { size: 14200, type: WidthType.DXA }, columnWidths: [2600, 3000, 1500, 2600, 3000, 1500], borders: { ...NO_BORDERS, insideHorizontal: NONE, insideVertical: NONE }, rows: [
-        new TableRow({ height: { value: 520, rule: HeightRule.ATLEAST }, children: [...sigCell("Sign: Subject Coordinator:", assets.coordinator), ...sigCell("SH Sign:", assets.sectionHead)] }),
+    const signers = [["Sign: Subject Coordinator:", assets.coordinator], ["SH Sign:", assets.sectionHead], ...(assets.principal ? [["Principal Sign:", assets.principal]] : [])];
+    const scale = signers.length === 3 ? 14200 / 21300 : 1;
+    blocks.push(new Table({ width: { size: 14200, type: WidthType.DXA }, columnWidths: signers.flatMap(() => [2600, 3000, 1500].map((w) => Math.round(w * scale))), borders: { ...NO_BORDERS, insideHorizontal: NONE, insideVertical: NONE }, rows: [
+        new TableRow({ height: { value: 520, rule: HeightRule.ATLEAST }, children: signers.flatMap(([label, sig]) => sigCell(label, sig, scale)) }),
     ] }));
     if (record.caption) blocks.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 0 }, children: [new TextRun({ text: record.caption, font: FONT, size: 17, italics: true, underline: {} })] }));
     return blocks;
