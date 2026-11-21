@@ -122,3 +122,13 @@ html.dark .ls-row-avatar, html.dark .ls-row-rank, html.dark .ls-acc { color: #d9
 .ls-step.is-bronze .ls-avatar b { background: #d6a21e; color: #2a1f05; box-shadow: 0 0 0 2px var(--card); }
 .ls-step.is-silver .ls-acc { background: rgba(23,20,30,.07); color: #17141e; }
 .ls-step.is-bronze .ls-acc { background: rgba(214,162,30,.15); color: #7a5a08; }
+
+/* Honourable mentions take the podium colours in turn: purple, black at 60%, gold at 60%. */
+.ls-row:nth-child(3n+1) { --rc: var(--p); --rt: #fff; --rs: var(--p-soft); }
+.ls-row:nth-child(3n+2) { --rc: rgba(23, 20, 30, .6); --rt: #fff; --rs: rgba(23, 20, 30, .07); }
+.ls-row:nth-child(3n+3) { --rc: rgba(214, 162, 30, .6); --rt: #2a1f05; --rs: rgba(214, 162, 30, .14); }
+.ls-row-avatar { background: var(--rc); color: var(--rt); box-shadow: 0 6px 14px -9px var(--rc); }
+.ls-row-rank { background: var(--rs); color: var(--ink); }
+.ls-row-graph { background: var(--rs); }
+.ls-row-graph div { background: var(--rc); }
+.ls-row-stats svg { color: var(--rc); }
