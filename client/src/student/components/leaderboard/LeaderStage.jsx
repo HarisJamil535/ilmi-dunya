@@ -34,20 +34,19 @@ const heightFor = (points, top) => 46 + 54 * Math.max(0, Math.min(1, (Number(poi
 function Step({ leader, top, order }) {
   const tier = TIER[leader.rank] || "bronze";
   const points = useCountUp(leader.points, 1400, 450 + order * 160);
-  const accuracy = useCountUp(leader.averagePercentage, 1400, 450 + order * 160);
   return <article className={`ls-step is-${tier}`} style={{ "--order": order, "--h": `${heightFor(leader.points, top)}%` }}>
     <div className="ls-person">
       {leader.rank === 1 && <Crown className="ls-crown" aria-hidden="true" />}
       <div className="ls-avatar"><span>{initials(leader.name)}</span><b aria-label={`Rank ${leader.rank}`}>{leader.rank}</b></div>
       <h3 title={leader.name}>{shortName(leader.name)}</h3>
       <p>{[leader.city, leader.className].filter(Boolean).join(" · ") || "Pakistan"}</p>
+      <span className="ls-acc"><Target size={12} />{Number(leader.averagePercentage).toFixed(1)}%<em> accuracy</em></span>
     </div>
     <div className="ls-bar">
       <div className="ls-bar-fill">
-                <strong className="ls-place">{leader.rank}</strong>
+        <strong className="ls-place">{leader.rank}</strong>
         <span className="ls-label">{LABEL[leader.rank]}</span>
-        <span className="ls-pts"><Star size={13} className="ls-pts-icon" />{formatScore(points)} <small>pts</small></span>
-        <span className="ls-acc"><Target size={12} />{accuracy.toFixed(1)}% <small>accuracy</small></span>
+        <span className="ls-pts"><Star size={13} className="ls-pts-icon" />{formatScore(points)}<small>pts</small></span>
       </div>
     </div>
   </article>;
@@ -58,13 +57,12 @@ export function LeaderPodium({ leaders, periodLabel, updatedAt }) {
   // Silver on the left, gold in the middle, bronze on the right.
   const order = [leaders[1], leaders[0], leaders[2]].filter(Boolean);
   return <section className="ls-stage" aria-label="Top three learners">
-    <div className="ls-stage-glow" aria-hidden="true" />
-    <div className="ls-sparkles" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ "--i": i }} />)}</div>
-    <header className="ls-stage-head">
+        <header className="ls-stage-head">
       <span className="ls-live"><i />Live ranking</span>
       <span className="ls-stage-meta">{periodLabel}{updatedAt ? ` · updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
     </header>
     <div className={`ls-podium is-${order.length}`}>
+      <div className="ls-floor" aria-hidden="true" />
       {order.map((leader) => <Step key={leader.studentId} leader={leader} top={top} order={leader.rank === 1 ? 2 : leader.rank === 2 ? 0 : 1} />)}
     </div>
   </section>;
@@ -74,25 +72,25 @@ function Row({ leader, top, index }) {
   const points = useCountUp(leader.points, 1100, 200 + index * 70);
   const width = Math.max(4, Math.min(100, ((Number(leader.points) || 0) / (Number(top) || 1)) * 100));
   return <li className="ls-row" style={{ "--i": index, "--w": `${width}%` }}>
-    <span className="ls-row-rank">#{leader.rank}</span>
+    <span className="ls-row-rank">{leader.rank}</span>
     <span className="ls-row-avatar">{initials(leader.name)}</span>
     <div className="ls-row-main">
-      <div className="ls-row-top">
-        <div className="min-w-0"><h4>{leader.name}</h4><p>{[leader.className, leader.city, leader.school].filter(Boolean).join(" · ")}</p></div>
-        <div className="ls-row-chips">
-          <span className="ls-chip is-streak" title="Tests counted"><Flame size={12} />{leader.testsTaken} tests</span>
-          <span className="ls-chip is-time" title="Average time per question"><Timer size={12} />{Number(leader.secondsPerQuestion || 0).toFixed(1)}s</span>
-          <span className="ls-chip is-pts">{formatScore(points)} pts</span>
-        </div>
-      </div>
-      <div className="ls-row-graph" aria-label={`${Number(leader.averagePercentage).toFixed(1)}% accuracy`}><div /><em>{Number(leader.averagePercentage).toFixed(1)}%</em></div>
+      <h4>{leader.name}</h4>
+      <p>{[leader.className, leader.city, leader.school].filter(Boolean).join(" · ")}</p>
+      <div className="ls-row-graph" aria-hidden="true"><div /></div>
     </div>
+    <div className="ls-row-stats">
+      <span><Target size={12} />{Number(leader.averagePercentage).toFixed(1)}%</span>
+      <span><Flame size={12} />{leader.testsTaken} tests</span>
+      <span><Timer size={12} />{Number(leader.secondsPerQuestion || 0).toFixed(1)}s</span>
+    </div>
+    <span className="ls-row-pts">{formatScore(points)}<small>pts</small></span>
   </li>;
 }
 
 export function LeaderList({ leaders, top }) {
   return <section className="ls-list" aria-label="More top learners">
-    <header><h3><span className="ls-list-icon" aria-hidden="true">≡</span>Honourable mentions <small>(#{leaders[0].rank}–#{leaders[leaders.length - 1].rank})</small></h3><span>Bars show score compared with #1</span></header>
+    <header><div><h3>Honourable mentions</h3><p>Places {leaders[0].rank}–{leaders[leaders.length - 1].rank} · bars compare each score with the leader</p></div></header>
     <ol>{leaders.map((l, i) => <Row key={l.studentId} leader={l} top={top} index={i} />)}</ol>
   </section>;
 }
