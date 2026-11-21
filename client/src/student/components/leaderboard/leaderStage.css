@@ -105,3 +105,33 @@ html.dark .ls-list { background: #1b1830; border-color: #2f2a4f; }
 html.dark .ls-bar-fill:not(.is-gold *) { background: linear-gradient(180deg, #2a2547, #231f3c); border-color: #3b3566; }
 html.dark .ls-avatar span, html.dark .ls-pts { background: #f2f0ff; }
 html.dark .ls-avatar { box-shadow: 0 0 0 4px #1b1830, 0 10px 24px -10px var(--b); }
+
+/* Filled colours for every place: purple for #1, blue for #2, warm amber for #3. */
+.ls-step.is-gold { --fill-a: #8b70ee; --fill-b: var(--brand-primary, #623fcd); }
+.ls-step.is-silver { --fill-a: #7aa2f7; --fill-b: #4f6fdc; --a: #cfdcfb; --b: #4f6fdc; }
+.ls-step.is-bronze { --fill-a: #f6b26b; --fill-b: #e08a3c; --a: #fbe0c2; --b: #e08a3c; }
+.ls-avatar { background: conic-gradient(from 0deg, var(--a), var(--b), var(--a)); }
+.ls-avatar span { background: linear-gradient(145deg, var(--fill-a), var(--fill-b)) !important; color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.ls-avatar b { background: #fff; color: var(--fill-b); border-color: var(--fill-b); }
+.is-gold .ls-avatar b { background: linear-gradient(135deg, #f8d77a, #e3a92b); color: #fff; border-color: #fff; }
+.ls-step .ls-bar-fill { background: linear-gradient(180deg, var(--fill-a) 0%, var(--fill-b) 100%) !important; border-color: transparent !important; color: #fff; box-shadow: 0 -8px 28px -14px var(--fill-b); }
+.ls-step .ls-place { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.ls-step .ls-label, .ls-step .ls-acc { color: rgba(255,255,255,.88); }
+.ls-step .ls-pts { background: #fff; border-color: #fff; color: var(--fill-b); box-shadow: 0 4px 12px -6px rgba(0,0,0,.25); }
+.ls-bar-fill::before { background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent); }
+.ls-bar-fill::after { content: ""; position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(180deg, transparent, rgba(0,0,0,.06)); pointer-events: none; }
+.ls-stage { background: radial-gradient(90% 70% at 50% 0%, #ece6fd 0%, transparent 70%), linear-gradient(180deg, #f8f6ff, #fff 80%); }
+.ls-sparkles i { background: var(--brand-primary, #623fcd); opacity: 0; }
+@keyframes ls-twinkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: .35; transform: scale(1); } }
+
+/* List avatars and bars take the same palette, rotating through soft tones. */
+.ls-row:nth-child(4n+1) { --rc: #623fcd; --rs: #efeafd; }
+.ls-row:nth-child(4n+2) { --rc: #4f6fdc; --rs: #e8eefd; }
+.ls-row:nth-child(4n+3) { --rc: #0f9d8a; --rs: #e2f6f2; }
+.ls-row:nth-child(4n+4) { --rc: #d9773a; --rs: #fdefe3; }
+.ls-row-avatar { background: linear-gradient(145deg, color-mix(in srgb, var(--rc) 70%, #fff), var(--rc)); color: #fff; border: 0; box-shadow: 0 6px 14px -8px var(--rc); }
+.ls-row-graph div { background: linear-gradient(90deg, var(--rc), color-mix(in srgb, var(--rc) 55%, #fff)); }
+.ls-row-graph::before { background: var(--rs); }
+.ls-row-graph em { color: var(--rc); }
+.ls-row-rank { color: var(--rc); }
+html.dark .ls-stage { background: linear-gradient(180deg, #231f3c 0%, #1b1830 80%); }
