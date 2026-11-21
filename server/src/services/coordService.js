@@ -160,6 +160,7 @@ async function changeStatus({ weekId, admin, action }) {
         // approve, or add their signature to a week that is already approved.
         if (!caps.signSectionHead && !caps.signPrincipal) fail("Only the Section Head or the Principal can approve and sign.", 403);
         const slot = caps.signPrincipal ? "principal" : "sectionHead";
+        if (!week.signatures?.coordinator?.admin) fail("The Subject Coordinator must sign this week first.", 409);
         if (week.signatures?.[slot]?.admin) fail("You have already signed this week.", 409);
         if (week.status === "approved" && slot === "sectionHead") fail("This week is already approved.", 409);
         week.signatures = { ...(week.signatures?.toObject?.() || week.signatures || {}), [slot]: signatureOf(admin) };
