@@ -211,7 +211,7 @@ function WeekEditorView({ weekId }) {
   if (!data) return <CoordLoader label="Opening the week..." />;
   const { week, file, caps } = data;
   // Which signature line this person can fill on this week, and the action that fills it.
-  const signSlot = caps.signCoordinator && week.status === "draft" ? "coordinator" : caps.signSectionHead && week.status !== "approved" && !week.signatures?.sectionHead ? "sectionHead" : caps.signPrincipal && !week.signatures?.principal ? "principal" : "";
+  const signSlot = caps.signCoordinator && week.status === "draft" ? "coordinator" : week.signatures?.coordinator && caps.signSectionHead && week.status !== "approved" && !week.signatures?.sectionHead ? "sectionHead" : week.signatures?.coordinator && caps.signPrincipal && !week.signatures?.principal ? "principal" : "";
   const signAction = signSlot === "coordinator" ? "submit" : signSlot ? "approve" : "";
   const index = data.siblings.findIndex((s) => s.id === week.id);
   const prev = data.siblings[index - 1], next = data.siblings[index + 1];

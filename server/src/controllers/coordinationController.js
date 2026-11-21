@@ -402,7 +402,30 @@ exports.saveCells = wrap(async (req, res) => {
     res.json({ success: true, rev: week?.rev });
 });
 
+// The Section Head (or Principal) cannot approve before the Subject Coordinator has signed. Trying to
+// approve such a week asks the coordinator, by @mention on the week, to add their signature.
+const reminded = new Map();
+async function askCoordinatorToSign(weekId, admin) {
+    const { week, file, caps } = await svc.accessWeek(weekId, admin);
+    if (!(caps.signSectionHead || caps.signPrincipal) || week.signatures?.coordinator?.admin) return;
+    const coordinators = file.department ? await Admin.find({ status: "active", coordTitle: "coordinator", coordDepartment: file.department }).select("name salutation").lean() : [];
+    if (!coordinators.length) fail("This week needs the Subject Coordinator's signature first, but this department has no Subject Coordinator yet. Ask the super admin to add one.", 409);
+    const names = coordinators.map((p) => displayName(p));
+    const key = `${week._id}`;
+    if (!reminded.has(key) || Date.now() - reminded.get(key) > 10 * 60 * 1000) {
+        reminded.set(key, Date.now());
+        const body = `${names.map((n) => `@${n}`).join(" ")} please add your signature on Week ${week.week} (Submit & sign) so it can be approved.`;
+        const comment = await CoordinationComment.create({ week: week._id, cell: "", kind: "change", text: body, mentions: coordinators.map((p) => p._id), author: admin._id, authorName: displayName(admin) });
+        await svc.logActivity(week, admin, "requested a change", "", body.slice(0, 120));
+        hub.emit(week._id, "comment", publicComment(comment));
+        hub.changed(file._id);
+        await notify(coordinators.map((p) => p._id), { kind: "mention", from: admin._id, byName: displayName(admin), title: `${displayName(admin)}: please add your signature on ${weekLabel(file, week)}`, body, week: week._id, comment: comment._id });
+    }
+    fail(`${names.join(" and ")} must sign this week first. We've sent ${coordinators.length > 1 ? "them" : "a"} reminder on Week ${week.week}.`, 409);
+}
+
 exports.status = wrap(async (req, res) => {
+    if (req.params.action === "approve") await askCoordinatorToSign(id(req.params.id), req.admin);
     const { week, file } = await svc.changeStatus({ weekId: id(req.params.id), admin: req.admin, action: req.params.action });
     hub.changed(file._id);
     // Tell the people who act next.
