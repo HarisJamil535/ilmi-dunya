@@ -9,20 +9,7 @@ import CustomSelect from "../../shared/CustomSelect";
 import { AppContext } from "../../context/AppContext";
 import { formatScore } from "../utils/resultFormat";
 import "./learning-experience.css";
-
-const podiumStyles = {
-  1: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 shadow-amber-100",
-  2: "border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 shadow-slate-100",
-  3: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-orange-100",
-};
-const PLACE = { 1: ["gold", "Champion"], 2: ["silver", "Runner-up"], 3: ["bronze", "Third place"] };
-
-const rankIcon = (rank) => {
-  if (rank === 1) return <Crown className="h-7 w-7 text-amber-500" />;
-  if (rank === 2) return <Medal className="h-7 w-7 text-slate-500" />;
-  if (rank === 3) return <Medal className="h-7 w-7 text-orange-500" />;
-  return <span className="text-sm font-black text-slate-500">#{rank}</span>;
-};
+import { LeaderList, LeaderPodium } from "../components/leaderboard/LeaderStage";
 
 const perQuestion = (seconds = 0) => `${Number(seconds || 0).toFixed(1)}s`;
 const PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
@@ -172,61 +159,8 @@ const Leaderboard = () => {
           </div>
         ) : (
           <>
-            <section className="leaderboard-podium-grid">
-              {topThree.map((leader, index) => (
-                <article
-                  key={leader.studentId}
-                  style={{ animationDelay: `${index * 90}ms` }}
-                  data-tier={(PLACE[leader.rank] || PLACE[3])[0]}
-                  className={`leaderboard-podium learning-enter relative border p-6 transition duration-300 motion-safe:hover:-translate-y-1 ${podiumStyles[leader.rank] || podiumStyles[3]}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="podium-place">
-                      <div className="podium-medal">
-                        {rankIcon(leader.rank)}
-                      </div>
-                      <div className="podium-rank" aria-label={`Rank ${leader.rank}`}>
-                        <strong>#{leader.rank}</strong>
-                        <small>{(PLACE[leader.rank] || PLACE[3])[1]}</small>
-                      </div>
-                    </div>
-                    <span className="podium-points">{formatScore(leader.points)} <small>SCORE</small></span>
-                  </div>
-                  <h2 className="mt-6 text-2xl font-black text-slate-950">{leader.name}</h2>
-                  <div className="podium-details">
-                    <p className="flex items-center gap-2"><UserRound className="h-4 w-4 text-primary" /> {leader.className || "Student"} · {leader.city || "Pakistan"}</p>
-                    <p className="flex items-center gap-2"><School className="h-4 w-4 text-primary" /> {leader.school}</p>
-                  </div>
-                  <div className="podium-metrics">
-                    <span><strong>{Number(leader.averagePercentage).toFixed(2)}%</strong><small>Accuracy</small></span>
-                    <span><strong>{leader.testsTaken}</strong><small>Tests</small></span>
-                    <span><strong>{perQuestion(leader.secondsPerQuestion)}</strong><small>Per question</small></span>
-                  </div>
-                  <div className="podium-progress" aria-hidden="true"><div style={{ width: `${Math.min(100, Math.max(0, leader.averagePercentage))}%` }} /></div>
-                </article>
-              ))}
-            </section>
-
-            {rest.length > 0 && <section className="leaderboard-table">
-              <div className="leaderboard-table-header">
-                <div><span className="learning-eyebrow">Full ranking</span><h2>Keep climbing</h2></div>
-                <span>{rest.length} learners</span>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {rest.map((leader) => (
-                  <article key={leader.studentId} className="leaderboard-row learning-enter">
-                    <div className="leaderboard-rank">{String(leader.rank).padStart(2, "0")}</div>
-                    <div>
-                      <h3 className="font-black text-slate-950">{leader.name}</h3>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">{leader.className || "Student"} · {leader.city || "Pakistan"} · {leader.school}</p>
-                    </div>
-                    <p className="leaderboard-row-points">{formatScore(leader.points)}<small>score</small></p>
-                    <p className="leaderboard-row-accuracy">{Number(leader.averagePercentage).toFixed(2)}%<small>accuracy</small></p>
-                    <p className="leaderboard-row-time"><Timer className="h-4 w-4" /> {perQuestion(leader.secondsPerQuestion)} <small>/ question</small></p>
-                  </article>
-                ))}
-              </div>
-            </section>}
+            <LeaderPodium leaders={topThree} periodLabel={(PERIODS.find(([v]) => v === period) || PERIODS[2])[1]} updatedAt={updatedAt} />
+            {rest.length > 0 && <LeaderList key={query} leaders={rest} top={leaders[0]?.points} />}
           </>
         )}
       </section>
