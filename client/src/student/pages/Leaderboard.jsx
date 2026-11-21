@@ -25,7 +25,9 @@ const HOW_IT_WORKS = [
 
 const Leaderboard = () => {
   const { boards, classes, groups, isLoadingContext } = useContext(AppContext);
-  const [filters, setFilters] = useState({ board: "", class: "", group: "", subject: "" });
+  const [filters, setFilters] = useState({ board: "", class: "", group: "", subject: "", school: "" });
+  const [schools, setSchools] = useState([]);
+  useEffect(() => { axiosInstance.get("/leaderboard/schools").then(({ data }) => setSchools(data.schools || [])).catch(() => setSchools([])); }, []);
   const [period, setPeriod] = useState("all");
   const signedIn = useStudentSession();
   const [mine, setMine] = useState(null);
@@ -121,11 +123,12 @@ const Leaderboard = () => {
             <Filter className="h-4 w-4 text-primary" />
             Filter leaders
           </div>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <CustomSelect label="Board" value={filters.board} disabled={isLoadingContext} placeholder="All Boards" options={boards.map((item) => ({ value: item._id, label: item.name }))} onChange={(value) => setFilters({ ...filters, board: value })} />
             <CustomSelect label="Class" value={filters.class} disabled={isLoadingContext} placeholder="All Classes" options={classes.map((item) => ({ value: item._id, label: item.name }))} onChange={(value) => setFilters({ ...filters, class: value })} />
             <CustomSelect label="Group" value={filters.group} disabled={isLoadingContext} placeholder="All Groups" options={groups.map((item) => ({ value: item._id, label: item.name }))} onChange={(value) => setFilters({ ...filters, group: value })} />
             <CustomSelect label="Subject" value={filters.subject} disabled={!filters.board || !filters.class || !filters.group} placeholder="All Subjects" options={subjects.map((item) => ({ value: item._id, label: item.name }))} onChange={(value) => setFilters({ ...filters, subject: value })} />
+            <CustomSelect label="School" value={filters.school} searchable placeholder="All Schools" options={schools.map((item) => ({ value: item.value, label: item.kind === "other" ? `${item.label} (added by students)` : item.label }))} onChange={(value) => setFilters({ ...filters, school: value })} />
           </div>
         </section>
 
@@ -155,7 +158,7 @@ const Leaderboard = () => {
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
             <Award className="mx-auto h-10 w-10 text-slate-300" />
             <h2 className="mt-4 text-xl font-black text-slate-950">No rankings yet</h2>
-            <p className="mt-2 text-sm text-slate-500">Students appear here after completing at least 3 full MCQ tests{period === "week" ? " this week" : period === "month" ? " this month" : ""} for the selected filters.</p>
+            <p className="mt-2 text-sm text-slate-500">Students appear here after completing at least 3 full MCQ tests{period === "week" ? " this week" : period === "month" ? " this month" : ""} for the selected filters{filters.school ? " at this school" : ""}.</p>
           </div>
         ) : (
           <>

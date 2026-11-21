@@ -4,6 +4,11 @@ const LeaderboardState = require("../models/LeaderboardState");
 const Student = require("../models/Student");
 const { buildRanking, RULES } = require("../services/ranking");
 const { finishExpiredAttempts } = require("../services/expiredAttempts");
+const School = require("../models/School");
+
+// Schools are matched by name, ignoring case and extra spaces ("APS  boys" = "APS Boys").
+const schoolKey = (value) => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+const PRIVATE_KEY = "private student";
 const leaderboardCache = new Map();
 
 const cachedLeaders = async (key, load) => {
@@ -74,19 +79,40 @@ const laterOf = (a, b) => (a && b ? (a > b ? a : b) : a || b);
 const rankingFor = (query) => {
     const period = PERIODS.includes(query.period) ? query.period : "all";
     const assessmentMatch = buildAssessmentMatch(query);
-    const key = JSON.stringify([period, ...["board", "class", "group", "subject"].map(name => query[name] || "")]);
+    const school = schoolKey(query.school);
+    const key = JSON.stringify([period, school, ...["board", "class", "group", "subject"].map(name => query[name] || "")]);
     return cachedLeaders(key, async () => {
         await finishExpiredAttempts();
         const resetAt = await cycleStart();
         const attempts = await loadRankableAttempts({ assessmentMatch, since: laterOf(resetAt, periodStart(period)) });
         // Blocked and deleted students are left out before ranks are given.
-        const active = new Set((await Student.find({ _id: { $in: [...new Set(attempts.map(row => String(row.student)))] }, status: "active" }).select("_id").lean()).map(row => String(row._id)));
+        const active = new Set((await Student.find({ _id: { $in: [...new Set(attempts.map(row => String(row.student)))] }, status: "active" }).select("_id school").lean()).filter(row => !school || schoolKey(row.school) === school).map(row => String(row._id)));
         const { ranked } = buildRanking(attempts.filter(row => active.has(String(row.student))));
         return { period, ranked, resetAt, generatedAt: new Date() };
     });
 };
 
-const validFilters = (query) => !["board", "class", "group", "subject"].some((key) => query[key] && !toObjectId(query[key]));
+const validFilters = (query) => !["board", "class", "group", "subject"].some((key) => query[key] && !toObjectId(query[key])) && String(query.school || "").length <= 160;
+
+// Every school a student can be ranked under: schools added by admins, private students, and schools
+// students typed in themselves when they registered.
+let schoolsCache = null;
+const getLeaderboardSchools = async (req, res) => {
+    if (!schoolsCache || schoolsCache.expires < Date.now()) {
+        const [listed, typed] = await Promise.all([
+            School.find({ isActive: true }).select("name").sort({ name: 1 }).lean(),
+            Student.aggregate([{ $match: { status: "active", school: { $type: "string", $ne: "" } } }, { $group: { _id: "$school", n: { $sum: 1 } } }]),
+        ]);
+        const seen = new Set([PRIVATE_KEY]);
+        const out = [{ value: "Private Student", label: "Private students", kind: "private" }];
+        for (const s of listed) { const k = schoolKey(s.name); if (!seen.has(k)) { seen.add(k); out.push({ value: s.name, label: s.name, kind: "listed" }); } }
+        const others = [];
+        for (const t of typed) { const k = schoolKey(t._id); if (k && !seen.has(k)) { seen.add(k); others.push({ value: t._id.replace(/\s+/g, " ").trim(), label: t._id.replace(/\s+/g, " ").trim(), kind: "other" }); } }
+        others.sort((a, b) => a.label.localeCompare(b.label));
+        schoolsCache = { expires: Date.now() + 60000, value: [...out, ...others] };
+    }
+    res.set("Cache-Control", "public, max-age=60").json({ success: true, schools: schoolsCache.value });
+};
 
 const getLeaderboard = async (req, res) => {
     const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 15, 1), 50);
@@ -172,4 +198,5 @@ const resetLeaderboard = async (req, res) => {
     });
 };
 
-module.exports = { getLeaderboard, getMyRanking, getLeaderboardAdminSummary, resetLeaderboard, loadRankableAttempts, periodStart };
+module.exports = {
+    getLeaderboardSchools, getLeaderboard, getMyRanking, getLeaderboardAdminSummary, resetLeaderboard, loadRankableAttempts, periodStart };
