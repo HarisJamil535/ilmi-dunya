@@ -183,8 +183,8 @@ function WeekEditorView({ weekId }) {
     el.focus();
   };
 
-  const act = async (action) => {
-    if ((action === "submit" || action === "approve") && !data.me.hasSignature) { setDialog(`sign:${action}`); return; }
+  const act = async (action, justSigned = false) => {
+    if ((action === "submit" || action === "approve") && !justSigned && !data.me.hasSignature) { setDialog(`sign:${action}`); return; }
     setBusy(action);
     try {
       // Anything still being typed is saved first.
@@ -194,7 +194,10 @@ function WeekEditorView({ weekId }) {
       if (action === "approve") setSeal(true);
       toast({ submit: "Submitted and signed. The Section Head can now approve it.", approve: "Approved and signed. The record is final.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
       await load();
-    } catch (e) { toast(messageOf(e)); } finally { setBusy(""); }
+    } catch (e) {
+      if (e?.response?.status === 409 && /e-signature/i.test(messageOf(e)) && action !== "reopen") setDialog(`sign:${action}`);
+      else toast(messageOf(e));
+    } finally { setBusy(""); }
   };
   const get = async (fmt) => { setMenu(false); setBusy(fmt); try { for (const [c, html] of pending.current) await save(c, html); await download(`/weeks/${weekId}/export?format=${fmt}`); } catch (e) { toast(messageOf(e)); } finally { setBusy(""); } };
 
@@ -293,7 +296,7 @@ function WeekEditorView({ weekId }) {
 
     {seal && <ApprovedSeal onDone={() => setSeal(false)} />}
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}
-    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : ""; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after), 50); }} />}
+    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : ""; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
     {dialog === "reopen" && <Dialog title="Reopen this week?" subtitle="Both signatures are removed and the week becomes editable again. It will need to be submitted and approved again." onClose={() => setDialog("")}
       footer={<><AdminActionButton variant="secondary" onClick={() => setDialog("")}>Cancel</AdminActionButton><AdminActionButton icon={RotateCcw} onClick={() => { setDialog(""); act("reopen"); }}>Reopen</AdminActionButton></>}>
       <p className="text-sm text-slate-600">Tip: add a comment or change request first so the team knows what to change.</p>

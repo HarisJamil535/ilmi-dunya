@@ -112,7 +112,7 @@ function StaffDialog({ person, preset, departments, onClose, onSaved }) {
 function PersonRow({ person, onEdit }) {
   return <button type="button" onClick={onEdit} className={`coord-person ${person.status !== "active" ? "is-off" : ""}`}>
     <Avatar name={person.name} size={32} />
-    <span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-bold text-slate-800">{person.name}</span><span className="block truncate text-xs text-slate-500">@{person.username}{person.status !== "active" ? " · blocked" : ""}</span></span>
+    <span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-bold text-slate-800">{person.name}</span><span className="block truncate text-xs text-slate-500">@{person.username}{person.status !== "active" ? " · blocked" : ""}{!person.salutation && person.title !== "sectionHead" && person.title !== "principal" ? <span className="ml-1 font-bold text-amber-600">· no Mr./Ms. set</span> : null}</span></span>
     <RoleBadge role={person.title} small />
     {person.hasSignature ? <PenLine className="h-4 w-4 text-emerald-600" aria-label="Has an e-signature" /> : null}
   </button>;
