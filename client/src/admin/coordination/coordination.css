@@ -458,3 +458,10 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .cr-sign-here:hover { background: rgba(139, 92, 246, .16); }
 @keyframes cr-sign-pulse { 50% { box-shadow: 0 0 0 4px rgba(139, 92, 246, .15); } }
 @media print { .cr-sign-here { display: none; } }
+.cr-sign-mine { position: absolute; inset: 0; display: block; width: 100%; cursor: pointer; border-radius: 4px; }
+.cr-sign-mine img { position: absolute; bottom: 1px; left: 50%; max-width: 186px; max-height: 28px; transform: translateX(-50%); }
+.cr-sign-mine span { position: absolute; right: -2px; top: -14px; padding: 1px 6px; border-radius: 999px; background: #7c3aed; color: #fff; font-size: 9px; font-weight: 800; opacity: 0; transition: opacity .15s; }
+.cr-sign-mine:hover { background: rgba(139, 92, 246, .08); }
+.cr-sign-mine:hover span, .cr-sign-mine:focus-visible span { opacity: 1; }
+@media (hover: none) { .cr-sign-mine span { opacity: 1; } }
+@media print { .cr-sign-mine span { display: none; } }
