@@ -3,9 +3,9 @@ import RichCell from "./RichCell";
 import { COLUMNS, DAYS, LABELS, TOTAL, WIDTHS } from "./pageLayout";
 
 // Only the e-signature goes on the line (no printed name), at the height of about two lines of text.
-function Signature({ title, sig }) {
+function Signature({ title, sig, onSign }) {
   return <div className="cr-sign"><span className="cr-sign-label">{title}</span>
-    <span className="cr-sign-line">{sig?.imageUrl && <img src={sig.imageUrl} alt={`Signature of ${sig.name}`} title={`Signed by ${sig.name}`} />}</span>
+    <span className="cr-sign-line">{sig?.imageUrl ? <img src={sig.imageUrl} alt={`Signature of ${sig.name}`} title={`Signed by ${sig.name}`} /> : onSign ? <button type="button" className="cr-sign-here" onClick={onSign}>Click to sign here</button> : null}</span>
   </div>;
 }
 
@@ -16,7 +16,7 @@ function Attendees({ attendees, cellBox }) {
 }
 
 // The record exactly as printed: A4 landscape, scaled to fit the screen.
-export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", attendees, font = "arial" }) {
+export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", attendees, font = "arial", signSlot = "", onSign }) {
   const wrap = useRef(null);
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -60,9 +60,9 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
         </tbody>
       </table>
       <div className="cr-signs">
-        <Signature title="Sign: Subject Coordinator:" sig={signatures.coordinator} />
-        <Signature title="SH Sign:" sig={signatures.sectionHead} />
-        {signatures.principal && <Signature title="Principal Sign:" sig={signatures.principal} />}
+        <Signature title="Sign: Subject Coordinator:" sig={signatures.coordinator} onSign={signSlot === "coordinator" ? onSign : null} />
+        <Signature title="SH Sign:" sig={signatures.sectionHead} onSign={signSlot === "sectionHead" ? onSign : null} />
+        {(signatures.principal || signSlot === "principal") && <Signature title="Principal Sign:" sig={signatures.principal} onSign={signSlot === "principal" ? onSign : null} />}
       </div>
       {settings.caption && <p className="cr-caption">{settings.caption}</p>}
       <div className="cr-foot"><span>{settings.footerText}</span></div>
@@ -72,16 +72,17 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
 }
 
 // The same boxes as a simple form, for phones.
-export function FormView({ cell, signatures, attendees }) {
+export function FormView({ cell, signatures, attendees, signSlot = "", onSign }) {
+  const signHere = (slot) => (signSlot === slot && onSign ? <button type="button" className="cr-sign-here !min-h-11" onClick={onSign}>Click to sign here</button> : <span className="text-sm text-slate-500">Not signed yet</span>);
   const box = (key, extra) => <div className="cf-field"><span className="cf-label">{LABELS[key]}</span><RichCell {...cell(key)} {...extra} /></div>;
   return <div className="cf-form">
     <section className="cf-card"><h3>Week details</h3><div className="cf-grid">{box("week", { single: true })}{box("className", { single: true })}{box("sections", { single: true })}{box("subject", { single: true })}{box("periods", { single: true })}</div>{box("topic")}{box("broughtForward")}</section>
     {DAYS.map(([day, name]) => <section key={day} className="cf-card"><h3>{name}</h3>{COLUMNS.map(([column]) => <div key={column}>{box(`${day}.${column}`, column === "period" ? { single: true } : {})}</div>)}</section>)}
     <section className="cf-card"><h3>After the plan</h3>{box("extraHelp")}{box("teacher", { single: true })}{attendees ? <div className="cf-field"><span className="cf-label">Attendees of Coordination Meeting</span><ol className="cf-attendees">{attendees.map((name, i) => <li key={`${name}-${i}`}>{name}</li>)}</ol></div> : <div className="cf-grid">{[1, 2, 3, 4].map((n) => <div key={n}>{box(`attendee${n}`, { single: true })}</div>)}</div>}{box("submitDate", { single: true })}{box("distributeDate", { single: true })}</section>
     <section className="cf-card"><h3>Signatures</h3><div className="cf-grid">
-      <div className="cf-field"><span className="cf-label">Subject Coordinator</span>{signatures.coordinator?.imageUrl ? <img className="cf-sig" src={signatures.coordinator.imageUrl} alt="Subject Coordinator's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
-      <div className="cf-field"><span className="cf-label">Section Head</span>{signatures.sectionHead?.imageUrl ? <img className="cf-sig" src={signatures.sectionHead.imageUrl} alt="Section Head's signature" /> : <span className="text-sm text-slate-500">Not signed yet</span>}</div>
-      {signatures.principal?.imageUrl && <div className="cf-field"><span className="cf-label">Principal</span><img className="cf-sig" src={signatures.principal.imageUrl} alt="Principal's signature" /></div>}
+      <div className="cf-field"><span className="cf-label">Subject Coordinator</span>{signatures.coordinator?.imageUrl ? <img className="cf-sig" src={signatures.coordinator.imageUrl} alt="Subject Coordinator's signature" /> : signHere("coordinator")}</div>
+      <div className="cf-field"><span className="cf-label">Section Head</span>{signatures.sectionHead?.imageUrl ? <img className="cf-sig" src={signatures.sectionHead.imageUrl} alt="Section Head's signature" /> : signHere("sectionHead")}</div>
+      {(signatures.principal?.imageUrl || signSlot === "principal") && <div className="cf-field"><span className="cf-label">Principal</span>{signatures.principal?.imageUrl ? <img className="cf-sig" src={signatures.principal.imageUrl} alt="Principal's signature" /> : signHere("principal")}</div>}
     </div></section>
   </div>;
 }

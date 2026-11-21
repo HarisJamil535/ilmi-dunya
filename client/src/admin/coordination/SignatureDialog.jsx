@@ -6,7 +6,7 @@ import { api, messageOf } from "./coordApi";
 
 // Draw a signature with a finger, pen or mouse, or upload a photo of it. The server removes the paper
 // background so it sits cleanly on the signature line of the record.
-export default function SignatureDialog({ onClose, onSaved }) {
+export default function SignatureDialog({ onClose, onSaved, signLabel = "" }) {
   const [current, setCurrent] = useState("");
   const [mode, setMode] = useState("draw");
   const [busy, setBusy] = useState(false);
@@ -66,8 +66,8 @@ export default function SignatureDialog({ onClose, onSaved }) {
   const saveDrawing = () => canvas.current.toBlob((blob) => blob && upload(blob), "image/png");
   const remove = async () => { setBusy(true); try { await api.del("/me/signature"); setCurrent(""); onSaved?.(""); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); } };
 
-  return <Dialog title="My e-signature" subtitle="Used when you submit or approve a weekly record. Only you can sign with it." onClose={onClose} busy={busy}
-    footer={<><AdminActionButton variant="secondary" onClick={onClose} disabled={busy}>Cancel</AdminActionButton>{mode === "draw" && <AdminActionButton icon={PenLine} loading={busy} disabled={!drawn} onClick={saveDrawing}>Save signature</AdminActionButton>}</>}>
+  return <Dialog title="My e-signature" subtitle={signLabel ? "Your signature goes on this week's record as soon as you save it." : "Used when you submit or approve a weekly record. Only you can sign with it."} onClose={onClose} busy={busy}
+    footer={<><AdminActionButton variant="secondary" onClick={onClose} disabled={busy}>Cancel</AdminActionButton>{current && signLabel && !drawn && <AdminActionButton icon={PenLine} disabled={busy} onClick={() => { onSaved?.(current); onClose(); }}>Use my signature &amp; {signLabel}</AdminActionButton>}{mode === "draw" && (drawn || !current || !signLabel) && <AdminActionButton icon={PenLine} loading={busy} disabled={!drawn} onClick={saveDrawing}>{signLabel ? `Save & ${signLabel}` : "Save signature"}</AdminActionButton>}</>}>
     {current && <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <img src={current} alt="Your current signature" className="h-14 max-w-[60%] object-contain" />
       <span className="flex-1 text-xs font-bold text-slate-500">Current signature</span>
