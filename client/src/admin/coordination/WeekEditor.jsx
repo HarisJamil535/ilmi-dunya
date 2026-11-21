@@ -184,7 +184,7 @@ function WeekEditorView({ weekId }) {
   };
 
   const act = async (action, justSigned = false) => {
-    if ((action === "submit" || action === "approve") && !justSigned && !data.me.hasSignature) { setDialog(`sign:${action}`); return; }
+    if (["submit", "approve", "resign"].includes(action) && !justSigned && !data.me.hasSignature) { setDialog(`sign:${action}`); return; }
     setBusy(action);
     try {
       // Anything still being typed is saved first.
@@ -192,7 +192,7 @@ function WeekEditorView({ weekId }) {
       ownAction.current = Date.now();
       await api.post(`/weeks/${weekId}/${action}`);
       if (action === "approve") setSeal(true);
-      toast({ submit: "Submitted and signed. The Section Head can now approve it.", approve: "Signed. Your signature is on the record now.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
+      toast({ resign: "Your signature on this week is updated.", submit: "Submitted and signed. The Section Head can now approve it.", approve: "Signed. Your signature is on the record now.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
       await load();
     } catch (e) {
       if (e?.response?.status === 409 && /e-signature/i.test(messageOf(e)) && action !== "reopen") setDialog(`sign:${action}`);
@@ -212,7 +212,9 @@ function WeekEditorView({ weekId }) {
   const { week, file, caps } = data;
   // Which signature line this person can fill on this week, and the action that fills it.
   const signSlot = caps.signCoordinator && week.status === "draft" ? "coordinator" : week.signatures?.coordinator && caps.signSectionHead && week.status !== "approved" && !week.signatures?.sectionHead ? "sectionHead" : week.signatures?.coordinator && caps.signPrincipal && !week.signatures?.principal ? "principal" : "";
-  const signAction = signSlot === "coordinator" ? "submit" : signSlot ? "approve" : "";
+  const signedByMe = ["coordinator", "sectionHead", "principal"].some((slot) => week.signatures?.[slot]?.admin === data.me.id);
+  // Signing comes first; someone who already signed can replace their signature on this week instead.
+  const signAction = signSlot === "coordinator" ? "submit" : signSlot ? "approve" : signedByMe ? "resign" : "";
   const index = data.siblings.findIndex((s) => s.id === week.id);
   const prev = data.siblings[index - 1], next = data.siblings[index + 1];
   const group = PICK_GROUP(activeCell);
@@ -294,13 +296,13 @@ function WeekEditorView({ weekId }) {
     </div>
 
     <div className={`ce-main ${panel ? "with-panel" : ""}`}>
-      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} attendees={file.department?.id ? data.attendees : null} />}</div>
+      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} attendees={file.department?.id ? data.attendees : null} />}</div>
       {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel flashId={flashId} tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 
     {seal && <ApprovedSeal onDone={() => setSeal(false)} />}
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}
-    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog signLabel={(dialog.startsWith("sign:") ? dialog.slice(5) : signAction) === "submit" ? "submit this week" : (dialog.startsWith("sign:") || signAction) ? "sign this week" : ""} onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : signAction; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
+    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog signLabel={{ submit: "submit this week", approve: "sign this week", resign: "update it on this week" }[dialog.startsWith("sign:") ? dialog.slice(5) : signAction] || ""} onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : signAction; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
     {dialog === "reopen" && <Dialog title="Reopen this week?" subtitle="Both signatures are removed and the week becomes editable again. It will need to be submitted and approved again." onClose={() => setDialog("")}
       footer={<><AdminActionButton variant="secondary" onClick={() => setDialog("")}>Cancel</AdminActionButton><AdminActionButton icon={RotateCcw} onClick={() => { setDialog(""); act("reopen"); }}>Reopen</AdminActionButton></>}>
       <p className="text-sm text-slate-600">Tip: add a comment or change request first so the team knows what to change.</p>

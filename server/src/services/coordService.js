@@ -167,6 +167,14 @@ async function changeStatus({ weekId, admin, action }) {
         week.status = "approved";
         week.verifyCode = week.verifyCode || crypto.randomBytes(9).toString("base64url");
         week.fingerprint = fingerprintOf(week);
+    } else if (action === "resign") {
+        // Replaces the person's own signature on this week with their current e-signature (for a signature
+        // that came out wrong). The week's status and the other signatures stay as they are.
+        const mine = ["coordinator", "sectionHead", "principal"].filter((slot) => String(week.signatures?.[slot]?.admin || "") === String(admin._id));
+        if (!mine.length) fail("You have not signed this week yet.", 409);
+        const fresh = signatureOf(admin);
+        const current = week.signatures?.toObject?.() || week.signatures || {};
+        week.signatures = { ...current, ...Object.fromEntries(mine.map((slot) => [slot, { ...fresh, at: current[slot]?.at || fresh.at }])) };
     } else if (action === "reopen") {
         if (!caps.reopen) fail("You cannot reopen this week.", 403);
         if (week.status === "draft") fail("This week is already open for editing.", 409);
@@ -176,8 +184,8 @@ async function changeStatus({ weekId, admin, action }) {
     } else fail("Unknown action.");
     week.markModified("signatures");
     await week.save();
-    await snapshot(week, admin, { submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
-    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened" }[action]);
+    await snapshot(week, admin, { resign: "Signature updated", submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
+    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened", resign: "updated their signature" }[action]);
     hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: displayName(admin) });
     return { week, file };
 }

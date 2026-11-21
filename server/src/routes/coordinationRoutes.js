@@ -63,7 +63,7 @@ router.post("/weeks/:id/versions", c.saveVersion);
 router.get("/weeks/:id/versions/:versionId", c.getVersion);
 router.post("/weeks/:id/versions/:versionId/restore", c.restoreVersion);
 router.post("/weeks/:id/comments", c.addComment);
-for (const action of ["submit", "approve", "reopen"]) router.post(`/weeks/:id/${action}`, (req, res, next) => { req.params.action = action; next(); }, c.status);
+for (const action of ["submit", "approve", "reopen", "resign"]) router.post(`/weeks/:id/${action}`, (req, res, next) => { req.params.action = action; next(); }, c.status);
 router.post("/comments/:commentId/replies", c.replyComment);
 router.patch("/comments/:commentId", c.updateComment);
 router.delete("/comments/:commentId", c.deleteComment);
