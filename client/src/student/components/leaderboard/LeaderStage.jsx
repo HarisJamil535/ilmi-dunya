@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Crown, Flame, Target, Timer } from "lucide-react";
+import { Crown, Flame, Star, Target, Timer } from "lucide-react";
 import { formatScore } from "../../utils/resultFormat";
 import "./leaderStage.css";
 
@@ -44,11 +44,10 @@ function Step({ leader, top, order }) {
     </div>
     <div className="ls-bar">
       <div className="ls-bar-fill">
-        <span className="ls-bar-shine" aria-hidden="true" />
-        <strong className="ls-place">{leader.rank}</strong>
+                <strong className="ls-place">{leader.rank}</strong>
         <span className="ls-label">{LABEL[leader.rank]}</span>
-        <span className="ls-pts">{formatScore(points)} <small>pts</small></span>
-        <span className="ls-acc"><Target size={12} />{accuracy.toFixed(1)}%</span>
+        <span className="ls-pts"><Star size={13} className="ls-pts-icon" />{formatScore(points)} <small>pts</small></span>
+        <span className="ls-acc"><Target size={12} />{accuracy.toFixed(1)}% <small>accuracy</small></span>
       </div>
     </div>
   </article>;
