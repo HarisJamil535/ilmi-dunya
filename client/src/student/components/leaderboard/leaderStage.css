@@ -183,3 +183,56 @@ html.dark .ls-stage { background: linear-gradient(180deg, #231f3c 0%, #1b1830 80
 .ls-chip.is-pts { background: var(--rc); color: #fff; border: 0; font-weight: 900; }
 html.dark .ls-stage { background: #1b1830; border-color: #2f2a4f; }
 html.dark .ls-step:not(.is-gold) .ls-bar-fill { background: #2f2a4f !important; }
+
+/* ===== Gold & black: a premium honour-roll look on a light page. ===== */
+.ls-stage, .ls-list { --g: #d4a017; --gl: #f6e7b8; --gs: #fbf5e2; --k: #15130f; --k2: #2a261d; --p: var(--k); --pl: var(--gl); --pd: var(--k); }
+.ls-stage { background: radial-gradient(80% 60% at 50% 0%, #fdf4d8 0%, transparent 70%), #fffdf7; border-color: #efe0b0; box-shadow: 0 20px 44px -30px rgba(120,90,10,.45); }
+.ls-stage-head { border-color: #f1e5c2; }
+.ls-live { color: #9a7410; }
+.ls-live i { background: var(--g); animation: ls-ping-g 2s ease-out infinite; }
+@keyframes ls-ping-g { 0% { box-shadow: 0 0 0 0 rgba(212,160,23,.55); } 80%, 100% { box-shadow: 0 0 0 8px rgba(212,160,23,0); } }
+.ls-sparkles i { background: var(--g); }
+@keyframes ls-twinkle { 0%, 100% { opacity: 0; transform: scale(.4) rotate(0); } 50% { opacity: .55; transform: scale(1) rotate(45deg); } }
+.ls-sparkles i { width: 5px; height: 5px; border-radius: 1px; }
+
+/* #1: black bar with gold. #2 and #3: soft gold bars with black. */
+.ls-step .ls-bar-fill { background: var(--gl) !important; }
+.ls-step.is-gold .ls-bar-fill { background: var(--k) !important; outline: 4px solid var(--gl); box-shadow: 0 -16px 36px -18px rgba(212,160,23,.75); }
+.ls-step.is-gold .ls-bar-fill::before { display: block; content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--g); }
+.ls-step .ls-place { color: var(--k); }
+.ls-step.is-gold .ls-place { color: var(--g); }
+.ls-step .ls-label { color: #7a5c0c; }
+.ls-step.is-gold .ls-label { color: #f3dc94; }
+.ls-step .ls-pts { background: var(--k); color: var(--g); box-shadow: 0 8px 16px -10px rgba(0,0,0,.7); }
+.ls-step .ls-pts small { color: #f3dc94; }
+.ls-step.is-gold .ls-pts { background: var(--g); color: var(--k); box-shadow: 0 10px 22px -10px rgba(212,160,23,.9); }
+.ls-step.is-gold .ls-pts small { color: var(--k2); }
+.ls-step .ls-acc { color: var(--k); background: rgba(255,255,255,.75); }
+.ls-step.is-gold .ls-acc { color: #f3dc94; background: rgba(212,160,23,.16); }
+
+/* Name circles. */
+.ls-step .ls-avatar { background: var(--g); box-shadow: 0 0 0 4px #fff, 0 0 0 6px var(--gl); }
+.ls-step .ls-avatar span { background: var(--gl) !important; color: var(--k) !important; }
+.ls-step.is-gold .ls-avatar { background: var(--g); box-shadow: 0 0 0 5px #fff, 0 0 0 9px var(--g), 0 16px 32px -12px rgba(212,160,23,.9); animation: ls-halo-g 3.2s ease-in-out infinite; }
+.ls-step.is-gold .ls-avatar span { background: var(--k) !important; color: var(--g) !important; }
+@keyframes ls-halo-g { 50% { box-shadow: 0 0 0 5px #fff, 0 0 0 9px var(--g), 0 0 0 16px rgba(212,160,23,.15), 0 16px 32px -12px rgba(212,160,23,.9); } }
+.ls-step .ls-avatar b { background: var(--k); color: var(--g); border-color: #fff; }
+.ls-step.is-gold .ls-avatar b { background: var(--g); color: var(--k); }
+.ls-crown { color: var(--g); fill: #f3dc94; width: 32px; height: 32px; }
+.ls-step.is-gold .ls-person h3 { color: var(--k); }
+
+/* Honourable mentions. */
+.ls-list { background: #fffdf7; border-color: #efe0b0; }
+.ls-list-icon, .ls-list > header > span { color: #9a7410; }
+.ls-row, .ls-row:nth-child(n) { --rc: var(--g); --rs: var(--gs); border-color: #f4ead0; }
+.ls-row:hover { background: var(--gs); }
+.ls-row-rank { color: var(--k); }
+.ls-row-avatar { background: var(--k); color: var(--g); }
+.ls-row-graph::before { background: #f3ead2; }
+.ls-row-graph div { background: var(--g); }
+.ls-row-graph em { color: #7a5c0c; }
+.ls-chip.is-pts { background: var(--k); color: var(--g); }
+html.dark .ls-stage, html.dark .ls-list { background: #15130f; border-color: #3a321c; }
+html.dark .ls-step:not(.is-gold) .ls-bar-fill { background: #2a261d !important; }
+html.dark .ls-step:not(.is-gold) .ls-place, html.dark .ls-step.is-gold .ls-person h3, html.dark .ls-row-rank { color: var(--g); }
+html.dark .ls-step.is-gold .ls-bar-fill { background: #000 !important; }
