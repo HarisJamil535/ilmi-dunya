@@ -12,7 +12,7 @@ function requestSafety(req, res, next) {
 function errorHandler(error, req, res, next) {
     if (res.headersSent) return next(error);
     const status = error.code === 11000 ? 409 : error.name === 'ValidationError' || error.name === 'CastError' ? 400 : error.code === 'LIMIT_FILE_SIZE' ? 413 : error.status || error.statusCode || 500;
-    const message = error.code === 11000 ? 'This content already exists. Edit the existing item or use a unique title and scope.' : error.name === 'ValidationError' ? Object.values(error.errors).map(item => item.message).join(' ') : error.name === 'CastError' ? 'Please choose a valid item.' : error.code === 'LIMIT_FILE_SIZE' ? 'The uploaded file is too large.' : status >= 500 ? 'Something went wrong. Please try again.' : error.message;
+    const message = error.code === 11000 ? 'This content already exists. Edit the existing item or use a unique title and scope.' : error.name === 'ValidationError' ? Object.values(error.errors).map(item => item.message).join(' ') : error.name === 'CastError' ? 'Please choose a valid item.' : error.code === 'LIMIT_FILE_SIZE' ? 'The uploaded file is too large. Use a smaller picture.' : status >= 500 ? 'Something went wrong. Please try again.' : error.message;
     res.status(status).json({ success: false, message });
 }
 module.exports = { unsafeKeys, requestSafety, errorHandler };

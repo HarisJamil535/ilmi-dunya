@@ -40,9 +40,28 @@ export default function SignatureDialog({ onClose, onSaved }) {
     setBusy(true); setError("");
     try {
       const data = new FormData(); data.append("image", blob, "signature.png");
-      const res = await api.post("/me/signature", data, { headers: { "Content-Type": "multipart/form-data" } });
+      const res = await api.post("/me/signature", data, { headers: { "Content-Type": undefined }, timeout: 60000 });
       setCurrent(res.signatureUrl); onSaved?.(res.signatureUrl); onClose();
     } catch (e) { setError(messageOf(e, "The signature could not be saved.")); } finally { setBusy(false); }
+  };
+  // Phone photos can be very large or in HEIC format. The browser redraws the photo as a PNG of at most
+  // 1600 px, so every photo uploads quickly and the server always receives a picture it can read.
+  const uploadPhoto = async (file) => {
+    setError("");
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const blob = await new Promise((resolve) => c.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error();
+      upload(blob);
+    } catch {
+      if (["image/png", "image/jpeg"].includes(file.type) && file.size <= 5 * 1024 * 1024) upload(file);
+      else setError("This photo could not be opened. Take a new photo (JPG or PNG) or draw your signature instead.");
+    }
   };
   const saveDrawing = () => canvas.current.toBlob((blob) => blob && upload(blob), "image/png");
   const remove = async () => { setBusy(true); try { await api.del("/me/signature"); setCurrent(""); onSaved?.(""); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); } };
@@ -61,8 +80,8 @@ export default function SignatureDialog({ onClose, onSaved }) {
       <canvas ref={canvas} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} className="h-44 w-full touch-none rounded-2xl border-2 border-dashed border-slate-300 bg-white" aria-label="Signature pad: draw your signature here" />
       <div className="mt-2 flex items-center justify-between"><span className="text-xs text-slate-500">Sign inside the box with your finger, pen or mouse.</span><button type="button" onClick={clear} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"><Eraser className="h-3.5 w-3.5" />Clear</button></div>
     </div> : <label className="flex h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 text-center text-sm font-bold text-slate-600 hover:border-primary-muted">
-      <Upload className="h-6 w-6 text-primary" />Choose a photo of your signature<span className="text-xs font-medium text-slate-500">Sign with a dark pen on plain white paper. PNG or JPG, up to 5 MB.<br />The white background is removed automatically.</span>
-      <input type="file" accept="image/png,image/jpeg" className="sr-only" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} />
+      <Upload className="h-6 w-6 text-primary" />Choose a photo of your signature<span className="text-xs font-medium text-slate-500">Sign with a dark pen on plain white paper. Any photo from your phone or computer.<br />The white background is removed automatically.</span>
+      <input type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadPhoto(f); }} />
     </label>}
     {error && <p role="alert" className="text-sm font-bold text-rose-600">{error}</p>}
   </Dialog>;
