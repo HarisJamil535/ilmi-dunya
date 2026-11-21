@@ -50,6 +50,7 @@ const weekSchema = new mongoose.Schema({
     signatures: {
         coordinator: { type: signatureSchema, default: undefined },
         sectionHead: { type: signatureSchema, default: undefined },
+        principal: { type: signatureSchema, default: undefined },
     },
     verifyCode: { type: String, index: true, sparse: true },
     fingerprint: String,

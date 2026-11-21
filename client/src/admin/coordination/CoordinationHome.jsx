@@ -264,7 +264,7 @@ export default function CoordinationHome() {
   if (!overview || !files) return <CoordLoader label="Loading coordination..." />;
   const me = overview.me;
   const myDept = overview.departments.find((d) => d.id === me.department);
-  const intro = overview.canManage ? "Add departments and staff, then create a file for each subject and class." : me.title === "principal" ? "You can open and download every department's records." : me.title === "sectionHead" ? "You can review, approve and sign every department's weekly records." : `${myDept?.name || "Your department"}: plan each week together, live.`;
+  const intro = overview.canManage ? "Add departments and staff, then create a file for each subject and class." : me.title === "principal" ? "You can open, download, approve and sign every department's records." : me.title === "sectionHead" ? "You can review, approve and sign every department's weekly records." : `${myDept?.name || "Your department"}: plan each week together, live.`;
 
   const totals = files.reduce((t, f) => ({ files: t.files + 1, weeks: t.weeks + f.counts.total, approved: t.approved + f.counts.approved, awaiting: t.awaiting + f.counts.submitted, overdue: t.overdue + f.counts.overdue }), { files: 0, weeks: 0, approved: 0, awaiting: 0, overdue: 0 });
   const hour = new Date().getHours();
@@ -279,7 +279,7 @@ export default function CoordinationHome() {
         <h1>{me.name || "Coordination records"}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">{myRole && <RoleBadge role={myRole} />}{myDept && <span className="coord-deptchip" style={{ "--dept": deptColour(myDept.id) }}>{myDept.name}</span>}</div>
         <p className="coord-lead">{intro}</p>
-        {!me.hasSignature && ["coordinator", "sectionHead"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-white"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
+        {!me.hasSignature && ["coordinator", "sectionHead", "principal"].includes(me.title) && <button type="button" onClick={() => setDialog("signature")} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-white"><PenLine className="h-4 w-4" />Add your e-signature now so you can sign weeks</button>}
         <div className="coord-stats">
           <span><b>{totals.files}</b>files</span><span><b>{totals.weeks}</b>weeks</span><span className="is-green"><b>{totals.approved}</b>approved</span><span className="is-blue"><b>{totals.awaiting}</b>awaiting</span>{totals.overdue > 0 && <span className="is-red"><b>{totals.overdue}</b>overdue</span>}
         </div>

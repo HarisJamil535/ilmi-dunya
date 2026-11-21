@@ -67,6 +67,7 @@ async function buildRecords(file, weeks, settings) {
                 watermark,
                 coordinator: sig.coordinator?.imageUrl ? { image: await picture(sig.coordinator.imageUrl), at: sig.coordinator.at } : null,
                 sectionHead: sig.sectionHead?.imageUrl ? { image: await picture(sig.sectionHead.imageUrl), at: sig.sectionHead.at } : null,
+                principal: sig.principal?.imageUrl ? { image: await picture(sig.principal.imageUrl), at: sig.principal.at } : null,
                 qr: approved && file.showQr ? await QRCode.toBuffer(`${siteOrigin()}/verify/coordination/${week.verifyCode}`, { type: "png", margin: 0, width: 240, errorCorrectionLevel: "M" }) : null,
             },
         });

@@ -42,7 +42,7 @@ async function inboxFor(admin) {
         const due = w.dueDate ? new Date(w.dueDate).getTime() : null;
         const base = { weekId: String(w._id), fileId: key, week: w.week, file: info.label, session: info.session, dueDate: w.dueDate || null, overdue: Boolean(due && due < now), percent: Math.round((done / total) * 100), lastEditAt: w.lastEditAt };
         if (w.status === "submitted") {
-            if (info.caps.signSectionHead) tasks.push({ ...base, kind: "approve" });
+            if (info.caps.signSectionHead || info.caps.signPrincipal) tasks.push({ ...base, kind: "approve" });
             continue;
         }
         if (info.caps.signCoordinator && done > 0) tasks.push({ ...base, kind: "submit", days });

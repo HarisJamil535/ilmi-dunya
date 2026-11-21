@@ -192,7 +192,7 @@ function WeekEditorView({ weekId }) {
       ownAction.current = Date.now();
       await api.post(`/weeks/${weekId}/${action}`);
       if (action === "approve") setSeal(true);
-      toast({ submit: "Submitted and signed. The Section Head can now approve it.", approve: "Approved and signed. The record is final.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
+      toast({ submit: "Submitted and signed. The Section Head can now approve it.", approve: "Signed. Your signature is on the record now.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
       await load();
     } catch (e) {
       if (e?.response?.status === 409 && /e-signature/i.test(messageOf(e)) && action !== "reopen") setDialog(`sign:${action}`);
@@ -240,7 +240,8 @@ function WeekEditorView({ weekId }) {
           {menu && <div className="ce-menu"><button type="button" onClick={() => get("docx")}><FileText className="h-4 w-4" />Word (.docx)</button><button type="button" onClick={() => get("pdf")}><Download className="h-4 w-4" />PDF</button></div>}
         </div>
         {caps.signCoordinator && week.status === "draft" && <AdminActionButton icon={Send} loading={busy === "submit"} onClick={() => act("submit")} className="!min-h-9">Submit &amp; sign</AdminActionButton>}
-        {caps.signSectionHead && week.status === "submitted" && <AdminActionButton icon={ShieldCheck} loading={busy === "approve"} onClick={() => act("approve")} className="!min-h-9">Approve &amp; sign</AdminActionButton>}
+        {caps.signSectionHead && week.status !== "approved" && <AdminActionButton icon={ShieldCheck} loading={busy === "approve"} onClick={() => act("approve")} className="!min-h-9">Approve &amp; sign</AdminActionButton>}
+        {caps.signPrincipal && !week.signatures?.principal && <AdminActionButton icon={ShieldCheck} loading={busy === "approve"} onClick={() => act("approve")} className="!min-h-9">{week.status === "approved" ? "Add my signature" : "Approve & sign"}</AdminActionButton>}
         {caps.reopen && week.status !== "draft" && <AdminActionButton variant="secondary" icon={RotateCcw} loading={busy === "reopen"} onClick={() => setDialog("reopen")} className="!min-h-9">Reopen</AdminActionButton>}
         <AnnouncementCenter compact />
         <button type="button" onClick={() => setPanel(!panel)} className={`ce-icon ${panel ? "is-on" : ""}`} aria-label="Comments, activity and history" aria-pressed={panel}><PanelRight className="h-5 w-5" />{comments.some((c) => !c.resolved) && <span className="ce-dot" />}</button>
@@ -248,7 +249,7 @@ function WeekEditorView({ weekId }) {
     </div>
 
     {/* Status banner */}
-    {week.status !== "draft" && <div className={`ce-banner is-${week.status}`}>{week.status === "submitted" ? <>Submitted by {week.signatures.coordinator?.name}. Editing is paused while the Section Head reviews it.{caps.signSectionHead && " Approve it, or reopen it and comment on what to change."}</> : <>Approved and signed by {week.signatures.sectionHead?.name}. {file.showQr ? "The download carries a QR code anyone can scan to check it is genuine." : ""}</>}</div>}
+    {week.status !== "draft" && <div className={`ce-banner is-${week.status}`}>{week.status === "submitted" ? <>Submitted by {week.signatures.coordinator?.name}. Editing is paused while the Section Head reviews it.{caps.signSectionHead && " Approve it, or reopen it and comment on what to change."}</> : <>Approved and signed by {[week.signatures.sectionHead?.name, week.signatures.principal?.name].filter(Boolean).join(" and ") || "—"}. {file.showQr ? "The download carries a QR code anyone can scan to check it is genuine." : ""}</>}</div>}
     {!caps.edit && <div className="ce-banner is-view">You can view, download and comment on this week. Ask the coordinator if you need to edit it.</div>}
 
     {/* Toolbar */}
