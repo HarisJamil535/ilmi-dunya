@@ -454,3 +454,7 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
   .coord-task-actions { width: 100%; padding-left: 2.75rem; }
   .coord-task-btn { flex: 1; }
 }
+.cr-sign-here { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 1.6em; border-radius: 6px; border: 1.5px dashed #a78bfa; background: rgba(139, 92, 246, .08); color: #5b21b6; font-size: .8em; font-weight: 800; cursor: pointer; animation: cr-sign-pulse 2s ease-in-out infinite; }
+.cr-sign-here:hover { background: rgba(139, 92, 246, .16); }
+@keyframes cr-sign-pulse { 50% { box-shadow: 0 0 0 4px rgba(139, 92, 246, .15); } }
+@media print { .cr-sign-here { display: none; } }

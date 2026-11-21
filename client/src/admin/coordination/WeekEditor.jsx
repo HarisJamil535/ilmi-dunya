@@ -210,6 +210,9 @@ function WeekEditorView({ weekId }) {
   if (error && !data) return <div className="mx-auto max-w-3xl"><p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p><Link to="/admin/coordination" className="mt-3 inline-block text-sm font-bold text-primary">Back to coordination files</Link></div>;
   if (!data) return <CoordLoader label="Opening the week..." />;
   const { week, file, caps } = data;
+  // Which signature line this person can fill on this week, and the action that fills it.
+  const signSlot = caps.signCoordinator && week.status === "draft" ? "coordinator" : caps.signSectionHead && week.status !== "approved" && !week.signatures?.sectionHead ? "sectionHead" : caps.signPrincipal && !week.signatures?.principal ? "principal" : "";
+  const signAction = signSlot === "coordinator" ? "submit" : signSlot ? "approve" : "";
   const index = data.siblings.findIndex((s) => s.id === week.id);
   const prev = data.siblings[index - 1], next = data.siblings[index + 1];
   const group = PICK_GROUP(activeCell);
@@ -291,13 +294,13 @@ function WeekEditorView({ weekId }) {
     </div>
 
     <div className={`ce-main ${panel ? "with-panel" : ""}`}>
-      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} attendees={file.department?.id ? data.attendees : null} />}</div>
+      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendees : null} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} attendees={file.department?.id ? data.attendees : null} />}</div>
       {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel flashId={flashId} tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 
     {seal && <ApprovedSeal onDone={() => setSeal(false)} />}
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}
-    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : ""; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
+    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog signLabel={(dialog.startsWith("sign:") ? dialog.slice(5) : signAction) === "submit" ? "submit this week" : (dialog.startsWith("sign:") || signAction) ? "sign this week" : ""} onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : signAction; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
     {dialog === "reopen" && <Dialog title="Reopen this week?" subtitle="Both signatures are removed and the week becomes editable again. It will need to be submitted and approved again." onClose={() => setDialog("")}
       footer={<><AdminActionButton variant="secondary" onClick={() => setDialog("")}>Cancel</AdminActionButton><AdminActionButton icon={RotateCcw} onClick={() => { setDialog(""); act("reopen"); }}>Reopen</AdminActionButton></>}>
       <p className="text-sm text-slate-600">Tip: add a comment or change request first so the team knows what to change.</p>
