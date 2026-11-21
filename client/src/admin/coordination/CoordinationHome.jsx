@@ -10,6 +10,7 @@ import AnnouncementCenter from "./AnnouncementCenter";
 import DownloadDialog from "./DownloadDialog";
 import { useLiveRefresh } from "./useCoordEvent";
 import SignatureDialog from "./SignatureDialog";
+import InboxPanel from "./InboxPanel";
 import { api, deptColour, messageOf, roleTheme } from "./coordApi";
 import "./coordination.css";
 
@@ -289,6 +290,8 @@ export default function CoordinationHome() {
         {me.canCreateFiles && <button type="button" className="coord-hero-btn is-solid" onClick={() => setDialog("new")}><Plus className="h-4 w-4" />New file</button>}
       </div>
     </header>
+
+    {(me.title || !overview.canManage) && <InboxPanel hasSignature={me.hasSignature} onSigned={load} />}
 
     {overview.canManage && <div className="coord-filters" role="tablist" aria-label="Coordination sections">
       <button type="button" role="tab" aria-selected={tab === "files"} onClick={() => setTab("files")}><FolderOpen className="h-4 w-4" />Files<span>{files.length}</span></button>

@@ -708,3 +708,7 @@ exports.readAllNotifications = wrap(async (req, res) => {
     await CoordinationNotification.updateMany({ to: req.admin._id, read: false }, { read: true });
     res.json({ success: true });
 });
+
+// ----- "Waiting on me" -----
+const { inboxFor } = require("../services/coordInbox");
+exports.inbox = wrap(async (req, res) => { res.json({ success: true, ...(await inboxFor(req.admin)) }); });
