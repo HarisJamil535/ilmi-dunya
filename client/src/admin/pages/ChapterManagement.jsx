@@ -1,6 +1,7 @@
 import Spinner from "../../shared/Spinner";
 import React, { useState, useEffect, useContext } from "react";
-import { Bookmark, Plus, ChevronRight } from "lucide-react";
+import { Bookmark, Plus, ChevronRight, FileSpreadsheet } from "lucide-react";
+import ExcelImportDialog from "../../admin/components/ExcelImportDialog";
 import axiosInstance from "../../api/axios"; 
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../../admin/components/CustomSelect";
@@ -37,6 +38,8 @@ const ChapterManagement = () => {
     const [editingChapter, setEditingChapter] = useState(null);
     const [chapterToDelete, setChapterToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         setIsChapterModalOpen(false);
@@ -91,7 +94,7 @@ const ChapterManagement = () => {
             }
         };
         fetchChapters();
-    }, [selectedBoard, selectedClass, selectedGroup, selectedSubject]);
+    }, [selectedBoard, selectedClass, selectedGroup, selectedSubject, reloadKey]);
 
     const isFullContextSelected = selectedBoard && selectedClass && selectedGroup && selectedSubject;
     const selectedSubjectObj = filteredSubjects.find(s => s._id === selectedSubject);
@@ -149,6 +152,17 @@ const ChapterManagement = () => {
                     </div>
                 </div>
                 
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <button
+                    type="button"
+                    onClick={() => setIsImportOpen(true)}
+                    disabled={!isFullContextSelected}
+                    title={isFullContextSelected ? "Add many chapters at once from an Excel file" : "Select the board, class, group and subject first"}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium border transition duration-200 ${isFullContextSelected ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer" : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                >
+                    <FileSpreadsheet className="w-5 h-5" />
+                    Import from Excel
+                </button>
                 <button 
                     onClick={handleOpenAddModal}
                     disabled={!isFullContextSelected}
@@ -161,6 +175,7 @@ const ChapterManagement = () => {
                     <Plus className="w-5 h-5" />
                     Add New Chapter
                 </button>
+                </div>
             </div>
 
             {/* 4-Tier Top Dropdown Filters */}
@@ -183,6 +198,16 @@ const ChapterManagement = () => {
                     />
                 </div>
             </div>
+
+            {isImportOpen && <ExcelImportDialog
+                kind="chapter"
+                contextLabel={`Subject: ${selectedSubjectObj?.name || ""}`}
+                templateUrl="/chapters/import/template"
+                importUrl="/chapters/import"
+                fields={{ board: selectedBoard, class: selectedClass, group: selectedGroup, subject: selectedSubject }}
+                onImported={() => setReloadKey((k) => k + 1)}
+                onClose={() => setIsImportOpen(false)}
+            />}
 
             <ChapterModal
                 isOpen={isChapterModalOpen}

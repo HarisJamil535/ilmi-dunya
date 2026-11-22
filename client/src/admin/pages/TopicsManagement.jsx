@@ -1,7 +1,8 @@
 import Spinner from "../../shared/Spinner";
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText, Plus, ChevronRight, Bookmark, ArrowLeft } from "lucide-react";
+import { FileText, Plus, ChevronRight, Bookmark, ArrowLeft, FileSpreadsheet } from "lucide-react";
+import ExcelImportDialog from "../../admin/components/ExcelImportDialog";
 import axiosInstance from "../../api/axios";
 import { AppContext } from "../../context/AppContext";
 import { CustomSelect } from "../../admin/components/CustomSelect";
@@ -45,6 +46,8 @@ const TopicManagement = () => {
     const [editingTopic, setEditingTopic] = useState(null);
     const [topicToDelete, setTopicToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         setIsTopicModalOpen(false);
@@ -164,7 +167,7 @@ const TopicManagement = () => {
         };
 
         fetchTopicsAndChapterInfo();
-    }, [selectedChapter]);
+    }, [selectedChapter, reloadKey]);
 
     const handleSaveSuccess = (savedTopic, actionType) => {
         let updatedTopics;
@@ -240,6 +243,17 @@ const TopicManagement = () => {
                     </div>
                 </div>
                 
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <button
+                    type="button"
+                    onClick={() => setIsImportOpen(true)}
+                    disabled={!isContextReady}
+                    title={isContextReady ? "Add many topics to this chapter at once from an Excel file" : "Select a chapter first"}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold border transition duration-200 ${isContextReady ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer" : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                >
+                    <FileSpreadsheet className="w-5 h-5" />
+                    Import from Excel
+                </button>
                 <button 
                     onClick={() => { setEditingTopic(null); setIsTopicModalOpen(true); }}
                     disabled={!isContextReady}
@@ -252,6 +266,7 @@ const TopicManagement = () => {
                     <Plus className="w-5 h-5" />
                     Add New Topic
                 </button>
+                </div>
             </div>
 
             {/* 5-Tier Dropdown Section */}
@@ -325,6 +340,16 @@ const TopicManagement = () => {
                     </div>
                 </div>
             )}
+
+            {isImportOpen && <ExcelImportDialog
+                kind="topic"
+                contextLabel={loadedChapterInfo ? `Chapter: ${loadedChapterInfo.name}` : "Selected chapter"}
+                templateUrl="/topics/import/template"
+                importUrl="/topics/import"
+                fields={{ chapterId: selectedChapter }}
+                onImported={() => setReloadKey((k) => k + 1)}
+                onClose={() => setIsImportOpen(false)}
+            />}
 
             <TopicModal
                 isOpen={isTopicModalOpen}

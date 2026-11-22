@@ -88,3 +88,20 @@ test("Section Head can approve straight away; the Principal can approve or add a
     assert.equal(pr.signPrincipal, true);
     assert.equal(teacher.signPrincipal || teacher.signSectionHead, false);
 });
+
+test("Excel import: the sample files read back correctly, and problems are reported per row", async () => {
+    const imp = require("../src/services/curriculumImport");
+    const writeXlsxFile = require("write-excel-file/node");
+    const chapters = await imp.readRows(await imp.template("chapter"), "chapter");
+    assert.deepEqual(chapters.map((r) => r.name), ["Physical Quantities and Measurement", "Kinematics", "Dynamics"]);
+    const topics = await imp.readRows(await imp.template("topic"), "topic");
+    assert.equal(topics.length, 3);
+    assert.equal(topics[0].number, "1.1");
+    assert.match(topics[0].videoUrl, /^https:\/\/www\.youtube\.com/);
+    assert.equal(topics[2].videoUrl, "");
+    const loose = await writeXlsxFile([[{ value: "Chapter No.", type: String }, { value: "chapter name", type: String }], [{ value: 4, type: Number }, { value: "Waves", type: String }], [null, null]]).toBuffer();
+    assert.deepEqual((await imp.readRows(loose, "chapter")).map((r) => [r.number, r.name]), [["4", "Waves"]]);
+    await assert.rejects(imp.readRows(Buffer.from("not excel"), "chapter"), /could not be read/);
+    const noHeadings = await writeXlsxFile([[{ value: "x", type: String }]]).toBuffer();
+    await assert.rejects(imp.readRows(noHeadings, "topic"), /heading row/);
+});
