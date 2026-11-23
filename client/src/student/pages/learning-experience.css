@@ -139,3 +139,4 @@ html.dark .leaderboard-page .podium-medal { box-shadow: 0 0 0 3px #1c1a2e, 0 0 0
 html.dark .leaderboard-podium[data-tier="gold"] { --tier-a: #ffd25e; --tier-b: #f0a92a; --tier-ink: #f5c95a; }
 html.dark .leaderboard-podium[data-tier="silver"] { --tier-a: #dfe6f0; --tier-b: #9fb0c6; --tier-ink: #c9d3e1; }
 html.dark .leaderboard-podium[data-tier="bronze"] { --tier-a: #ffb27a; --tier-b: #e07a3a; --tier-ink: #f3a56e; }
+@media (max-width: 400px) { .leaderboard-periods button { padding: 0 4px; font-size: 12.5px; white-space: nowrap; } }
