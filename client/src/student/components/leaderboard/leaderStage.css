@@ -136,3 +136,15 @@ html.dark .ls-row-avatar, html.dark .ls-row-rank, html.dark .ls-acc { color: #d9
 /* The champion's bar stands clearly taller than the others. */
 .ls-step.is-gold .ls-bar { height: 280px; }
 @media (max-width: 640px) { .ls-step.is-gold .ls-bar { height: 215px; } }
+
+/* Rows may shrink to the screen: long names and schools are cut with "…" instead of widening the page. */
+.ls-list ol { grid-template-columns: minmax(0, 1fr); }
+.ls-row { min-width: 0; }
+.ls-podium, .ls-step, .ls-person { min-width: 0; }
+@media (max-width: 640px) {
+  /* Names may use two lines on phones so they are not cut short. */
+  .ls-row h4 { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; font-size: 13.5px; }
+  .ls-row-rank { width: 24px; height: 24px; font-size: 11.5px; }
+  .ls-row-graph { margin-top: 6px; }
+  .ls-list > header { padding: 12px 10px 8px; }
+}
