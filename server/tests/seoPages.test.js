@@ -134,7 +134,7 @@ test("a subject has readable past-paper and textbook pages, listed in the sitema
     assert.deepEqual(papers.sections.map(section => section.title), ["Class 9 Computer Science past paper 2024", "Class 9 Computer Science past paper 2023"]);
     assert.equal(papers.meta.indexable, true);
     const books = await seoPage("/federal-board/class-9/computer-science/books", "https://ilmidunya.org");
-    assert.match(books.meta.title, /^Class 9 Computer Science Book – Federal Board \(FBISE\) Textbook Online$/);
+    assert.match(books.meta.title, /^Class 9 Computer Science Book PDF \(NBF\) – Federal Board \(FBISE\)$/);
     assert.match(books.meta.description, /by National Book Foundation/);
     const paths = (await seoSitemapEntries()).map(entry => entry.path);
     assert.ok(paths.includes("/federal-board/class-9/computer-science/past-papers") && paths.includes("/federal-board/class-9/computer-science/books"));

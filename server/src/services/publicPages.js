@@ -26,7 +26,7 @@ const resourceTitle = (kind, doc) => {
     const boardName = name(doc.board);
     const chapterName = name(doc.chapter);
     const contextName = [className, subjectName, boardName].filter(Boolean).join(" ");
-    if (kind === "book") return `${contextName} Book${doc.sourceName ? ` - ${doc.sourceName}` : ""}`;
+    if (kind === "book") return `${[className, subjectName].filter(Boolean).join(" ")} Book PDF${boardName ? ` – ${boardName}` : ""}${doc.sourceName ? ` (${/national book foundation/i.test(doc.sourceName) ? "NBF" : doc.sourceName})` : ""}`;
     if (kind === "notes") return `${contextName} ${chapterName} ${String(doc.noteType || "").replaceAll("_", " ")} Notes`;
     if (kind === "past-paper") return `${contextName} ${doc.year} ${doc.session || ""} ${doc.examType || ""} Past Paper`.replace(/\s+/g, " ").trim();
     if (kind === "mcqs") return `${contextName} ${name(doc.topic) || chapterName} MCQ Test`.replace(/\s+/g, " ").trim();

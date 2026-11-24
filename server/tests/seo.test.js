@@ -120,8 +120,8 @@ test('invalid legacy references cannot break sitemap filters', async () => {
 
 test('resource titles use actual syllabus and verified publisher fields', () => {
     const context = { class: { name: 'Class 9' }, subject: { name: 'Physics' }, board: { name: 'FBISE' } };
-    assert.equal(resourceTitle('book', context), 'Class 9 Physics FBISE Book');
-    assert.equal(resourceTitle('book', { ...context, sourceName: 'National Book Foundation' }), 'Class 9 Physics FBISE Book - National Book Foundation');
+    assert.equal(resourceTitle('book', context), 'Class 9 Physics Book PDF – FBISE');
+    assert.equal(resourceTitle('book', { ...context, sourceName: 'National Book Foundation' }), 'Class 9 Physics Book PDF – FBISE (NBF)');
     assert.match(resourceTitle('past-paper', { ...context, year: 2025, session: 'morning', examType: 'annual' }), /2025 morning annual Past Paper/);
 });
 

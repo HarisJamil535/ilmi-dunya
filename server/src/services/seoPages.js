@@ -22,6 +22,8 @@ const id = value => String(value?._id || value || "");
 const segment = text => slugify(String(text || "")) || "page";
 
 // "Federal Board" also searched as "FBISE"; other boards keep their own name.
+// Students search for the publisher by its short name ("NBF class 9 chemistry book").
+const publisherShort = source => (/national book foundation|\bnbf\b/i.test(source || "") ? " (NBF)" : /punjab (curriculum|textbook)|\bpctb\b/i.test(source || "") ? " (PCTB)" : "");
 const boardShort = board => (/federal/i.test(board?.name || "") ? "FBISE" : "");
 const boardFull = board => (boardShort(board) ? `${board.name} (${boardShort(board)})` : board?.name || "");
 const classNumber = cls => Number((String(cls?.name || "").match(/\d+/) || [])[0]) || null;
@@ -300,7 +302,7 @@ async function subjectPage(cat, subject, view) {
             quickLinks: [{ title: `${who} Notes`, href: `${base}/notes`, note: "All chapters" }, { title: `${who} MCQs`, href: `${base}/mcqs`, note: totalMcqs ? plural(totalMcqs, "MCQ") : "Chapter wise" }],
             breadcrumbs: [...crumbs, { title: "Textbook", href: `${base}/books` }],
             faqs: inventory.length ? [{ question: `How many chapters does the ${l.boardName} ${who} book have?`, answer: `The ${who} textbook has ${plural(inventory.length, "chapter")}: ${inventory.map(item => `${item.chapter.chapterNumber}. ${item.chapter.name}`).join("; ")}.` }] : [],
-            meta: pageMeta(`${who} Book – ${l.boardFull} Textbook Online`, `${l.boardFull} ${who} (${l.classAlt}) textbook${books[0]?.sourceName ? ` by ${books[0].sourceName}` : ""} to read online, with chapter-wise notes, exercise solutions and MCQs with answers.`, `${base}/books`, books.length > 0),
+            meta: pageMeta(`${who} Book PDF${publisherShort(books[0]?.sourceName)} – ${l.boardFull}`, `${l.boardFull} ${who} (${l.classAlt}) book PDF${books[0]?.sourceName ? ` by ${books[0].sourceName}` : ""}: read the textbook online, with chapter-wise notes, exercise solutions and MCQs with answers.`, `${base}/books`, books.length > 0),
             updatedAt: books.reduce((latest, book) => (book.updatedAt > latest ? book.updatedAt : latest), subject.updatedAt),
         };
     }
