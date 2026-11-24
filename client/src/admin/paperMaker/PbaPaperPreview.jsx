@@ -4,7 +4,7 @@ import { Blocks } from "../../shared/PbaContent";
 
 const SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
 const MARK = { light: 0.06, medium: 0.1, strong: 0.15 };
-const MADE = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const MADE = "Prepared by IlmiDunya  ·  ilmidunya.org";
 
 const Space = ({ space }) => {
   if (!space || space.mode === "none" || !space.size) return null;

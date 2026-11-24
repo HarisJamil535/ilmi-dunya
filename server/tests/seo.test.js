@@ -124,3 +124,29 @@ test('resource titles use actual syllabus and verified publisher fields', () => 
     assert.equal(resourceTitle('book', { ...context, sourceName: 'National Book Foundation' }), 'Class 9 Physics FBISE Book - National Book Foundation');
     assert.match(resourceTitle('past-paper', { ...context, year: 2025, session: 'morning', examType: 'annual' }), /2025 morning annual Past Paper/);
 });
+
+test("app addresses for a subject, chapter or topic point at the readable study page", async () => {
+    const seoPages = require("../src/services/seoPages");
+    const Chapter = require("../src/models/Chapter");
+    const Topic = require("../src/models/Topic");
+    const S = "aaaaaaaaaaaaaaaaaaaaaaaa", C = "bbbbbbbbbbbbbbbbbbbbbbbb", T = "cccccccccccccccccccccccc";
+    const original = { legacy: seoPages.legacyAddress, ch: Chapter.findById, tp: Topic.findById };
+    const calls = [];
+    seoPages.legacyAddress = async (kind, doc) => { calls.push(kind); return `/${kind}/${String(doc._id || doc.chapter?._id || "")}`; };
+    Chapter.findById = () => ({ select: () => ({ lean: async () => ({ _id: C, name: "Bonding", chapterNumber: 5, subject: S }) }) });
+    Topic.findById = () => ({ select: () => ({ lean: async () => ({ _id: T, name: "Ions", topicNumber: "5.1", subjectId: S, chapterId: C }) }) });
+    delete require.cache[require.resolve("../src/services/appCanonical")];
+    const { appCanonical } = require("../src/services/appCanonical");
+    try {
+        assert.equal(await appCanonical("/chapters", { subjectId: S, subject: "chemistry" }), `/subject/${S}`);
+        assert.equal(await appCanonical("/topics", { chapterId: C }), `/chapter/${C}`);
+        assert.equal(await appCanonical("/topics", { chapterId: C, topic: T }), `/topic/${T}`);
+        assert.equal(await appCanonical("/topic-questions", { chapterId: C, topic: T }), `/topic/${T}`);
+        assert.equal(await appCanonical("/notes", { chapterId: C }), `/notes/${C}`);
+        assert.equal(await appCanonical("/chapters", { subject: "chemistry" }), null, "no id, no canonical");
+        assert.equal(await appCanonical("/dashboard", {}), null);
+    } finally {
+        seoPages.legacyAddress = original.legacy; Chapter.findById = original.ch; Topic.findById = original.tp;
+        delete require.cache[require.resolve("../src/services/appCanonical")];
+    }
+});

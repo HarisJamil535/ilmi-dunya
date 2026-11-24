@@ -14,6 +14,7 @@ const SiteMetric = require("../models/SiteMetric");
 const root = path.resolve(__dirname, "../../../client");
 const cache = new Map();
 const { robotsText } = require('../services/robots');
+const { appCanonical } = require('../services/appCanonical');
 const { seoPage, isSeoPath, seoSitemapEntries, hubLinks, clearCatalog } = require('../services/seoPages');
 // These pages moved to readable addresses (the "study" sitemap); their old /learn addresses redirect.
 const MOVED_KINDS = new Set(['board', 'subject', 'chapter', 'topic', 'notes']);
@@ -187,6 +188,9 @@ function frontendRoutes() {
                 return res.send(html);
             }
             const known = /^\/(admin(?:\/.*)?|subjects|chapters|topics|videos|book|notes|past-papers|answer-sheet|topic-questions|pba(?:\/watch)?|login|register|forgot-password|dashboard|leaderboard|tests(?:\/.*)?|assessments(?:\/.*)?)$/.test(req.path);
+            // App addresses for a subject, chapter or topic point search engines at the readable study page.
+            const clean = known ? await appCanonical(req.path, req.query) : null;
+            if (clean) return res.status(200).set('Cache-Control', 'private, no-store').send(renderDocument(template, { requestPath: req.originalUrl, meta: meta('IlmiDunya Study Tools', 'Chapters, notes, topic videos and questions for your subject.', clean, true) }));
             res.status(known ? 200 : 404).set('X-Robots-Tag','noindex, follow').set('Cache-Control','private, no-store').send(renderDocument(template, { requestPath: req.originalUrl, meta: meta(known ? 'IlmiDunya Study Tools' : 'Page not found', known ? 'Student study tools and account access.' : 'This page could not be found.', req.path, false) }));
         } catch (error) {
             const status = error.status === 404 ? 404 : 503;

@@ -65,7 +65,7 @@ const newReference = (issuedAt) => {
 
 const periodLabel = ({ start, end }) => (!start && !end ? "All dates" : `${start ? formatDate(start) : "Beginning"} to ${end ? formatDate(end) : formatDate(new Date())}`);
 const verifyBase = () => {
-    try { return new URL(process.env.SITE_URL).origin; } catch { return "https://www.ilmidunya.org"; }
+    try { return new URL(process.env.SITE_URL).origin; } catch { return "https://ilmidunya.org"; }
 };
 
 const PDF_WORKER_TIMEOUT_MS = 150000;

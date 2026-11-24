@@ -17,7 +17,7 @@ const fontOf = key => FONTS[key] || FONTS[{ sans: "arial", serif: "times" }[key]
 const FONT_SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
 const SPACING = { compact: 0.65, normal: 1, relaxed: 1.45 };
 const MARK_GREY = { light: "EBEBEB", medium: "DEDEDE", strong: "CFCFCF" };
-const FOOTER_TEXT = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const FOOTER_TEXT = "Prepared by IlmiDunya  ·  ilmidunya.org";
 const embedded = key => { const font = fontOf(key); return font.embed ? [{ name: font.name, data: fs.readFileSync(path.join(__dirname, "../../assets/fonts", `${font.embed}.ttf`)), characterSet: CharacterSet.ANSI }] : []; };
 const BORDER = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
 const BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
