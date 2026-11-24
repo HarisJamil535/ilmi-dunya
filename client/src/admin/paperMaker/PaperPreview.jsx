@@ -31,7 +31,7 @@ const Section = ({ section, paper, showAnswers }) => <section className="pp-sect
 const SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
 const MARK = { light: 0.06, medium: 0.1, strong: 0.15 };
 const fontKey = (value) => ({ sans: "arial", serif: "times" }[value] || value || "arial");
-const MADE = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const MADE = "Prepared by IlmiDunya  ·  ilmidunya.org";
 
 // The faint word or logo behind a page (or each half of a shared sheet), as it prints.
 const Mark = ({ layout, tilt = -35 }) => {

@@ -18,7 +18,7 @@ const FONTS = {
 const FONT_SIZE = { small: 0.92, normal: 1, large: 1.1, xl: 1.2 };
 const SPACING = { compact: 0.65, normal: 1, relaxed: 1.45 };
 const MARK_OPACITY = { light: 0.06, medium: 0.1, strong: 0.15 };
-const FOOTER = "Prepared by IlmiDunya  ·  www.ilmidunya.org";
+const FOOTER = "Prepared by IlmiDunya  ·  ilmidunya.org";
 const fontFiles = new Map();
 const fontData = name => { if (!fontFiles.has(name)) fontFiles.set(name, fs.readFileSync(path.join(FONT_DIR, `${name}.ttf`))); return fontFiles.get(name); };
 

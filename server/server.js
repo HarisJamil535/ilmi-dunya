@@ -55,6 +55,8 @@ app.use(helmet({
 }));
 app.use(compression());
 if (process.env.NODE_ENV === 'production') app.use(canonicalHost({ trustProxy: app.get('trust proxy') }));
+// Search engines need one address for the site. Without SITE_URL every page's canonical tag points at localhost.
+if (process.env.NODE_ENV === 'production' && !/^https:\/\/[^/]+$/.test(String(process.env.SITE_URL || '').replace(/\/$/, ''))) console.warn('[seo] Set SITE_URL to the site address, e.g. https://ilmidunya.org (now: %s). Canonical tags and sitemaps depend on it.', process.env.SITE_URL || 'not set');
 // A page served by this very server is never cross-origin, so its own host (for example the www and
 // non-www versions of the site) is always allowed; other origins must be listed in CLIENT_ORIGIN.
 const corsOptions = (req, callback) => {
