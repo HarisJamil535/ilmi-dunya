@@ -104,15 +104,7 @@ function labelLine(ctx, label, x, y, width, value = "") {
 function header(ctx, fl, paper, { group = "", logo = null } = {}) {
     const h = paper.header;
     const gap = 15.5 * ctx.s;
-    if (!fl.compactHeader) {
-        labelLine(ctx, "Name of Candidate:", fl.x, fl.y, fl.w * 0.6);
-        labelLine(ctx, "Class/Section:", fl.x + fl.w * 0.62, fl.y, fl.w * 0.38);
-        fl.y += gap;
-        labelLine(ctx, "Roll No:", fl.x, fl.y, fl.w * 0.3);
-        labelLine(ctx, "Date:", fl.x + fl.w * 0.32, fl.y, fl.w * 0.28, h.date);
-        labelLine(ctx, "Sign. of Invigilator:", fl.x + fl.w * 0.62, fl.y, fl.w * 0.38);
-        fl.y += gap + 3 * ctx.s;
-    }
+    // School logo, school name and paper title come first, at the very top; the candidate's lines follow.
     const top = fl.y;
     const inset = logo ? 56 * ctx.s : 0;
     if (logo) { try { ctx.doc.image(logo, fl.x, top - 2, { fit: [48 * ctx.s, 48 * ctx.s] }); } catch { /* an unreadable logo is skipped */ } }
@@ -125,7 +117,16 @@ function header(ctx, fl, paper, { group = "", logo = null } = {}) {
     if (group) { write(ctx, group, fl.x + inset, fl.y, fl.w - inset * 2, { font: ctx.fonts.b, size: ctx.body + 2, align: "center", underline: true }); fl.y += ctx.body + 6 * ctx.s; }
     centre(h.schoolName, ctx.fonts.b, ctx.body + 3);
     centre(h.examName, ctx.fonts.b, ctx.body + 0.5);
-    fl.y = Math.max(fl.y, top + (logo ? 48 * ctx.s : 0)) + 2 * ctx.s;
+    fl.y = Math.max(fl.y, top + (logo ? 48 * ctx.s : 0)) + 6 * ctx.s;
+    if (!fl.compactHeader) {
+        labelLine(ctx, "Name of Candidate:", fl.x, fl.y, fl.w * 0.6);
+        labelLine(ctx, "Class/Section:", fl.x + fl.w * 0.62, fl.y, fl.w * 0.38);
+        fl.y += gap;
+        labelLine(ctx, "Roll No:", fl.x, fl.y, fl.w * 0.3);
+        labelLine(ctx, "Date:", fl.x + fl.w * 0.32, fl.y, fl.w * 0.28, h.date);
+        labelLine(ctx, "Sign. of Invigilator:", fl.x + fl.w * 0.62, fl.y, fl.w * 0.38);
+        fl.y += gap + 3 * ctx.s;
+    }
     const third = fl.w / 3;
     const subject = [h.subjectTitle, h.className].filter(Boolean).join(" - ") + (paper.versionCount > 1 && paper.layout.mode !== "tear" ? `   Paper: ${paper.version}` : "");
     const times = paper.timeLines || [];

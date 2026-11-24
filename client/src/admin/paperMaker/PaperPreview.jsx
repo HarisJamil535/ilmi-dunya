@@ -5,12 +5,12 @@ const Head = ({ paper, logoUrl, group }) => {
   const h = paper.header;
   const subject = [h.subjectTitle, h.className].filter(Boolean).join(" - ") + (paper.versionCount > 1 && paper.layout.mode !== "tear" ? `   Paper: ${paper.version}` : "");
   return <header className="pp-head">
-    <div className="pp-lines"><span><b>Name of Candidate:</b> <i /></span><span><b>Class/Section:</b> <i /></span></div>
-    <div className="pp-lines"><span><b>Roll No:</b> <i /></span><span><b>Date:</b> {h.date || <i />}</span><span><b>Sign. of Invigilator:</b> <i /></span></div>
     <div className="pp-title">
       {logoUrl && <img src={logoUrl} alt="" />}
       <div>{group && <u className="pp-group">{group}</u>}{h.schoolName && <strong className="pp-school">{h.schoolName}</strong>}{h.examName && <strong>{h.examName}</strong>}</div>
     </div>
+    <div className="pp-lines"><span><b>Name of Candidate:</b> <i /></span><span><b>Class/Section:</b> <i /></span></div>
+    <div className="pp-lines"><span><b>Roll No:</b> <i /></span><span><b>Date:</b> {h.date || <i />}</span><span><b>Sign. of Invigilator:</b> <i /></span></div>
     <div className="pp-meta"><b className="pp-times">{(paper.timeLines || []).map((line) => <span key={line}>{line}</span>)}</b><b>{subject}</b><b>Total Marks: {paper.totalMarks}</b></div>
   </header>;
 };
