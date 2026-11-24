@@ -50,8 +50,6 @@ function headerBlocks(k, paper, width, { group = "", logo = null } = {}) {
     const h = paper.header;
     const out = [];
     const line = (parts, tabs) => k.para(parts, { spacing: { before: 60, after: 60, line: 260 }, tabStops: tabs });
-    out.push(line([k.run("Name of Candidate: ", { bold: true }), k.run("_".repeat(34)), k.run("\tClass/Section: ", { bold: true }), k.run("_".repeat(14))], [{ type: TabStopType.LEFT, position: Math.round(width * 0.62) }]));
-    out.push(line([k.run("Roll No: ", { bold: true }), k.run("_".repeat(14)), k.run("\tDate: ", { bold: true }), k.run(h.date || "_".repeat(14)), k.run("\tSign. of Invigilator: ", { bold: true }), k.run("_".repeat(14))], [{ type: TabStopType.LEFT, position: Math.round(width * 0.32) }, { type: TabStopType.LEFT, position: Math.round(width * 0.62) }]));
     const centre = (value, size, extra = {}) => value ? k.para([k.run(value, { bold: true, size, ...extra })], { alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20, line: 260 } }) : null;
     const lines = [group ? centre(group, k.body + 4, { underline: {} }) : null, centre(h.schoolName, k.body + 6), centre(h.examName, k.body + 1)].filter(Boolean);
     const image = logo ? imageRun(logo, 46) : null;
@@ -61,6 +59,9 @@ function headerBlocks(k, paper, width, { group = "", logo = null } = {}) {
             new TableCell({ borders: NO_BORDERS, width: { size: width - 900, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER, children: lines }),
         ] })] }));
     } else out.push(...lines);
+    // The candidate's lines come after the school name and paper title.
+    out.push(line([k.run("Name of Candidate: ", { bold: true }), k.run("_".repeat(34)), k.run("\tClass/Section: ", { bold: true }), k.run("_".repeat(14))], [{ type: TabStopType.LEFT, position: Math.round(width * 0.62) }]));
+    out.push(line([k.run("Roll No: ", { bold: true }), k.run("_".repeat(14)), k.run("\tDate: ", { bold: true }), k.run(h.date || "_".repeat(14)), k.run("\tSign. of Invigilator: ", { bold: true }), k.run("_".repeat(14))], [{ type: TabStopType.LEFT, position: Math.round(width * 0.32) }, { type: TabStopType.LEFT, position: Math.round(width * 0.62) }]));
     const subject = [h.subjectTitle, h.className].filter(Boolean).join(" - ") + (paper.versionCount > 1 && paper.layout.mode !== "tear" ? `   Paper: ${paper.version}` : "");
     const times = paper.timeLines || [];
     out.push(k.para([k.run(times[0] || "", { bold: true }), k.run(`\t${subject}\t`, { bold: true }), k.run(`Total Marks: ${paper.totalMarks}`, { bold: true })], { spacing: { before: 80, after: times.length > 1 ? 0 : 80 }, tabStops: [{ type: TabStopType.CENTER, position: Math.round(width / 2) }, { type: TabStopType.RIGHT, position: width }] }));

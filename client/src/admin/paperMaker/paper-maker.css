@@ -11,7 +11,7 @@
 .pp-lines { display: flex; gap: 14px; margin-bottom: 6px; }
 .pp-lines span { display: flex; flex: 1; align-items: flex-end; gap: 4px; white-space: nowrap; }
 .pp-lines i { flex: 1; border-bottom: 1px solid #000; min-width: 40px; height: 12px; }
-.pp-title { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 8px 0 4px; text-align: center; }
+.pp-title { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 10px; text-align: center; }
 .pp-title img { width: 46px; height: 46px; object-fit: contain; }
 .pp-title > div { display: grid; }
 .pp-school { font-size: 1.25em; }
