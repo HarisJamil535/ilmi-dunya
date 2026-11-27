@@ -6,7 +6,7 @@ const svc = require("../services/coordService");
 const { isManager, roleIn, capsFor, fileFilter, canCreateFile, seesEverything } = require("../services/coordAccess");
 const { hashPassword } = require("../services/passwords");
 const { FONTS, fontKey } = require("../services/coordFonts");
-const { buildRecords, classLabel } = require("../services/coordRecord");
+const { buildRecords, classLabel, attendeePeople } = require("../services/coordRecord");
 const { renderCoordinationPdf, measureFit } = require("../services/coordPdf");
 const { renderCoordinationDocx } = require("../services/coordDocx");
 const { readCoordinationDocx } = require("../services/coordImport");
@@ -337,6 +337,7 @@ exports.getWeek = wrap(async (req, res) => {
     res.json({
         success: true,
         attendees: record.attendees,
+        attendeePeople: await attendeePeople(file),
         people: await peopleFor(file),
         fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
         week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },

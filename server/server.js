@@ -103,6 +103,7 @@ const visitLimiter = rateLimit({
 
 // Uploaded images are cached by browsers for a year, so they are served before the API rate limit.
 app.get("/api/media/images/:id", require("./src/services/mediaStore").serveImage);
+app.get("/api/media/signatures/:id/:ink.png", require("./src/services/mediaStore").serveSignature);
 app.use("/api", limits.apiLimiter);
 // Public lists that every visitor reads; cleared immediately when an admin changes content.
 for (const route of ['/api/boards', '/api/classes', '/api/groups', '/api/subjects', '/api/chapters', '/api/topics/chapter', '/api/home-content', '/api/pba']) app.use(route, microCache());

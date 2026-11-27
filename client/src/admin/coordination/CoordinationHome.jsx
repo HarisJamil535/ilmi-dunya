@@ -291,7 +291,7 @@ export default function CoordinationHome() {
       </div>
     </header>
 
-    {(me.title || !overview.canManage) && <InboxPanel hasSignature={me.hasSignature} onSigned={load} />}
+    {(me.title || !overview.canManage) && <InboxPanel hasSignature={me.hasSignature} ink={me.title === "sectionHead" ? "pink" : "blue"} onSigned={load} />}
 
     {overview.canManage && <div className="coord-filters" role="tablist" aria-label="Coordination sections">
       <button type="button" role="tab" aria-selected={tab === "files"} onClick={() => setTab("files")}><FolderOpen className="h-4 w-4" />Files<span>{files.length}</span></button>
@@ -312,7 +312,7 @@ export default function CoordinationHome() {
     {downloadFile && <DownloadDialog fileId={downloadFile.id} title={`${downloadFile.subject.name} ${downloadFile.subject.className}`} onClose={() => setDownloadFile(null)} />}
     {dialog === "new" && <NewFileDialog overview={overview} onClose={() => setDialog("")} onCreated={(id) => { setDialog(""); navigate(`/admin/coordination/${id}`); }} />}
     {dialog === "settings" && <SettingsDialog onClose={() => setDialog("")} />}
-    {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} onSaved={load} />}
+    {dialog === "signature" && <SignatureDialog ink={me.title === "sectionHead" ? "pink" : "blue"} onClose={() => setDialog("")} onSaved={load} />}
     <ConfirmModal isOpen={Boolean(confirm)} tone="danger" title="Delete this coordination file?" description={confirm ? `${confirm.subject.name} ${confirm.subject.className} (${confirm.session}) and all its weeks, comments and history will be deleted. This cannot be undone.` : ""} confirmLabel="Delete file" onConfirm={() => remove(confirm)} onClose={() => setConfirm(null)} />
   </div>;
 }

@@ -51,6 +51,8 @@ const weekSchema = new mongoose.Schema({
         coordinator: { type: signatureSchema, default: undefined },
         sectionHead: { type: signatureSchema, default: undefined },
         principal: { type: signatureSchema, default: undefined },
+        // Attendance: department members (teachers, the coordinator) sign beside their name in the attendee list.
+        members: { type: [signatureSchema], default: undefined },
     },
     verifyCode: { type: String, index: true, sparse: true },
     fingerprint: String,
