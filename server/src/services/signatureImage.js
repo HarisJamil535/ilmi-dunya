@@ -51,12 +51,31 @@ function cleanSignature(buffer) {
 const INKS = { blue: [29, 78, 216], pink: [219, 39, 119], navy: [16, 24, 64] };
 const inkFor = (slot) => (slot === "sectionHead" ? "pink" : "blue");
 const tinted = new Map();
-function tintSignature(buffer, ink = "blue") {
+// Thickness: the ink is shrunk (thin) or grown (bold, heavy) by a pixel or two.
+const GROW = { thin: -1, normal: 0, bold: 1, heavy: 2 };
+function reshapeAlpha(png, grow) {
+    if (!grow) return;
+    const { width: w, height: h, data } = png;
+    const r = Math.abs(grow), pick = grow > 0 ? Math.max : Math.min;
+    const alpha = new Uint8Array(w * h);
+    for (let p = 0; p < w * h; p++) alpha[p] = data[p * 4 + 3];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let v = alpha[y * w + x];
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (dx * dx + dy * dy > r * r + r) continue;
+            const xx = x + dx, yy = y + dy;
+            v = pick(v, xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : alpha[yy * w + xx]);
+        }
+        data[(y * w + x) * 4 + 3] = v;
+    }
+}
+function tintSignature(buffer, ink = "blue", weight = "normal") {
     const rgb = INKS[ink] || INKS.blue;
-    const key = `${ink}:${buffer.length}:${buffer.subarray(-64).toString("base64")}`;
+    const key = `${ink}:${weight}:${buffer.length}:${buffer.subarray(-64).toString("base64")}`;
     if (tinted.has(key)) return tinted.get(key);
     let png;
     try { png = PNG.sync.read(buffer); } catch { return buffer; }
+    reshapeAlpha(png, GROW[weight] || 0);
     for (let i = 0; i < png.data.length; i += 4) { png.data[i] = rgb[0]; png.data[i + 1] = rgb[1]; png.data[i + 2] = rgb[2]; }
     const out = PNG.sync.write(png);
     if (tinted.size > 300) tinted.delete(tinted.keys().next().value);
@@ -64,4 +83,4 @@ function tintSignature(buffer, ink = "blue") {
     return out;
 }
 
-module.exports = { cleanSignature, tintSignature, inkFor, INKS };
+module.exports = { cleanSignature, tintSignature, inkFor, INKS, GROW };

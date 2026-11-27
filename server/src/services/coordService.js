@@ -143,13 +143,13 @@ async function replaceCells(week, admin, flat, note) {
 
 // The stored signature shown in the signer's ink (blue for members, pink for the Section Head).
 const { inkFor } = require("./signatureImage");
-const inkUrl = (url, ink) => { const m = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(url || ""); return m ? `/api/media/signatures/${m[1]}/${ink}.png` : url; };
+const inkUrl = (url, ink, weight) => { const m = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(url || ""); return m ? `/api/media/signatures/${m[1]}/${ink}${weight && weight !== "normal" ? `-${weight}` : ""}.png` : url; };
 
 const fingerprintOf = (week) => crypto.createHash("sha256").update(JSON.stringify(flatCells(week.cells))).digest("hex");
 
 function signatureOf(admin) {
     if (!admin.signatureUrl) fail("Add your e-signature first (My signature), then sign.", 409);
-    return { admin: admin._id, name: displayName(admin), imageUrl: admin.signatureUrl, at: new Date() };
+    return { admin: admin._id, name: displayName(admin), imageUrl: admin.signatureUrl, weight: admin.signatureWeight || "normal", at: new Date() };
 }
 
 async function changeStatus({ weekId, admin, action }) {
@@ -206,7 +206,7 @@ async function changeStatus({ weekId, admin, action }) {
 
 const publicSignatures = (week) => {
     const s = week.signatures || {};
-    const one = (x, slot) => (x && x.admin ? { name: x.name, imageUrl: inkUrl(x.imageUrl, inkFor(slot)), at: x.at, admin: String(x.admin), ink: inkFor(slot) } : null);
+    const one = (x, slot) => (x && x.admin ? { name: x.name, imageUrl: inkUrl(x.imageUrl, inkFor(slot), x.weight), at: x.at, admin: String(x.admin), ink: inkFor(slot) } : null);
     return { coordinator: one(s.coordinator, "coordinator"), sectionHead: one(s.sectionHead, "sectionHead"), principal: one(s.principal, "principal"), members: (s.members || []).map((m) => one(m, "member")).filter(Boolean) };
 };
 

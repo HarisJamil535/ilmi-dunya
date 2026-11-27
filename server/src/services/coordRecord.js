@@ -7,7 +7,7 @@ const Admin = require("../models/Admin");
 const { fileTitle, departmentNameOf } = require("./coordSubjects");
 const { displayName } = require("./coordPeople");
 const { tintSignature } = require("./signatureImage");
-const inked = (image, ink) => (image ? tintSignature(image, ink) : null);
+const inked = (image, ink, weight) => (image ? tintSignature(image, ink, weight) : null);
 
 // The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
 // (as in the school's form: "1. Section Head  2. Ms. Ammara  3. Ms. Tahniyat"). Files without a department
@@ -77,12 +77,12 @@ async function buildRecords(file, weeks, settings) {
             pageNumber: index + 1,
             pageCount: weeks.length,
             verifyUrl: approved ? `${siteOrigin()}/verify/coordination/${week.verifyCode}` : "",
-            attendeeSignatures: people ? await Promise.all(people.map(async (p) => { const s = attendeeSignature(p, sig); const image = s && await picture(s.imageUrl); return image ? { image: tintSignature(image, s.ink), at: s.at } : null; })) : [],
+            attendeeSignatures: people ? await Promise.all(people.map(async (p) => { const s = attendeeSignature(p, sig); const image = s && await picture(s.imageUrl); return image ? { image: tintSignature(image, s.ink, s.weight), at: s.at } : null; })) : [],
             assets: {
                 watermark,
-                coordinator: sig.coordinator?.imageUrl ? { image: inked(await picture(sig.coordinator.imageUrl), "blue"), at: sig.coordinator.at } : null,
-                sectionHead: sig.sectionHead?.imageUrl ? { image: inked(await picture(sig.sectionHead.imageUrl), "pink"), at: sig.sectionHead.at } : null,
-                principal: sig.principal?.imageUrl ? { image: inked(await picture(sig.principal.imageUrl), "blue"), at: sig.principal.at } : null,
+                coordinator: sig.coordinator?.imageUrl ? { image: inked(await picture(sig.coordinator.imageUrl), "blue", sig.coordinator.weight), at: sig.coordinator.at } : null,
+                sectionHead: sig.sectionHead?.imageUrl ? { image: inked(await picture(sig.sectionHead.imageUrl), "pink", sig.sectionHead.weight), at: sig.sectionHead.at } : null,
+                principal: sig.principal?.imageUrl ? { image: inked(await picture(sig.principal.imageUrl), "blue", sig.principal.weight), at: sig.principal.at } : null,
                 qr: approved && file.showQr ? await QRCode.toBuffer(`${siteOrigin()}/verify/coordination/${week.verifyCode}`, { type: "png", margin: 0, width: 240, errorCorrectionLevel: "M" }) : null,
             },
         });

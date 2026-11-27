@@ -50,7 +50,9 @@ const adminSchema = new mongoose.Schema(
             enum: ["active", "disabled"],
             default: "active",
         },
-        signatureUrl: { type: String, default: "" }, // e-signature picture for coordination records
+        signatureUrl: { type: String, default: "" },
+        // How thick the signature prints: thin, normal, bold or heavy (the stored picture is not changed).
+        signatureWeight: { type: String, enum: ["thin", "normal", "bold", "heavy"], default: "normal" }, // e-signature picture for coordination records
         // Coordination staff: a teacher or subject coordinator belongs to one department; the Section Head and
         // the Principal see every department.
         salutation: { type: String, enum: ["", "Mr.", "Ms.", "Mrs.", "Miss", "Dr.", "Sir", "Madam"], default: "" }, // shown before the name

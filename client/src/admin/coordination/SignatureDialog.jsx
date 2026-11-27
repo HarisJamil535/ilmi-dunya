@@ -16,8 +16,8 @@ const WEIGHTS = [
 ];
 const STORE_INK = "#101840"; // dark ink on white is what the server expects; it recolours when printing
 const WEIGHT_KEY = "coord-signature-weight";
-const savedWeight = () => { try { return localStorage.getItem(WEIGHT_KEY) || "normal"; } catch { return "normal"; } };
-const inkUrl = (url, ink) => { const m = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(url || ""); return m ? `/api/media/signatures/${m[1]}/${ink}.png` : url; };
+const savedPen = () => { try { return localStorage.getItem(WEIGHT_KEY) || "normal"; } catch { return "normal"; } };
+const inkUrl = (url, ink, weight = "normal") => { const m = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(url || ""); return m ? `/api/media/signatures/${m[1]}/${ink}${weight !== "normal" ? `-${weight}` : ""}.png` : url; };
 
 // Smooth strokes: each segment is a curve through the midpoints, so fast finger movements stay round.
 function paintStrokes(ctx, strokes, width, color) {
@@ -76,8 +76,9 @@ const toBlob = (c) => new Promise((resolve) => c.toBlob(resolve, "image/png"));
 export default function SignatureDialog({ onClose, onSaved, signLabel = "", ink = "blue", onRemove }) {
   const color = INK[ink] || INK.blue;
   const [current, setCurrent] = useState("");
+  const [stored, setStored] = useState({ loaded: "normal", chosen: "normal" }); // thickness of the saved signature
   const [mode, setMode] = useState("draw");
-  const [weight, setWeight] = useState(savedWeight);
+  const [weight, setWeight] = useState(savedPen);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [strokes, setStrokes] = useState([]);
@@ -87,7 +88,7 @@ export default function SignatureDialog({ onClose, onSaved, signLabel = "", ink 
   const live = useRef(null); // the stroke being drawn
   const w = WEIGHTS.find((x) => x.key === weight) || WEIGHTS[1];
 
-  useEffect(() => { api.get("/me/signature").then((d) => setCurrent(d.signatureUrl)).catch(() => {}); }, []);
+  useEffect(() => { api.get("/me/signature").then((d) => { setCurrent(d.signatureUrl); const w0 = d.weight || "normal"; setStored({ loaded: w0, chosen: w0 }); }).catch(() => {}); }, []);
   useEffect(() => { try { localStorage.setItem(WEIGHT_KEY, weight); } catch { /* private mode */ } }, [weight]);
 
   // The pad is redrawn from the saved strokes, so turning the phone or changing the thickness keeps the drawing.
@@ -155,28 +156,40 @@ export default function SignatureDialog({ onClose, onSaved, signLabel = "", ink 
   const removeSaved = async () => { setBusy(true); try { await api.del("/me/signature"); setCurrent(""); onSaved?.(""); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); } };
 
   const ready = mode === "draw" ? strokes.length > 0 : Boolean(photo);
+  // With nothing new drawn, the thickness buttons change how the saved signature prints.
+  const tuningSaved = Boolean(current) && !ready;
+  const activeWeight = tuningSaved ? stored.chosen : weight;
+  const pickWeight = (key) => (tuningSaved ? setStored((s) => ({ ...s, chosen: key })) : setWeight(key));
+  const useSaved = async () => {
+    setBusy(true); setError("");
+    try {
+      if (stored.chosen !== stored.loaded) { await api.patch("/me/signature", { weight: stored.chosen }); setStored((s) => ({ ...s, loaded: s.chosen })); }
+      if (signLabel) { onSaved?.(current); onClose(); }
+    } catch (e) { setError(messageOf(e, "The thickness could not be saved. Please try again.")); } finally { setBusy(false); }
+  };
   const saveLabel = signLabel ? `Save & ${signLabel}` : "Save signature";
 
   return <Dialog title="My e-signature" subtitle={signLabel ? "Your signature goes on this week's record as soon as you save it." : "Used whenever you sign a weekly record. Only you can sign with it."} onClose={onClose} busy={busy}
     footer={<>
       <AdminActionButton variant="secondary" onClick={onClose} disabled={busy}>Cancel</AdminActionButton>
-      {current && signLabel && !ready && <AdminActionButton icon={PenLine} disabled={busy} onClick={() => { onSaved?.(current); onClose(); }}>Use my signature &amp; {signLabel}</AdminActionButton>}
+      {current && signLabel && !ready && <AdminActionButton icon={PenLine} loading={busy} onClick={useSaved}>Use my signature &amp; {signLabel}</AdminActionButton>}
+      {current && !signLabel && !ready && stored.chosen !== stored.loaded && <AdminActionButton icon={PenLine} loading={busy} onClick={useSaved}>Save thickness</AdminActionButton>}
       {(ready || !current || !signLabel) && <AdminActionButton icon={PenLine} loading={busy} disabled={!ready} onClick={mode === "draw" ? saveDrawing : savePhoto}>{saveLabel}</AdminActionButton>}
     </>}>
     {current && <div className="sig-current" style={{ "--ink": color }}>
-      <img src={inkUrl(current, ink)} alt="Your current signature" />
+      <img src={inkUrl(current, ink, stored.chosen)} alt="Your current signature" />
       <span>Current signature<small>{ink === "pink" ? "Pink ink (Section Head)" : "Blue ink"}</small></span>
       {onRemove && <button type="button" onClick={onRemove} disabled={busy} className="sig-link is-danger"><RotateCcw className="h-3.5 w-3.5" />Remove from this week</button>}
       {!onRemove && <button type="button" onClick={removeSaved} disabled={busy} className="sig-link is-danger"><Trash2 className="h-3.5 w-3.5" />Delete</button>}
     </div>}
-    {current && signLabel && <p className="text-xs font-semibold text-slate-500">Use your current signature, or draw a new one below to replace it.</p>}
+    {current && <p className="text-xs font-semibold text-slate-500">{tuningSaved ? "Choose the thickness for your current signature (the preview above changes), or draw a new one below." : "Your new signature will replace the current one."}</p>}
 
     <div className="sig-toolbar">
       <div role="tablist" className="sig-tabs">
         {[["draw", "Draw", PenLine], ["upload", "Photo", ImageUp]].map((tab) => { const [key, label, Icon] = tab; return <button key={key} role="tab" aria-selected={mode === key} type="button" onClick={() => setMode(key)}><Icon className="h-4 w-4" />{label}</button>; })}
       </div>
       <div className="sig-weights" role="radiogroup" aria-label="Line thickness">
-        {WEIGHTS.map((x) => <button key={x.key} type="button" role="radio" aria-checked={weight === x.key} title={x.label} onClick={() => setWeight(x.key)} style={{ "--ink": color }}><i style={{ height: Math.max(1.5, x.pen) }} /><span>{x.label}</span></button>)}
+        {WEIGHTS.map((x) => <button key={x.key} type="button" role="radio" aria-checked={activeWeight === x.key} title={x.label} onClick={() => pickWeight(x.key)} style={{ "--ink": color }}><i style={{ height: Math.max(1.5, x.pen) }} /><span>{x.label}</span></button>)}
       </div>
     </div>
 

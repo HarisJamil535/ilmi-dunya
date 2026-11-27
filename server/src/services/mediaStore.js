@@ -42,11 +42,12 @@ async function readImage(path) {
 // A stored signature in a given ink (see signatureImage.js), for the record on screen and the verify page.
 async function serveSignature(req, res, next) {
     try {
-        if (!mongoose.isValidObjectId(req.params.id) || !["blue", "pink", "navy"].includes(req.params.ink)) return res.sendStatus(404);
+        const [ink, weight = "normal"] = String(req.params.ink).split("-");
+        if (!mongoose.isValidObjectId(req.params.id) || !["blue", "pink", "navy"].includes(ink) || !["thin", "normal", "bold", "heavy"].includes(weight)) return res.sendStatus(404);
         const file = await bucket().find({ _id: new mongoose.Types.ObjectId(req.params.id) }).next();
         if (!file || file.metadata?.purpose !== "signature") return res.sendStatus(404);
         const { tintSignature } = require("./signatureImage");
-        const png = tintSignature(await readImage(`/api/media/images/${req.params.id}`), req.params.ink);
+        const png = tintSignature(await readImage(`/api/media/images/${req.params.id}`), ink, weight);
         res.type("png").set("Cache-Control", "public, max-age=31536000, immutable").removeHeader("X-Robots-Tag");
         res.send(png);
     } catch (error) { next(error); }

@@ -35,6 +35,7 @@ const signatureSchema = new mongoose.Schema({
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     name: String,
     imageUrl: String,
+    weight: String,
     at: Date,
 }, { _id: false });
 
