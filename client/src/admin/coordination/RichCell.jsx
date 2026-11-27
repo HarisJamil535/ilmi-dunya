@@ -3,7 +3,7 @@ import { MessageSquare } from "lucide-react";
 
 // One editable box of the record. The text is managed by the browser (contenteditable) while the person
 // types; changes from other people replace it only when this box is not being edited here.
-export default function RichCell({ cellKey, html, editable, holder, single = false, placeholder = "", comments = 0, onFocusCell, onInputCell, onBlurCell, onComments, className = "", label }) {
+export default function RichCell({ cellKey, html, editable, holder, single = false, placeholder = "", comments = 0, onFocusCell, onInputCell, onBlurCell, onComments, className = "", label, dir }) {
   const ref = useRef(null);
   const first = useRef(true);
   useLayoutEffect(() => {
@@ -34,6 +34,7 @@ export default function RichCell({ cellKey, html, editable, holder, single = fal
       aria-label={label}
       aria-multiline={!single}
       data-cell={cellKey}
+      dir={dir}
       data-placeholder={placeholder}
       contentEditable={editable && !locked}
       suppressContentEditableWarning

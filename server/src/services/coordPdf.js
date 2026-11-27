@@ -6,6 +6,7 @@ const { DAYS, COLUMNS, WIDTHS } = require("./coordTemplate");
 // line breaks and how big the text can be: the text size is lowered step by step until the week fits on
 // one page (it never spills onto a second page).
 const { fontKey: pageFontKey, registerPdfFonts } = require("./coordFonts");
+const { printLabels, dayName, columnName, isRtlText } = require("./coordLang");
 const PAGE = { w: 841.89, h: 595.28 };
 const M = { top: 22, side: 36, bottom: 18 };
 const SIZES = [9.5, 9, 8.5, 8, 7.5, 7, 6.75, 6.5, 6.25, 6, 5.75, 5.5, 5.25, 5];
@@ -15,9 +16,20 @@ const SCALE = { s: 0.86, m: 1, l: 1.2 };
 
 // The page font is set per week before it is laid out; a run may choose its own font (run.f).
 let pageFont = "arial";
+// Urdu records: right to left, Nastaleeq. Nastaleeq needs taller lines and reads best a little larger.
+let rtl = false;
+let L = printLabels("en");
+let lang = "en";
+const LINE_UR = 1.85;
+const UR_SCALE = 1.12;
+const lineFactor = () => (rtl ? LINE_UR : LINE);
 const styleOf = (run) => (run.b && run.i ? "bi" : run.b ? "b" : run.i ? "i" : "r");
 const F = (style) => `${pageFont}-${style}`;
-const useFont = (doc, run, size) => doc.font(`${run.f || pageFont}-${styleOf(run)}`).fontSize(size * (SCALE[run.z] || 1));
+const useFont = (doc, run, size) => {
+    const family = run.f || pageFont;
+    const style = family === "urdu" ? (run.b ? "b" : "r") : styleOf(run);
+    return doc.font(`${family}-${style}`).fontSize(size * (SCALE[run.z] || 1) * (family === "urdu" ? UR_SCALE : 1));
+};
 
 // Breaks paragraphs into lines that fit `width`. Each line is a list of pieces { text, run, x, w }.
 function layout(doc, paragraphs, width, size, { base = {} } = {}) {
@@ -34,9 +46,9 @@ function layout(doc, paragraphs, width, size, { base = {} } = {}) {
         const tokens = [];
         for (const run of p.runs || []) {
             const style = { ...base, ...run };
-            for (const part of run.t.split(/(\s+)/)) if (part) tokens.push({ text: part, run: style, space: /^\s+$/.test(part) });
+            for (const part of run.t.split(/(\s+)/)) if (part) tokens.push({ text: part, run: rtl && !run.f ? { ...style, f: isRtlText(part) || /^\s+$/.test(part) ? "urdu" : "arial" } : style, space: /^\s+$/.test(part) });
         }
-        const height = (pieces) => Math.max(size, ...pieces.map((x) => size * (SCALE[x.run.z] || 1))) * LINE;
+        const height = (pieces) => Math.max(size, ...pieces.map((x) => size * (SCALE[x.run.z] || 1))) * lineFactor();
         let line = []; let x = 0;
         const push = (first) => {
             while (line.length && line[line.length - 1].space) line.pop();
@@ -44,7 +56,7 @@ function layout(doc, paragraphs, width, size, { base = {} } = {}) {
             line = []; x = 0;
         };
         let first = true;
-        if (!tokens.length) { lines.push({ pieces: [], indent, marker, align: "left", width: 0, h: size * LINE }); continue; }
+        if (!tokens.length) { lines.push({ pieces: [], indent, marker, align: "left", width: 0, h: size * lineFactor() }); continue; }
         for (const token of tokens) {
             useFont(doc, token.run, size);
             let w = doc.widthOfString(token.text);
@@ -81,15 +93,29 @@ const linesHeight = (lines) => lines.reduce((sum, l) => sum + l.h, 0);
 function drawLines(doc, lines, x, y, width, size) {
     let top = y;
     for (const line of lines) {
+        // Right to left: the page is mirrored when drawn, which puts words in Urdu order. A run of English
+        // words (a link, "AFL", a date) inside Urdu must still read left to right, so it is flipped back.
+        if (rtl) {
+            const pieces = line.pieces;
+            for (let i = 0; i < pieces.length;) {
+                if (pieces[i].space || pieces[i].run.f !== "arial") { i++; continue; }
+                let j = i;
+                while (j + 1 < pieces.length && (pieces[j + 1].run.f === "arial" || (pieces[j + 1].space && pieces[j + 2]?.run.f === "arial"))) j++;
+                const gs = pieces[i].x, ge = pieces[j].x + pieces[j].w;
+                for (let k = i; k <= j; k++) pieces[k].vx = ge - (pieces[k].x - gs) - pieces[k].w;
+                i = j + 1;
+            }
+        }
         const offset = line.align === "center" ? (width - line.indent - line.width) / 2 : line.align === "right" ? width - line.indent - line.width : 0;
-        if (line.marker) { doc.font(F("r")).fontSize(size).fillColor("#000").text(line.marker, x, top + (line.h - size * LINE), { lineBreak: false }); }
+        if (line.marker) { doc.font(rtl ? "arial-r" : F("r")).fontSize(size).fillColor("#000").text(line.marker, x, top + (line.h - size * lineFactor()), { lineBreak: false }); }
         for (const piece of line.pieces) {
-            const px = x + line.indent + offset + piece.x;
+            const px = x + line.indent + offset + (piece.vx ?? piece.x);
             const s = size * (SCALE[piece.run.z] || 1);
-            const baselineTop = top + (line.h - s * LINE);
-            if (piece.run.h) doc.save().rect(px, baselineTop, piece.w, s * LINE).fill(piece.run.h).restore();
+            const baselineTop = top + (line.h - s * lineFactor());
+            if (piece.run.h) doc.save().rect(px, baselineTop, piece.w, s * lineFactor()).fill(piece.run.h).restore();
             useFont(doc, piece.run, size).fillColor(piece.run.c || "#000").text(piece.text, px, baselineTop, { lineBreak: false });
-            if (piece.run.u) doc.save().lineWidth(0.5).strokeColor(piece.run.c || "#000").moveTo(px, baselineTop + s * 1.02).lineTo(px + piece.w, baselineTop + s * 1.02).stroke().restore();
+            const under = rtl ? s * 1.62 : s * 1.02;
+            if (piece.run.u) doc.save().lineWidth(0.5).strokeColor(piece.run.c || "#000").moveTo(px, baselineTop + under).lineTo(px + piece.w, baselineTop + under).stroke().restore();
             if (piece.run.s) doc.save().lineWidth(0.5).strokeColor(piece.run.c || "#000").moveTo(px, baselineTop + s * 0.6).lineTo(px + piece.w, baselineTop + s * 0.6).stroke().restore();
         }
         top += line.h;
@@ -109,22 +135,23 @@ function plan(doc, record, size) {
     const inner = (w) => w - PAD.x * 2;
     const block = (paragraphs, w) => { const lines = layout(doc, paragraphs, inner(w), size); return { lines, h: linesHeight(lines) + PAD.y * 2 }; };
 
-    const subjectLine = [{ list: "", align: "left", runs: [{ t: "Subject: ", b: true }, ...(c.subject[0]?.runs || []).map((r) => ({ ...r, u: true }))] }];
-    const topicLine = [{ list: "", align: "left", runs: [{ t: "Topic: ", b: true }, ...(c.topic[0]?.runs || []).map((r) => ({ ...r }))] }, ...c.topic.slice(1)];
-    const periodsLine = [{ list: "", align: "left", runs: [{ t: "Periods per week ", b: true }, ...(c.periods[0]?.runs || [])] }];
+    const subjectLine = [{ list: "", align: "left", runs: [{ t: `${L.subject} `, b: true }, ...(c.subject[0]?.runs || []).map((r) => ({ ...r, u: true }))] }];
+    const topicLine = [{ list: "", align: "left", runs: [{ t: `${L.topic} `, b: true }, ...(c.topic[0]?.runs || []).map((r) => ({ ...r }))] }, ...c.topic.slice(1)];
+    const periodsLine = [{ list: "", align: "left", runs: [{ t: `${L.periods} `, b: true }, ...(c.periods[0]?.runs || [])] }];
     const half = width * 0.38;
     const rowSubject = { a: block(subjectLine, half), b: block(topicLine, width - half), p: block(periodsLine, half) };
     rowSubject.h = Math.max(rowSubject.a.h + rowSubject.p.h - PAD.y * 2, rowSubject.b.h);
-    const rowBrought = block(join([label("Topics brought forward (if any):", { b: false })], c.broughtForward), width);
-    const headers = COLUMNS.map(([, name], i) => block([{ list: "", align: "center", runs: [{ t: name, b: true }] }], cols[i]));
+    const rowBrought = block(join([label(L.broughtForward, { b: false })], c.broughtForward), width);
+    const headers = COLUMNS.map(([column], i) => block([{ list: "", align: "center", runs: [{ t: columnName(lang, column), b: true }] }], cols[i]));
     const headerH = Math.max(...headers.map((h) => h.h));
-    const days = DAYS.map(([key, name]) => {
+    const days = DAYS.map(([key]) => {
+        const name = dayName(lang, key);
         const cells = COLUMNS.map(([column], i) => (i === 0 ? block([label(name, { b: false }), ...c[`${key}.period`]], cols[0]) : block(c[`${key}.${column}`], cols[i])));
         return { cells, h: Math.max(...cells.map((x) => x.h)) };
     });
-    const rowExtra = block(join([{ list: "", align: "left", runs: [{ t: "Strategies for Learners requiring extra assistance:", i: true }] }], c.extraHelp), width);
-    const teacher = block(join([label("Teacher Responsible for Preparing lesson Plan:", { b: false })], c.teacher), width);
-    const attendeesTitle = block([label("Attendees of Coordination Meeting:", { b: false })], width);
+    const rowExtra = block(join([{ list: "", align: "left", runs: [{ t: L.extraHelp, i: !rtl }] }], c.extraHelp), width);
+    const teacher = block(join([label(L.teacher, { b: false })], c.teacher), width);
+    const attendeesTitle = block([label(L.attendees, { b: false })], width);
     // Any number of attendees, four to a line: "1. Section Head   2. Ms. Ammara   3. Ms. Tahniyat"
     const names = record.attendees?.length ? record.attendees : ["", "", "", ""];
     // Department attendees sign beside their name: the name takes the left part of its column and a
@@ -135,14 +162,14 @@ function plan(doc, record, size) {
     // whole list still fits on one line.
     const stacked = signing && per > 4;
     const nameW = signing && !stacked ? ATTENDEE_W(width, per) * NAME_SHARE : ATTENDEE_W(width, per);
-    const attendees = names.map((name, i) => block([{ list: "", align: "left", runs: [{ t: `${i + 1}. ` }, ...(name ? [{ t: name }] : [])] }], nameW));
+    const attendees = names.map((name, i) => block([{ list: "", align: "left", runs: [{ t: rtl ? `${i + 1}۔ ` : `${i + 1}. ` }, ...(name ? [{ t: rtl && name === "Section Head" ? L.sectionHead : name }] : [])] }], nameW));
     const attendeeRows = [];
     for (let i = 0; i < attendees.length; i += per) attendeeRows.push(stacked ? Math.max(...attendees.slice(i, i + per).map((a) => a.h - PAD.y * 2)) + size * SIGN_LINES : Math.max(signing ? size * SIGN_LINES : 0, ...attendees.slice(i, i + per).map((a) => a.h - PAD.y * 2)));
     const attendeesH = attendeeRows.reduce((a, b) => a + b, 0) + PAD.y * 2;
     const rowPeople = { h: teacher.h + attendeesTitle.h + attendeesH - PAD.y * 4 };
     const leftW = cols.slice(0, 3).reduce((a, b) => a + b, 0);
-    const dateA = block(join([label("Date of submission of the Lesson Plan to the Sec Head:", { b: false })], c.submitDate), leftW);
-    const dateB = block(join([label("Date of distribution of the finalized Lesson Plan to the Teachers:", { b: false })], c.distributeDate), width - leftW);
+    const dateA = block(join([label(L.submitDate, { b: false })], c.submitDate), leftW);
+    const dateB = block(join([label(L.distributeDate, { b: false })], c.distributeDate), width - leftW);
     const rowDates = { h: Math.max(dateA.h, dateB.h) };
 
     const fixed = rowSubject.h + rowBrought.h + headerH + rowExtra.h + rowPeople.h + rowDates.h;
@@ -161,7 +188,10 @@ const CAPTION_H = 14;
 const FOOT_H = 34;
 
 function choosePlan(doc, record) {
-    pageFont = pageFontKey(record.font);
+    lang = record.lang === "ur" ? "ur" : "en";
+    rtl = lang === "ur";
+    L = printLabels(lang);
+    pageFont = rtl ? "urdu" : pageFontKey(record.font);
     const room = PAGE.h - M.top - M.bottom - HEAD_H - SIGN_H - (record.caption ? CAPTION_H : 0) - FOOT_H;
     for (const size of SIZES) {
         const p = plan(doc, record, size);
@@ -175,10 +205,100 @@ function underlineField(doc, x, y, labelText, value, width, size) {
     doc.font(F("b")).fontSize(size).fillColor("#000").text(labelText, x, y, { lineBreak: false });
     const lw = doc.widthOfString(labelText) + 3;
     doc.font(F("r")).fontSize(size).text(value || "", x + lw + 2, y, { lineBreak: false, width: width - lw, ellipsis: true });
-    doc.save().lineWidth(0.6).moveTo(x + lw, y + size + 1.2).lineTo(x + width, y + size + 1.2).stroke().restore();
+    const ly = y + size * (rtl ? 1.45 : 1) + 1.2;
+    doc.save().lineWidth(0.6).moveTo(x + lw, ly).lineTo(x + width, ly).stroke().restore();
+}
+
+// Draws an Urdu page: every position is mirrored (x -> page width - x - width), so the same layout code
+// produces a right-to-left page. Text keeps its own direction: Urdu words are shaped right to left by the
+// font, a phrase of several Urdu words is drawn word by word from the right, English stays left to right.
+const URDU_LIFT = 0.56; // Nastaleeq has a very tall ascent; this lifts it to sit like the other fonts
+const LATIN_DROP = 0.6; // English and numbers among Urdu sit on the Urdu baseline
+const flipBrackets = (word) => word.replace(/[()[\]{}]/g, (c) => ({ "(": ")", ")": "(", "[": "]", "]": "[", "{": "}", "}": "{" }[c]));
+// In Urdu text a range of numbers ("2026-2027") reads right to left: 2026 on the right, as Word shows it.
+const flipRange = (text) => (/^\d+(?:-\d+)+$/.test(text) ? text.split("-").reverse().join("-") : text);
+const isUrduFont = (doc) => /nastaliq/i.test(doc._font?.name || "");
+function mirrorPage(doc) {
+    const W = PAGE.w;
+    const orig = { text: doc.text, moveTo: doc.moveTo, lineTo: doc.lineTo, rect: doc.rect, image: doc.image };
+    // English words and numbers inside Urdu are drawn in Arial (the Nastaleeq font would run them right to left).
+    const latinFont = () => (/bold/i.test(doc._font?.name || "") ? "arial-b" : "arial-r");
+    const withLatin = (fn) => {
+        if (!isUrduFont(doc)) return fn(0);
+        const font = doc._font, size = doc._fontSize;
+        doc.font(latinFont()).fontSize(size / UR_SCALE * (size > 0 ? 1 : 1));
+        try { return fn(0); } finally { doc._font = font; doc._fontSize = size; }
+    };
+    // Brackets in Urdu words take their mirrored shape, as Word and browsers show them.
+    const textAt = (str, x, y, opts) => orig.text.call(doc, isRtlText(str) ? flipBrackets(str) : str, x, y, opts);
+    // A phrase with several words, right to left; runs of English words keep their own order.
+    const phrase = (str, right, y) => {
+        const tokens = String(str).split(/(\s+)/).filter(Boolean);
+        const items = [];
+        for (const t of tokens) {
+            const latin = !/^\s+$/.test(t) && !isRtlText(t);
+            const last = items[items.length - 1];
+            if (last && last.latin && (latin || (/^\s+$/.test(t)))) { last.text += t; continue; }
+            items.push({ text: t, latin });
+        }
+        let cursor = right;
+        for (const item of items) {
+            const text = item.latin ? item.text.replace(/\s+$/, "") : item.text;
+            const trailing = item.latin ? item.text.slice(text.length) : "";
+            const lift = isUrduFont(doc) ? doc._fontSize * URDU_LIFT : 0;
+            if (item.latin) {
+                const w = withLatin(() => { const lw = doc.widthOfString(text); textAt(flipRange(text), cursor - lw, y + lift + doc._fontSize * LATIN_DROP, { lineBreak: false }); return lw; });
+                cursor -= w + (trailing ? doc.widthOfString(trailing) : 0);
+                continue;
+            }
+            const w = doc.widthOfString(text);
+            if (!/^\s+$/.test(text)) textAt(text, cursor - w, y, { lineBreak: false });
+            cursor -= w;
+        }
+    };
+    const phraseWidth = (str) => String(str).split(/(\s+)/).filter(Boolean).reduce((sum, t) => sum + (!/^\s+$/.test(t) && !isRtlText(t) ? withLatin(() => doc.widthOfString(t)) : doc.widthOfString(t)), 0);
+    doc.text = function text(str, x, y, opts = {}) {
+        if (typeof x !== "number") return orig.text.call(doc, str, x, y, opts);
+        const s = String(str ?? "");
+        const lift = isUrduFont(doc) ? doc._fontSize * URDU_LIFT : 0;
+        const natural = isUrduFont(doc) && isRtlText(s) && /\s/.test(s.trim()) ? phraseWidth(s) : doc.widthOfString(s);
+        const boxW = opts.width ?? natural;
+        const X = W - x - boxW;
+        const align = opts.align === "right" ? "left" : opts.align === "center" ? "center" : "right";
+        if (isRtlText(s) && /\s/.test(s.trim())) {
+            const used = Math.min(natural, boxW);
+            const left = opts.width === undefined ? X : align === "left" ? X : align === "center" ? X + (boxW - used) / 2 : X + boxW - used;
+            phrase(s, left + used, y - lift);
+            return doc;
+        }
+        if (lift && !isRtlText(s)) {
+            // A number or English text on its own (e.g. "6", "Ms. Malaika"): Arial, measured in Arial.
+            return withLatin(() => {
+                const lw = doc.widthOfString(s);
+                const X2 = opts.width === undefined ? W - x - lw : X;
+                return textAt(flipRange(s), X2, y + doc._fontSize * LATIN_DROP, opts.width === undefined ? opts : { ...opts, align });
+            });
+        }
+        const yy = lift ? y - lift : y + doc._fontSize * LATIN_DROP; // English in Arial on an Urdu page
+        if (opts.width === undefined) return textAt(lift ? s : flipRange(s), X, yy, opts);
+        return textAt(s, X, yy, { ...opts, align });
+    };
+    doc.moveTo = function moveTo(x, y) { return orig.moveTo.call(doc, W - x, y); };
+    doc.lineTo = function lineTo(x, y) { return orig.lineTo.call(doc, W - x, y); };
+    doc.rect = function rect(x, y, w, h) { return orig.rect.call(doc, W - x - w, y, w, h); };
+    doc.image = function image(src, x, y, opts = {}) {
+        const w = opts.fit ? opts.fit[0] : opts.width || 0;
+        return orig.image.call(doc, src, W - x - w, y, opts);
+    };
+    return () => Object.assign(doc, orig);
 }
 
 function drawWeek(doc, record, assets) {
+    const restore = record.lang === "ur" ? mirrorPage(doc) : null;
+    try { return drawWeekPage(doc, record, assets); } finally { restore?.(); }
+}
+
+function drawWeekPage(doc, record, assets) {
     const p = choosePlan(doc, record);
     const { size, width, cols } = p;
     const x0 = M.side;
@@ -197,11 +317,12 @@ function drawWeek(doc, record, assets) {
     doc.font(F("b")).fontSize(11).fillColor("#000");
     const titleW = doc.widthOfString(record.title);
     doc.text(record.title, (PAGE.w - titleW) / 2, y, { lineBreak: false });
-    doc.save().lineWidth(0.8).moveTo((PAGE.w - titleW) / 2, y + 12.2).lineTo((PAGE.w + titleW) / 2, y + 12.2).stroke().restore();
+    const titleLine = y + (rtl ? 17.5 : 12.2);
+    doc.save().lineWidth(0.8).moveTo((PAGE.w - titleW) / 2, titleLine).lineTo((PAGE.w + titleW) / 2, titleLine).stroke().restore();
     y += 22;
-    underlineField(doc, x0 + 18, y, "Week:", plain("week"), 120, 8.5);
-    underlineField(doc, x0 + width * 0.5 - 30, y, "Class:", plain("className"), 90, 8.5);
-    underlineField(doc, x0 + width - 150, y, "No. of Sections:", plain("sections"), 150, 8.5);
+    underlineField(doc, x0 + 18, y, L.week, plain("week"), rtl ? 230 : 120, 8.5);
+    underlineField(doc, x0 + width * 0.5 - 30, y, L.className, plain("className"), 90, 8.5);
+    underlineField(doc, x0 + width - 150, y, L.sections, plain("sections"), 150, 8.5);
     y = M.top + HEAD_H;
 
     // Table.
@@ -271,12 +392,12 @@ function drawWeek(doc, record, assets) {
         if (sig?.image) { try { doc.image(sig.image, sx + 4, signY + 1, { fit: [lineW - 8, 21], align: "center", valign: "bottom" }); } catch { /* skip */ } }
     };
     if (assets.principal) {
-        signLine(x0 + width * 0.02, "Sign: Subject Coordinator:", assets.coordinator, 130);
-        signLine(x0 + width * 0.40, "SH Sign:", assets.sectionHead, 130);
-        signLine(x0 + width * 0.68, "Principal Sign:", assets.principal, 130);
+        signLine(x0 + width * 0.02, L.signCoordinator, assets.coordinator, 130);
+        signLine(x0 + width * 0.40, L.signSectionHead, assets.sectionHead, 130);
+        signLine(x0 + width * 0.68, L.signPrincipal, assets.principal, 130);
     } else {
-        signLine(x0 + width * 0.12, "Sign: Subject Coordinator:", assets.coordinator, 150);
-        signLine(x0 + width * 0.56, "SH Sign:", assets.sectionHead, 150);
+        signLine(x0 + width * 0.12, L.signCoordinator, assets.coordinator, 150);
+        signLine(x0 + width * 0.56, L.signSectionHead, assets.sectionHead, 150);
     }
 
     let fy = signY + SIGN_H;
@@ -292,9 +413,9 @@ function drawWeek(doc, record, assets) {
     let textX = x0;
     if (assets.qr) { doc.image(assets.qr, x0, footY - 2, { width: 28, height: 28 }); textX += 32; }
     doc.font(F("r")).fontSize(7).fillColor("#000").text(record.footerText || "", textX, footY + 16, { lineBreak: false });
-    doc.font(F("b")).fontSize(7).text(`Page ${record.pageNumber} of ${record.pageCount}`, x0 + width - 120, footY + 16, { width: 120, align: "right", lineBreak: false });
+    doc.font(F("b")).fontSize(7).text(L.page(record.pageNumber, record.pageCount), x0 + width - 120, footY + 16, { width: 120, align: "right", lineBreak: false });
     if (record.status !== "approved") {
-        doc.font(F("b")).fontSize(6.5).fillColor("#9a3412").text(record.status === "submitted" ? "SUBMITTED — AWAITING SECTION HEAD APPROVAL" : "DRAFT — NOT YET SIGNED", x0, footY + 16, { width, align: "center", lineBreak: false });
+        doc.font(F("b")).fontSize(6.5).fillColor("#9a3412").text(record.status === "submitted" ? L.submitted : L.draft, x0, footY + 16, { width, align: "center", lineBreak: false });
     }
     return { size, overflow: p.overflow, dayHeights: p.days.map((d) => d.h + dayBonus) };
 }
@@ -321,7 +442,7 @@ async function renderCoordinationPdf(records, { title = "Coordination record" } 
 // Results are remembered for identical content, so many people opening the same week cost one layout.
 const fitCache = new Map();
 function measureFit(record) {
-    const key = require("node:crypto").createHash("sha1").update(JSON.stringify([record.cells, record.font, record.attendees, record.title, record.caption])).digest("base64");
+    const key = require("node:crypto").createHash("sha1").update(JSON.stringify([record.cells, record.font, record.attendees, record.title, record.caption, record.lang])).digest("base64");
     if (fitCache.has(key)) return fitCache.get(key);
     const result = measureFitNow(record);
     fitCache.set(key, result);

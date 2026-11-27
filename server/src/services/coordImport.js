@@ -110,9 +110,17 @@ function beforeLabel(paragraphs, pattern) {
     }
     return out;
 }
-const singleLine = (paragraphs) => [{ list: "", align: "left", runs: [{ t: textOf(paragraphs) }] }].filter((p) => p.runs[0].t);
+// One line of text; a line of underscores (a blank to fill in on paper) counts as empty.
+const singleLine = (paragraphs) => [{ list: "", align: "left", runs: [{ t: textOf(paragraphs).replace(/_{2,}/g, " ").replace(/\s+/g, " ").trim() }] }].filter((p) => p.runs[0].t);
 
 const COLUMN_RULES = [
+    // Urdu forms (Urdu, Islamiyat, Tarjuma-tul-Quran)
+    [/ذیلی\s*موضوع/, "subTopics"],
+    [/دن|پیریڈ/, "period"],
+    [/طریق/, "methods"],
+    [/وسائل/, "resources"],
+    [/حکمت/, "afl"],
+    [/کلاس\s*ورک|ہوم\s*ورک|اسائنمنٹ|پراجیکٹ/, "work"],
     [/period\s*wise|break-?\s*up/i, "subTopics"],
     [/day|period/i, "period"],
     [/sub[\s-]*topic|topic/i, "subTopics"],
@@ -122,7 +130,12 @@ const COLUMN_RULES = [
     [/cw|hw|assign|project|home\s*work|class\s*work/i, "work"],
 ];
 const columnKey = (text) => COLUMN_RULES.find(([pattern]) => pattern.test(text))?.[1] || null;
-const DAY_NAMES = DAYS.map(([key, name]) => [key, new RegExp(`^\\s*${name}\\b`, "i")]);
+const URDU_DAY = { mon: "پیر", tue: "منگل", wed: "بدھ", thu: "جمعرات", fri: "جمعہ" };
+const DAY_NAMES = [...DAYS.map(([key, name]) => [key, new RegExp(`^\\s*${name}\\b`, "i")]), ...DAYS.map(([key]) => [key, new RegExp(`^\\s*${URDU_DAY[key]}(?![\\u0600-\\u06FF])`)])];
+const dayPattern = (day) => new RegExp(`^\\s*(?:${DAYS.find(([k]) => k === day)[1]}|${URDU_DAY[day]})\\s*`, "i");
+// "پہلا" (first), "دوسرا" (second)... as week numbers.
+const URDU_ORDINALS = ["پہلا", "دوسرا", "تیسرا", "چوتھا", "پانچواں", "چھٹا", "ساتواں", "آٹھواں", "نواں", "دسواں", "گیارہواں", "بارہواں", "تیرہواں", "چودہواں", "پندرہواں", "سولہواں", "سترہواں", "اٹھارہواں", "انیسواں", "بیسواں"];
+const URDU_DIGITS = (t) => String(t || "").replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
 
 function parseTable(tblXml, lists, before) {
     const cells = {};
@@ -142,6 +155,32 @@ function parseTable(tblXml, lists, before) {
             cells.periods = singleLine(afterLabel(all, /periods per week\s*:?/i));
             continue;
         }
+        if (/مضمون\s*:/.test(rowText)) {
+            cells.subject = singleLine(beforeLabel(afterLabel(all, /مضمون\s*:/), /ہفتہ وار\s*پیریڈز|موضوع\s*:/));
+            cells.topic = afterLabel(all, /موضوع\s*:/);
+            cells.periods = singleLine(beforeLabel(afterLabel(all, /پیریڈز\s*:?/), /موضوع\s*:/));
+            continue;
+        }
+        if (/گزشتہ\s*ہفتے|آگے آنے والے/.test(rowText)) { const after = afterLabel(all, /\(اگر کوئی ہوں\)\s*:?/); cells.broughtForward = after.length ? after : afterLabel(all, /موضوعات\s*:?/); continue; }
+        if (/اضافی\s*معاونت/.test(rowText)) { const after = afterLabel(all, /عملیاں\s*:/); cells.extraHelp = after.length ? after : afterLabel(all, /متقاضی طلبہ کے لیے\s*:?/); continue; }
+        if (/ذمہ\s*دار\s*استاد|شرکاء/.test(rowText)) {
+            if (/ذمہ\s*دار\s*استاد/.test(rowText)) cells.teacher = singleLine(beforeLabel(afterLabel(all, /استاد\s*:?/), /رابطہ اجلاس|شرکاء/));
+            if (/شرکاء/.test(rowText)) {
+                // "1۔شاہد طارق | 2۔ ذکیہ عطا | 3۔ سیکشن ہیڈ | 4۔"
+                const list = URDU_DIGITS(rowText.slice(rowText.search(/شرکاء/) + 5)).replace(/\s*\|\s*/g, " ");
+                for (const m of list.matchAll(/(?:^|\s)([1-4])\s*[.)۔-]\s*(.*?)(?=\s+[1-4]\s*[.)۔-]|$)/g)) {
+                    const name = m[2].replace(/_+/g, "").replace(/^[:\s]+/, "").trim();
+                    if (name) cells[`attendee${m[1]}`] = singleLine([{ runs: [{ t: name }] }]);
+                }
+            }
+            continue;
+        }
+        if (/جمع کرانے کی تاریخ|تقسیم کرنے کی تاریخ/.test(rowText)) {
+            if (/جمع کرانے کی تاریخ/.test(rowText)) cells.submitDate = singleLine(beforeLabel(afterLabel(all, /جمع کرانے کی تاریخ\s*:?/), /حتمی\s*سبق|تقسیم کرنے/));
+            if (/تقسیم کرنے کی تاریخ/.test(rowText)) cells.distributeDate = singleLine(afterLabel(all, /تقسیم کرنے کی تاریخ\s*:?/));
+            continue;
+        }
+        if (/دستخط/.test(rowText) && !columnMap) continue;
         if (/brought forward|review of previous/i.test(rowText)) { cells.broughtForward = afterLabel(all, /(brought forward \(if any\)|brought forward|completion plan, if any\))\s*:?/i); continue; }
         // A heading row: most cells name a known column.
         const keys = row.map((c) => columnKey(textOf(c.paragraphs)));
@@ -187,7 +226,7 @@ function parseTable(tblXml, lists, before) {
             positioned.forEach((c, i) => {
                 const key = columnMap[i];
                 if (!c || !key) return;
-                if (key === "period") { const rest = afterLabel(c.paragraphs, new RegExp(`^\\s*${DAYS.find(([k]) => k === day)[1]}\\s*`, "i")); cells[`${day}.period`] = rest.length ? rest : DAY_NAMES.some(([, p]) => p.test(textOf(c.paragraphs))) ? [] : c.paragraphs; }
+                if (key === "period") { const rest = afterLabel(c.paragraphs, dayPattern(day)); cells[`${day}.period`] = rest.length ? rest : DAY_NAMES.some(([, p]) => p.test(textOf(c.paragraphs))) ? [] : c.paragraphs; }
                 else cells[`${day}.${key}`] = (cells[`${day}.${key}`] || []).concat(c.paragraphs);
             });
             continue;
@@ -206,7 +245,24 @@ function parseTable(tblXml, lists, before) {
     if (week) cells.week = [{ list: "", align: "left", runs: [{ t: week.replace(/_+/g, "").trim() }] }];
     if (className) cells.className = [{ list: "", align: "left", runs: [{ t: className.replace(/_+/g, "").trim() }] }];
     if (sections) cells.sections = [{ list: "", align: "left", runs: [{ t: sections.replace(/_+/g, "").trim() }] }];
-    const weekNumber = Number(/(\d{1,2})/.exec(week || "")?.[1]) || null;
+    let weekNumber = Number(/(\d{1,2})/.exec(week || "")?.[1]) || null;
+    // Urdu forms: Week / Class / Sections sit in a small table of their own, one per cell (joined with "¦").
+    if (/[\u0600-\u06FF]/.test(before)) {
+        weekNumber = null;
+        // A single line "ہفتہ: … جماعت: … سیکشنز کی تعداد: …" (as this app writes it) is split at its labels.
+        const parts = (before.includes("¦") ? before : before.replace(/(جماعت\s*:|سیکشنز کی تعداد\s*:)/g, "¦$1")).split("¦");
+        for (const part of parts.map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean)) {
+            if (/جماعت\s*:/.test(part)) { const v = part.replace(/^.*?جماعت\s*:\s*/, "").replace(/_+/g, "").trim(); if (v) cells.className = [{ list: "", align: "left", runs: [{ t: v }] }]; continue; }
+            if (/سیکشن/.test(part)) { const v = URDU_DIGITS(part).match(/\d+/)?.[0]; if (v) cells.sections = [{ list: "", align: "left", runs: [{ t: v }] }]; continue; }
+            if (/ہفتہ\s*:|تا|نومبر|دسمبر|جنوری|فروری|مارچ|اپریل|مئی|جون|جولائی|اگست|ستمبر|اکتوبر|پہلا|دوسرا|تیسرا|چوتھا/.test(part)) {
+                const v = part.replace(/^.*?ہفتہ\s*:\s*/, "").replace(/_+/g, "").trim();
+                if (v) cells.week = [{ list: "", align: "left", runs: [{ t: v }] }];
+                const ordinal = URDU_ORDINALS.findIndex((w) => new RegExp(`(^|\\s|:)${w}(\\s|:|$)`).test(part));
+                if (ordinal >= 0) weekNumber = ordinal + 1;
+                else { const n = /ہفتہ\s*(?:نمبر)?\s*:?\s*(\d{1,2})(?!\s*(?:نومبر|دسمبر|جنوری|فروری|مارچ|اپریل|مئی|جون|جولائی|اگست|ستمبر|اکتوبر))/.exec(URDU_DIGITS(part)); if (n) weekNumber = Number(n[1]); }
+            }
+        }
+    }
     const clean = {};
     for (const [key, value] of Object.entries(cells)) clean[key] = normalise(value);
     return { cells: clean, week: weekNumber, notes: notes.filter((n) => !/assess/i.test(n)).slice(0, 10) };
@@ -243,7 +299,12 @@ async function readCoordinationDocx(buffer) {
     for (const element of topLevel(body)) {
         if (element.startsWith("<w:tbl")) {
             const text = textOf(cellParagraphs(element, lists));
-            if (!/monday|methodolog|sub[\s-]*topic|period wise/i.test(text)) continue;
+            if (!/monday|methodolog|sub[\s-]*topic|period wise|ذیلی\s*موضوعات|طریقہ\s*ہائے\s*تدریس/i.test(text)) {
+                // A small table above the record (the Urdu form's Week / Class / Sections line): keep its cells.
+                const cellsText = children(element, "w:tr").flatMap((tr) => children(tr, "w:tc").map((tc) => textOf(cellParagraphs(tc, lists))));
+                if (cellsText.join("").trim() && cellsText.length <= 6) textBefore = ` ${cellsText.join(" ¦ ")} ¦`; // the title above it is not part of the week
+                continue;
+            }
             weeks.push(parseTable(element, lists, textBefore));
             textBefore = "";
             continue;

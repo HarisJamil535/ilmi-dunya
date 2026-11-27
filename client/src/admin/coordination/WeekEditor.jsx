@@ -8,7 +8,7 @@ import FontPicker from "./FontPicker";
 import AnnouncementCenter from "./AnnouncementCenter";
 import SidePanel from "./SidePanel";
 import { FormView, PageView } from "./PageView";
-import { LABELS } from "./pageLayout";
+import { LABELS, textFor } from "./pageLayout";
 import { useLiveWeek } from "./useLiveWeek";
 import { HIGHLIGHTS, TEXT_COLOURS, addPick, clearHighlight, run, size } from "./editorCommands";
 import { api, download, messageOf } from "./coordApi";
@@ -179,9 +179,10 @@ function WeekEditorView({ weekId }) {
     setTimeout(() => { if (activeEl.current === el && document.activeElement !== el) { activeEl.current = null; setActiveCell(""); } }, 150);
   };
   const cell = (key) => ({
-    cellKey: key, label: LABELS[key], html: cells[key] || "", editable: canEditCell(key), holder: holders[key], comments: openCounts[key] || 0,
+    cellKey: key, label: textFor(data?.lang).labels[key] || LABELS[key], html: cells[key] || "", editable: canEditCell(key), holder: holders[key], comments: openCounts[key] || 0,
     placeholder: data?.defaults?.[key] ? `${data.defaults[key]} (automatic)` : fillOnly && isEmpty(cells[key]) ? "Tap to add" : "",
     className: fillOnly && canEditCell(key) ? "is-fillable" : "",
+    dir: data?.lang === "ur" ? "auto" : undefined,
     onFocusCell, onInputCell: schedule, onBlurCell,
     onComments: (k) => { setOnlyCell(k); setTab("comments"); setPanel(true); },
   });
@@ -296,8 +297,8 @@ function WeekEditorView({ weekId }) {
       <span className="ce-sep" />
       <Swatches label="Text colour" colours={TEXT_COLOURS} onPick={(hex) => applyFormat(() => run("foreColor", hex))} />
       <Swatches label="Highlight" colours={HIGHLIGHTS} onPick={(hex) => applyFormat(() => run("hiliteColor", hex))} onClear={() => applyFormat(clearHighlight)} />
-      <FontPicker label="Page font" fonts={data.fonts} value={week.font} onPick={setPageFont} />
-      <FontPicker label="Font for selected text" fonts={data.fonts} value="" onPick={(key) => applyFormat(() => run("fontName", `Coord ${data.fonts.find((f) => f.key === key)?.label || "Arial"}`))} keepFocus />
+      {data.lang !== "ur" && <FontPicker label="Page font" fonts={data.fonts} value={week.font} onPick={setPageFont} />}
+      {data.lang !== "ur" && <FontPicker label="Font for selected text" fonts={data.fonts} value="" onPick={(key) => applyFormat(() => run("fontName", `Coord ${data.fonts.find((f) => f.key === key)?.label || "Arial"}`))} keepFocus />}
       <div className="ce-size" role="group" aria-label="Text size">{[["s", "Small"], ["m", "Normal"], ["l", "Large"]].map(([v, l]) => <button key={v} type="button" title={`${l} text`} onMouseDown={(e) => e.preventDefault()} onClick={() => applyFormat(() => size(v))}>{v === "s" ? "A-" : v === "m" ? "A" : "A+"}</button>)}</div>
       <span className="ce-sep" />
       <ToolButton icon={List} label="Bullet list" onClick={() => applyFormat(() => run("insertUnorderedList"))} />
@@ -319,12 +320,12 @@ function WeekEditorView({ weekId }) {
     <div className="ce-subbar">
       {canWrite && emptyKeys.length > 0 && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={nextEmpty} className="ce-next-empty" title="Jump to the next box that is still empty">Next empty box <b>{emptyKeys.length}</b></button>}
       {canWrite && picks.length > 0 && activeEl.current?.isContentEditable ? <div className="ce-picks" onMouseDown={(e) => e.preventDefault()}><span>Quick add:</span>{picks.map((p) => <button key={p} type="button" onClick={() => pick(p)}>+ {p}</button>)}</div>
-        : <p className="text-xs text-slate-500">{canWrite ? (activeCell ? `Editing: ${LABELS[activeCell]}` : fillOnly ? "Tap an empty box to fill it. Changes save automatically and appear for everyone at once." : "Click any box to type. Changes save automatically and appear for everyone at once.") : ""}</p>}
+        : <p className="text-xs text-slate-500">{canWrite ? (activeCell ? `Editing: ${textFor(data.lang).labels[activeCell] || LABELS[activeCell]}` : fillOnly ? "Tap an empty box to fill it. Changes save automatically and appear for everyone at once." : "Click any box to type. Changes save automatically and appear for everyone at once.") : ""}</p>}
       {fit && <span className={`ce-fit ${fit.overflow ? "is-over" : fit.size < 7 ? "is-tight" : ""}`} title="The record is always one A4 landscape page; text gets smaller as boxes fill up."><span style={{ width: `${Math.min(100, Math.round((fit.fullness || 0) * 100))}%` }} />{fitText}</span>}
     </div>
 
     <div className={`ce-main ${panel ? "with-panel" : ""}`}>
-      <div className="ce-canvas">{view === "page" ? <PageView cell={cell} settings={data.settings} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendeePeople : null} att={att} font={week.font} /> : <FormView cell={cell} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} attendees={file.department?.id ? data.attendeePeople : null} att={att} />}</div>
+      <div className="ce-canvas">{view === "page" ? <PageView lang={data.lang} title={data.pageTitle} cell={cell} settings={data.settings} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} fontPt={fit?.size} zoom={zoom} attendees={file.department?.id ? data.attendeePeople : null} att={att} font={week.font} /> : <FormView lang={data.lang} cell={cell} signatures={week.signatures} signSlot={signSlot} onSign={() => setDialog(`sign:${signAction}`)} meId={data.me.id} onUpdate={() => setDialog("sign:resign")} attendees={file.department?.id ? data.attendeePeople : null} att={att} />}</div>
       {panel && <><button type="button" className="cp-scrim" aria-label="Close panel" onClick={() => setPanel(false)} /><SidePanel flashId={flashId} tab={tab} setTab={setTab} data={data} comments={comments} setComments={setComments} activity={activity} onReload={load} activeCell={activeCell} onlyCell={onlyCell} setOnlyCell={setOnlyCell} focusCell={focusCell} /></>}
     </div>
 

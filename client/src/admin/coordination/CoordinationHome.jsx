@@ -129,6 +129,7 @@ function StaffTab({ overview, reload }) {
     setBusy(true);
     try { await api.post("/departments", { name: newDept }); setNewDept(""); reload(); toast(`${newDept} department added.`); } catch (e) { toast(messageOf(e), "error"); } finally { setBusy(false); }
   };
+  const setLanguage = async (d, language) => { try { await api.patch(`/departments/${d.id}`, { language }); reload(); toast(language === "ur" ? `${d.name} records are now in Urdu (right to left, Nastaleeq).` : `${d.name} records are now in English.`); } catch (e) { toast(messageOf(e), "error"); } };
   const rename = async () => { try { await api.patch(`/departments/${renaming.id}`, { name: renaming.name }); setRenaming(null); reload(); } catch (e) { toast(messageOf(e), "error"); } };
   const removeDept = async () => { try { await api.del(`/departments/${confirm.id}`); reload(); toast("Department deleted."); } catch (e) { toast(messageOf(e), "error"); } finally { setConfirm(null); } };
   const orgSlot = (key, label, Icon, hint) => {
@@ -157,6 +158,11 @@ function StaffTab({ overview, reload }) {
               {renaming?.id === d.id ? <div className="flex flex-1 gap-2"><input autoFocus className={`${inputClass} !min-h-9`} value={renaming.name} maxLength={60} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") rename(); if (e.key === "Escape") setRenaming(null); }} /><AdminActionButton className="!min-h-9" onClick={rename}>Save</AdminActionButton></div>
                 : <button type="button" onClick={() => setRenaming({ id: d.id, name: d.name })} className="min-w-0 text-left" title="Rename"><h3 className="truncate text-lg font-black text-slate-900">{d.name}</h3><p className="text-xs text-slate-500">{d.staff.length} staff · {d.files} file{d.files === 1 ? "" : "s"}</p></button>}
               {renaming?.id !== d.id && <button type="button" onClick={() => setConfirm(d)} aria-label={`Delete ${d.name}`} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+            </div>
+            <div className="coord-lang" role="radiogroup" aria-label={`Record language for ${d.name}`}>
+              <span>Record language</span>
+              <button type="button" role="radio" aria-checked={d.language !== "ur"} onClick={() => d.language === "ur" && setLanguage(d, "en")}>English</button>
+              <button type="button" role="radio" aria-checked={d.language === "ur"} onClick={() => d.language !== "ur" && setLanguage(d, "ur")} className="is-urdu">اُردو</button>
             </div>
             <div className="space-y-1"><p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Subject Coordinator</p>
               {coordinator ? <PersonRow person={coordinator} onEdit={() => setDialog({ person: coordinator })} /> : <button type="button" onClick={() => setDialog({ preset: { title: "coordinator", departmentId: d.id } })} className="coord-slot"><UserPlus className="h-4 w-4" />Add the Subject Coordinator</button>}
