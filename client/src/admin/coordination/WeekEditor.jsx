@@ -69,6 +69,7 @@ function WeekEditorView({ weekId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [cells, setCells] = useState({});
+  const [cellBy, setCellBy] = useState({}); // who last wrote in each box
   const [comments, setComments] = useState([]);
   const [activity, setActivity] = useState([]);
   const [activeCell, setActiveCell] = useState("");
@@ -90,7 +91,7 @@ function WeekEditorView({ weekId }) {
   const fitTimer = useRef(null);
 
   const load = useCallback(() => api.get(`/weeks/${weekId}`)
-    .then((d) => { setData(d); setCells(d.week.cells); setComments(d.comments); setActivity(d.activity); setFit(d.fit); setError(""); })
+    .then((d) => { setData(d); setCells(d.week.cells); setCellBy(d.week.cellBy || {}); setComments(d.comments); setActivity(d.activity); setFit(d.fit); setError(""); })
     .catch((e) => setError(messageOf(e))), [weekId]);
   useEffect(() => { load(); }, [load]);
   // Opened from a notification: show that comment (and its box) straight away.
@@ -109,7 +110,7 @@ function WeekEditorView({ weekId }) {
   const refreshFit = () => { clearTimeout(fitTimer.current); fitTimer.current = setTimeout(() => api.get(`/weeks/${weekId}/fit`).then((d) => setFit(d.fit)).catch(() => {}), 2500); };
 
   const live = useLiveWeek(weekId, {
-    onCell: ({ cell, html }) => { if (activeEl.current?.dataset.cell !== cell) setCells((c) => ({ ...c, [cell]: html })); refreshFit(); },
+    onCell: ({ cell, html, byId }) => { if (activeEl.current?.dataset.cell !== cell) setCells((c) => ({ ...c, [cell]: html })); if (byId) setCellBy((b) => ({ ...b, [cell]: byId })); refreshFit(); },
     onComment: (comment) => setComments((list) => (list.some((c) => c.id === comment.id) ? list.map((c) => (c.id === comment.id ? comment : c)) : [...list, comment])),
     onCommentDeleted: ({ id }) => setComments((list) => list.filter((c) => c.id !== id)),
     onActivity: (entry) => setActivity((list) => [entry, ...list.filter((a) => a.id !== entry.id)].slice(0, 80)),
@@ -125,7 +126,7 @@ function WeekEditorView({ weekId }) {
   const save = async (cell, html) => {
     setSaving("saving");
     const reply = await live.emit("edit", { cell, html });
-    if (reply.ok) { pending.current.delete(cell); setSaving(pending.current.size ? "saving" : "saved"); refreshFit(); return; }
+    if (reply.ok) { pending.current.delete(cell); setCellBy((b) => ({ ...b, [cell]: data?.me.id })); setCells((c) => ({ ...c, [cell]: html })); setSaving(pending.current.size ? "saving" : "saved"); refreshFit(); return; }
     if (reply.offline) {
       pending.current.set(cell, html);
       try { await api.put(`/weeks/${weekId}/cells`, { cells: [{ key: cell, html }] }); pending.current.delete(cell); setSaving("saved"); refreshFit(); }
@@ -146,6 +147,19 @@ function WeekEditorView({ weekId }) {
   };
 
   const editable = Boolean(data?.caps.edit && data?.week.status === "draft");
+  // Everyone else who can open the file may fill boxes that are still empty (and keep editing what they wrote).
+  const fillOnly = Boolean(!editable && data?.caps.fillEmpty && data?.week.status === "draft");
+  const canWrite = editable || fillOnly;
+  const isEmpty = (html) => !String(html || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+  const canEditCell = (key) => editable || (fillOnly && !data?.defaults?.[key] && (isEmpty(cells[key]) || cellBy[key] === data?.me.id || activeEl.current?.dataset.cell === key));
+  // Boxes still empty, in reading order (automatic ones like Week and Class are left out).
+  const emptyKeys = Object.keys(LABELS).filter((key) => !data?.defaults?.[key] && !["coordinatorName", "sectionHeadName"].includes(key) && !(data?.file?.department?.id && /^attendee\d$/.test(key)) && isEmpty(cells[key]));
+  const nextEmpty = () => {
+    const current = activeEl.current?.dataset.cell;
+    const from = current ? emptyKeys.indexOf(current) : -1;
+    const key = emptyKeys.find((k, i) => i > from && k !== current) || emptyKeys.find((k) => k !== current);
+    if (key) focusCell(key);
+  };
   const holders = useMemo(() => {
     const map = {};
     for (const p of live.people) if (p.cell && p.socketId !== live.me && p.adminId !== data?.me.id) map[p.cell] = p;
@@ -155,7 +169,7 @@ function WeekEditorView({ weekId }) {
 
   const onFocusCell = async (cell, el) => {
     activeEl.current = el; setActiveCell(cell);
-    if (!editable) return;
+    if (!el.isContentEditable) return;
     const reply = await live.emit("focus", { cell });
     if (reply && !reply.ok && reply.holder) { el.blur(); toast(`${reply.holder} is editing this box. Try again in a moment.`); }
   };
@@ -165,19 +179,20 @@ function WeekEditorView({ weekId }) {
     setTimeout(() => { if (activeEl.current === el && document.activeElement !== el) { activeEl.current = null; setActiveCell(""); } }, 150);
   };
   const cell = (key) => ({
-    cellKey: key, label: LABELS[key], html: cells[key] || "", editable, holder: holders[key], comments: openCounts[key] || 0,
-    placeholder: data?.defaults?.[key] ? `${data.defaults[key]} (automatic)` : "",
+    cellKey: key, label: LABELS[key], html: cells[key] || "", editable: canEditCell(key), holder: holders[key], comments: openCounts[key] || 0,
+    placeholder: data?.defaults?.[key] ? `${data.defaults[key]} (automatic)` : fillOnly && isEmpty(cells[key]) ? "Tap to add" : "",
+    className: fillOnly && canEditCell(key) ? "is-fillable" : "",
     onFocusCell, onInputCell: schedule, onBlurCell,
     onComments: (k) => { setOnlyCell(k); setTab("comments"); setPanel(true); },
   });
   const focusCell = (key) => { const el = document.querySelector(`[data-cell="${CSS.escape(key)}"]`); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.focus({ preventScroll: true }); } };
-  const applyFormat = (fn) => { const el = activeEl.current; if (!el || !editable) return; fn(); schedule(el.dataset.cell, el); };
+  const applyFormat = (fn) => { const el = activeEl.current; if (!el || !el.isContentEditable) return; fn(); schedule(el.dataset.cell, el); };
 
   const setPageFont = async (font) => {
     try { await api.patch(`/weeks/${weekId}`, { font }); await load(); refreshFit(); } catch (e) { toast(messageOf(e)); }
   };
   const pick = (item) => {
-    const el = activeEl.current; if (!el || !editable) return;
+    const el = activeEl.current; if (!el || !el.isContentEditable) return;
     addPick(el, item, PICK_GROUP(el.dataset.cell) !== "resources");
     schedule(el.dataset.cell, el);
     el.focus();
@@ -265,10 +280,12 @@ function WeekEditorView({ weekId }) {
 
     {/* Status banner */}
     {week.status !== "draft" && <div className={`ce-banner is-${week.status}`}>{week.status === "submitted" ? <>Submitted by {week.signatures.coordinator?.name}. Editing is paused while the Section Head reviews it.{caps.signSectionHead && " Approve it, or reopen it and comment on what to change."}</> : <>Approved and signed by {[week.signatures.sectionHead?.name, week.signatures.principal?.name].filter(Boolean).join(" and ") || "—"}. {file.showQr ? "The download carries a QR code anyone can scan to check it is genuine." : ""}</>}</div>}
-    {!caps.edit && <div className="ce-banner is-view">You can view, download and comment on this week. Ask the coordinator if you need to edit it.</div>}
+    {!caps.edit && (fillOnly
+      ? <div className="ce-banner is-fill"><span>You can fill the <b>empty boxes</b> (marked “Tap to add”). Boxes others have already filled stay as they are.</span>{emptyKeys.length > 0 && <button type="button" onClick={nextEmpty} className="ce-fill-next">Go to first empty box</button>}</div>
+      : <div className="ce-banner is-view">You can view, download and comment on this week. Ask the coordinator if you need to edit it.</div>)}
 
     {/* Toolbar */}
-    {editable && <div className="ce-toolbar" role="toolbar" aria-label="Text formatting">
+    {canWrite && <div className="ce-toolbar" role="toolbar" aria-label="Text formatting">
       <ToolButton icon={Undo2} label="Undo" onClick={() => applyFormat(() => run("undo"))} />
       <ToolButton icon={Redo2} label="Redo" onClick={() => applyFormat(() => run("redo"))} />
       <span className="ce-sep" />
@@ -296,12 +313,13 @@ function WeekEditorView({ weekId }) {
       <button type="button" onClick={() => setDialog("signature")} className="ce-text-btn"><PenLine className="h-4 w-4" />My signature</button>
       {activeCell && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setOnlyCell(activeCell); setTab("comments"); setPanel(true); }} className="ce-text-btn"><MessageSquare className="h-4 w-4" />Comment on this box</button>}
     </div>}
-    {!editable && <div className="ce-toolbar"><button type="button" onClick={() => setView(view === "page" ? "form" : "page")} className="ce-text-btn"><LayoutTemplate className="h-4 w-4" />{view === "page" ? "Form view" : "Page view"}</button><button type="button" onClick={() => setDialog("signature")} className="ce-text-btn"><PenLine className="h-4 w-4" />My signature</button></div>}
+    {!canWrite && <div className="ce-toolbar"><button type="button" onClick={() => setView(view === "page" ? "form" : "page")} className="ce-text-btn"><LayoutTemplate className="h-4 w-4" />{view === "page" ? "Form view" : "Page view"}</button><button type="button" onClick={() => setDialog("signature")} className="ce-text-btn"><PenLine className="h-4 w-4" />My signature</button></div>}
 
     {/* Quick picks and fit meter */}
     <div className="ce-subbar">
-      {editable && picks.length > 0 ? <div className="ce-picks" onMouseDown={(e) => e.preventDefault()}><span>Quick add:</span>{picks.map((p) => <button key={p} type="button" onClick={() => pick(p)}>+ {p}</button>)}</div>
-        : <p className="text-xs text-slate-500">{editable ? (activeCell ? `Editing: ${LABELS[activeCell]}` : "Click any box to type. Changes save automatically and appear for everyone at once.") : ""}</p>}
+      {canWrite && emptyKeys.length > 0 && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={nextEmpty} className="ce-next-empty" title="Jump to the next box that is still empty">Next empty box <b>{emptyKeys.length}</b></button>}
+      {canWrite && picks.length > 0 && activeEl.current?.isContentEditable ? <div className="ce-picks" onMouseDown={(e) => e.preventDefault()}><span>Quick add:</span>{picks.map((p) => <button key={p} type="button" onClick={() => pick(p)}>+ {p}</button>)}</div>
+        : <p className="text-xs text-slate-500">{canWrite ? (activeCell ? `Editing: ${LABELS[activeCell]}` : fillOnly ? "Tap an empty box to fill it. Changes save automatically and appear for everyone at once." : "Click any box to type. Changes save automatically and appear for everyone at once.") : ""}</p>}
       {fit && <span className={`ce-fit ${fit.overflow ? "is-over" : fit.size < 7 ? "is-tight" : ""}`} title="The record is always one A4 landscape page; text gets smaller as boxes fill up."><span style={{ width: `${Math.min(100, Math.round((fit.fullness || 0) * 100))}%` }} />{fitText}</span>}
     </div>
 

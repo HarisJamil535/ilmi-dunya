@@ -47,6 +47,7 @@ const weekSchema = new mongoose.Schema({
     dueDate: Date,
     status: { type: String, enum: ["draft", "submitted", "approved"], default: "draft" },
     cells: { type: mongoose.Schema.Types.Mixed, default: {} }, // key -> paragraphs (see coordRichText)
+    cellBy: { type: mongoose.Schema.Types.Mixed, default: {} }, // key -> id of the person who last wrote in that box
     rev: { type: Number, default: 0 },
     signatures: {
         coordinator: { type: signatureSchema, default: undefined },

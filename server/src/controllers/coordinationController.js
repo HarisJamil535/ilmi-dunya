@@ -340,7 +340,7 @@ exports.getWeek = wrap(async (req, res) => {
         attendeePeople: await attendeePeople(file),
         people: await peopleFor(file),
         fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
-        week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
+        week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), cellBy: svc.cellAuthors(week.cellBy), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },
         defaults: { week: `${week.week}${week.term ? ` (${week.term})` : ""}`, className: fileTitle(file, names.get(String(file.department || ""))).className, sections: file.sections, subject: fileTitle(file, names.get(String(file.department || ""))).subject },
         file: fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, [], directory, names), role, caps,
         me: { id: String(req.admin._id), name: displayName(req.admin), hasSignature: Boolean(req.admin.signatureUrl), signatureUrl: req.admin.signatureUrl || "" },

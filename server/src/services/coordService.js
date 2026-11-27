@@ -12,6 +12,8 @@ const fail = (message, status = 400) => { throw Object.assign(new Error(message)
 
 // Cells are stored nested ("mon.methods" -> cells.mon.methods).
 const getCell = (cells, key) => key.split(".").reduce((value, part) => (value && typeof value === "object" ? value[part] : undefined), cells || {}) || [];
+// Who wrote last in each box, flat ("mon.methods" -> admin id), for the editor.
+const cellAuthors = (cellBy) => { const out = {}; for (const key of KEYS) { const v = key.split(".").reduce((value, part) => (value && typeof value === "object" ? value[part] : undefined), cellBy || {}); if (typeof v === "string") out[key] = v; } return out; };
 const cellPath = (key) => `cells.${key}`;
 const flatCells = (cells) => { const out = {}; for (const key of KEYS) out[key] = getCell(cells, key); return out; };
 const htmlCells = (cells) => { const out = {}; for (const key of KEYS) out[key] = toHtml(getCell(cells, key)); return out; };
@@ -107,15 +109,21 @@ async function editCaps(weekId, admin) {
 async function saveCell({ weekId, admin, key, content }) {
     if (!KEYS.has(key)) fail("Unknown cell.");
     const { caps } = await editCaps(weekId, admin);
-    const week = await CoordinationWeek.findById(weekId).select(`status file rev ${cellPath(key)}`).lean();
+    const week = await CoordinationWeek.findById(weekId).select(`status file rev ${cellPath(key)} cellBy.${key}`).lean();
     if (!week) fail("This week was not found.", 404);
-    assertEditable(week, caps);
+    if (!caps.edit && caps.fillEmpty) {
+        // Fill-only: an empty box, or a box this person filled and nobody else has changed since.
+        if (week.status !== "draft") assertEditable(week, { edit: true });
+        const empty = !plainText(getCell(week.cells, key));
+        const mine = String(getCell(week.cellBy, key) || "") === String(admin._id);
+        if (!empty && !mine) fail("Someone has already filled this box. You can fill the empty boxes.", 403);
+    } else assertEditable(week, caps);
     const paragraphs = Array.isArray(content) ? normalise(content) : fromHtml(content);
     if (JSON.stringify(getCell(week.cells, key)) === JSON.stringify(paragraphs)) return { week, paragraphs, changed: false };
     await snapshotIfDue(week, admin);
     const updated = await CoordinationWeek.findOneAndUpdate(
         { _id: week._id, status: "draft" },
-        { $set: { [cellPath(key)]: paragraphs, updatedBy: admin._id, lastEditAt: new Date() }, $inc: { rev: 1 } },
+        { $set: { [cellPath(key)]: paragraphs, [`cellBy.${key}`]: String(admin._id), updatedBy: admin._id, lastEditAt: new Date() }, $inc: { rev: 1 } },
         { returnDocument: "after" },
     );
     if (!updated) fail("This week was submitted a moment ago. Reopen it to make changes.", 409);
@@ -210,4 +218,4 @@ const publicSignatures = (week) => {
     return { coordinator: one(s.coordinator, "coordinator"), sectionHead: one(s.sectionHead, "sectionHead"), principal: one(s.principal, "principal"), members: (s.members || []).map((m) => one(m, "member")).filter(Boolean) };
 };
 
-module.exports = { fail, getCell, flatCells, htmlCells, nestCells, settings, accessWeek, accessFile, saveCell, replaceCells, changeStatus, snapshot, logActivity, publicActivity, publicSignatures, fingerprintOf, plainText };
+module.exports = { cellAuthors, fail, getCell, flatCells, htmlCells, nestCells, settings, accessWeek, accessFile, saveCell, replaceCells, changeStatus, snapshot, logActivity, publicActivity, publicSignatures, fingerprintOf, plainText };
