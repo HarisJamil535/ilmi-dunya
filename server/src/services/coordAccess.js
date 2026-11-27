@@ -36,6 +36,8 @@ function capsFor(role, admin) {
         signSectionHead: has("sectionHead"),
         signPrincipal: has("principal"),
         signMember: has("editor", "coordinator"),
+        // Anyone who can open the file (the Principal too) may fill a box that is still empty in a draft week.
+        fillEmpty: Boolean(role),
         reopen: manager || has("coordinator", "sectionHead"),
         manage: manager,
         // The Subject Coordinator, the Section Head and the Principal can delete one week or many.

@@ -525,3 +525,15 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .cr-attendees.is-stacked .cr-att { flex-direction: column; align-items: stretch; gap: 1px; }
 .cr-attendees.is-stacked .cr-att-name { flex: none; }
 .cr-attendees.is-stacked .cr-att-line { margin: 0 6px; }
+
+/* ----- Filling empty boxes ----- */
+.ce-banner.is-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #eef2ff; color: #3730a3; }
+.ce-fill-next, .ce-next-empty { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 10px; font-size: 12.5px; font-weight: 800; color: #fff; background: var(--brand-primary, #623fcd); box-shadow: 0 6px 14px -10px var(--brand-primary, #623fcd); }
+.ce-next-empty { color: var(--brand-primary-dark, #4d2faf); background: var(--brand-primary-soft, #f2effc); box-shadow: none; }
+.ce-next-empty b { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand-primary, #623fcd); color: #fff; font-size: 11px; }
+.cr-cell.is-fillable { position: relative; }
+.cr-cell.is-fillable .cr-edit:empty { min-height: 1.6em; border-radius: 4px; background: repeating-linear-gradient(135deg, rgba(99, 102, 241, .07) 0 6px, transparent 6px 12px); outline: 1.5px dashed rgba(99, 102, 241, .45); outline-offset: -2px; cursor: text; transition: background .2s ease; }
+.cr-cell.is-fillable .cr-edit:empty::before { color: #6366f1; font-weight: 700; }
+.cr-cell.is-fillable .cr-edit:focus { outline: 2px solid #6366f1; outline-offset: -2px; background: #fff; }
+.cf-field .cr-cell.is-fillable .cr-edit:empty { min-height: 44px; }
+@media print { .cr-cell.is-fillable .cr-edit:empty { background: none; outline: none; } .cr-cell.is-fillable .cr-edit:empty::before { content: none; } }
