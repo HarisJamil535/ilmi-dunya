@@ -179,7 +179,7 @@ export default function SignatureDialog({ onClose, onSaved, signLabel = "", ink 
     {current && <div className="sig-current" style={{ "--ink": color }}>
       <img src={inkUrl(current, ink, stored.chosen)} alt="Your current signature" />
       <span>Current signature<small>{ink === "pink" ? "Pink ink (Section Head)" : "Blue ink"}</small></span>
-      {onRemove && <button type="button" onClick={onRemove} disabled={busy} className="sig-link is-danger"><RotateCcw className="h-3.5 w-3.5" />Remove from this week</button>}
+      {onRemove && <button type="button" onClick={onRemove} disabled={busy} className="sig-link is-danger"><RotateCcw className="h-3.5 w-3.5" />Remove my signature from this week</button>}
       {!onRemove && <button type="button" onClick={removeSaved} disabled={busy} className="sig-link is-danger"><Trash2 className="h-3.5 w-3.5" />Delete</button>}
     </div>}
     {current && <p className="text-xs font-semibold text-slate-500">{tuningSaved ? "Choose the thickness for your current signature (the preview above changes), or draw a new one below." : "Your new signature will replace the current one."}</p>}

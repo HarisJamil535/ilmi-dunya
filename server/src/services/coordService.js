@@ -179,6 +179,22 @@ async function changeStatus({ weekId, admin, action }) {
         week.status = "approved";
         week.verifyCode = week.verifyCode || crypto.randomBytes(9).toString("base64url");
         week.fingerprint = fingerprintOf(week);
+    } else if (action === "unsign") {
+        // Anyone can take back a signature they added. The week steps back to match what is still signed:
+        // without the coordinator's signature it is a draft again; without an approving signature it waits
+        // for approval again.
+        const current = week.signatures?.toObject?.() || week.signatures || {};
+        const mine = (slot) => String(current[slot]?.admin || "") === String(admin._id);
+        const members = (current.members || []).filter((m) => String(m.admin) !== String(admin._id));
+        const removed = ["coordinator", "sectionHead", "principal"].filter(mine);
+        if (!removed.length && members.length === (current.members || []).length) fail("You have not signed this week.", 409);
+        const next = { ...current, members };
+        for (const slot of removed) delete next[slot];
+        week.signatures = next;
+        // Back to draft: the content can change again, so approvals given to the submitted week go too.
+        if (!next.coordinator?.admin) { week.status = "draft"; delete next.sectionHead; delete next.principal; week.signatures = next; }
+        else if (!next.sectionHead?.admin && !next.principal?.admin) week.status = "submitted";
+        if (week.status !== "approved") week.fingerprint = undefined;
     } else if (action === "attend" || action === "unattend") {
         // A department member signs (or removes their signature) beside their name in the attendee list.
         if (!caps.signMember) fail("Only members of this department can sign the attendance.", 403);
@@ -206,8 +222,8 @@ async function changeStatus({ weekId, admin, action }) {
     } else fail("Unknown action.");
     week.markModified("signatures");
     await week.save();
-    await snapshot(week, admin, { attend: "Signed the attendance", unattend: "Removed their attendance signature", resign: "Signature updated", submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
-    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened", resign: "updated their signature", attend: "signed the attendance", unattend: "removed their attendance signature" }[action]);
+    await snapshot(week, admin, { unsign: "Signature removed", attend: "Signed the attendance", unattend: "Removed their attendance signature", resign: "Signature updated", submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
+    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened", resign: "updated their signature", unsign: "removed their signature", attend: "signed the attendance", unattend: "removed their attendance signature" }[action]);
     hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: displayName(admin) });
     return { week, file };
 }
