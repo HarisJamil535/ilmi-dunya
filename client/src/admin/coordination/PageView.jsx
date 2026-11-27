@@ -43,6 +43,21 @@ function Attendees({ attendees, cellBox, signatures, att }) {
   })}</div>;
 }
 
+// A tap anywhere inside a table cell (not only on its first line) puts the cursor in that cell's box,
+// at the end of its text. Day cells are tall and their boxes start at the top, so this matters most on phones.
+function focusCellAt(e) {
+  if (e.target.closest('[contenteditable="true"], button, a, input, select, textarea')) return;
+  const td = e.target.closest("td");
+  const editors = td ? [...td.querySelectorAll('.cr-edit[contenteditable="true"]')] : [];
+  if (!editors.length) return;
+  // With several boxes in one cell, the one nearest the tap.
+  const y = e.clientY;
+  const editor = editors.reduce((best, el) => { const r = el.getBoundingClientRect(); const d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0; return d < best.d ? { el, d } : best; }, { el: editors[0], d: Infinity }).el;
+  editor.focus();
+  const range = document.createRange(); range.selectNodeContents(editor); range.collapse(false);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+}
+
 // The record exactly as printed: A4 landscape, scaled to fit the screen.
 export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", attendees, font = "arial", signSlot = "", onSign, meId = "", onUpdate, att }) {
   const upd = (slot) => (meId && signatures[slot]?.admin === meId ? onUpdate : null);
@@ -66,7 +81,7 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
         <span><b>Class:</b>{c("className", { single: true, className: "cr-u" })}</span>
         <span><b>No. of Sections:</b>{c("sections", { single: true, className: "cr-u" })}</span>
       </div>
-      <table className="cr-table">
+      <table className="cr-table" onClick={focusCellAt}>
         <colgroup>{WIDTHS.map((w, i) => <col key={i} style={{ width: `${(w / TOTAL) * 100}%` }} />)}</colgroup>
         <tbody>
           <tr><td colSpan={6} className="cr-subject">
