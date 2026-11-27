@@ -545,3 +545,26 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
    (phones otherwise "snap" a tap to the nearest box with text, often the wrong one). */
 .cr-table tr.cr-day > td > .cr-cell:only-child { display: flex; flex-direction: column; height: 100%; }
 .cr-table tr.cr-day > td > .cr-cell:only-child > .cr-edit { flex: 1 1 auto; }
+
+/* Department record language (English / Urdu). */
+.coord-lang { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11.5px; font-weight: 700; color: #64748b; }
+.coord-lang > span { margin-right: 4px; }
+.coord-lang button { min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; font-weight: 800; color: #475569; }
+.coord-lang button[aria-checked="true"] { border-color: var(--dept, #623fcd); background: var(--dept, #623fcd); color: #fff; }
+.coord-lang button.is-urdu { font-family: "Jameel Noori Nastaleeq", "Coord Nastaleeq", serif; font-size: 14px; line-height: 1; padding-top: 2px; }
+
+/* ----- Urdu records: right to left, Nastaleeq ----- */
+@font-face { font-family: "Coord Nastaleeq"; src: url("/api/paper-fonts/NotoNastaliqUrdu-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Coord Nastaleeq"; src: url("/api/paper-fonts/NotoNastaliqUrdu-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+.cr-page.pf-urdu, .cf-form.is-rtl .cr-edit, .cf-form.is-rtl h3, .cf-form.is-rtl .cf-label, .cf-form.is-rtl .cf-att-name { font-family: "Jameel Noori Nastaleeq", "Coord Nastaleeq", "Noto Nastaliq Urdu", serif !important; }
+.cr-page.is-rtl { line-height: 1.85; }
+.cr-page.is-rtl .cr-edit { font-size: 1.12em; line-height: 1.85; }
+.cr-page.is-rtl .cr-table td, .cr-page.is-rtl .cr-table th { text-align: right; }
+.cr-page.is-rtl .cr-head th { text-align: center; }
+.cr-page.is-rtl .cr-title { letter-spacing: 0; font-size: 1.35em; }
+.cr-page.is-rtl i, .cr-page.is-rtl em { font-style: normal; }
+.cf-form.is-rtl .cr-edit { font-size: 17px; line-height: 2; text-align: right; }
+.cf-form.is-rtl .cf-label { font-size: 15px; letter-spacing: 0; text-transform: none; }
+.cf-form.is-rtl h3 { font-size: 20px; line-height: 2; }
+.cf-form.is-rtl .cf-att-name { font-size: 16px; line-height: 1.9; }
+.cr-page.is-rtl [dir="ltr"], .cr-page.is-rtl .cr-edit:not(:empty) { unicode-bidi: plaintext; }

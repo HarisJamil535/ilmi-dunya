@@ -27,6 +27,7 @@ const TITLES = { teacher: "Teacher", coordinator: "Subject Coordinator", section
 const USERNAME = /^[a-z0-9][a-z0-9._@-]{2,59}$/;
 const SALUTATIONS = ["", "Mr.", "Ms.", "Mrs.", "Miss", "Dr.", "Sir", "Madam"];
 const { displayName } = require("../services/coordPeople");
+const { languageOf } = require("../services/coordLang");
 const { notify, publicNotification, peopleFor, validMentions } = require("../services/coordNotify");
 
 // Coordination staff grouped by department, plus the school-wide Section Head and Principal.
@@ -88,7 +89,7 @@ exports.overview = wrap(async (req, res) => {
         success: true,
         canManage: manager,
         me: { id: String(req.admin._id), name: displayName(req.admin), title: req.admin.coordTitle || "", titleLabel: TITLES[req.admin.coordTitle] || (manager ? "Manager" : ""), department: req.admin.coordDepartment ? String(req.admin.coordDepartment) : "", hasSignature: Boolean(req.admin.signatureUrl), canCreateFiles: manager || ["sectionHead", "coordinator"].includes(req.admin.coordTitle) },
-        departments: visible.map((d) => ({ id: String(d._id), name: d.name, files: fileCounts.get(String(d._id)) || 0, staff: manager || seesEverything(req.admin) || String(d._id) === String(req.admin.coordDepartment) ? directory.byDepartment.get(String(d._id)) || [] : [] })),
+        departments: visible.map((d) => ({ id: String(d._id), name: d.name, language: languageOf(d), files: fileCounts.get(String(d._id)) || 0, staff: manager || seesEverything(req.admin) || String(d._id) === String(req.admin.coordDepartment) ? directory.byDepartment.get(String(d._id)) || [] : [] })),
         org: directory.org,
         unassigned: manager ? (await CoordinationFile.countDocuments({ department: null })) : 0,
     });
@@ -108,11 +109,19 @@ exports.updateDepartment = wrap(async (req, res) => {
     if (!isManager(req.admin)) fail("Only the super admin can rename departments.", 403);
     const dept = await CoordinationDepartment.findById(id(req.params.id));
     if (!dept) fail("Not found.", 404);
-    const name = text(req.body.name, 60);
-    if (!name) fail("Write the department's name.");
-    const other = await CoordinationDepartment.findOne({ name, _id: { $ne: dept._id } }).collation({ locale: "en", strength: 2 });
-    if (other) fail(`The ${name} department already exists.`, 409);
-    dept.name = name; await dept.save();
+    // The record language (English or Urdu) can be changed on its own.
+    if (req.body.language !== undefined) {
+        if (!["en", "ur"].includes(req.body.language)) fail("Choose English or Urdu.");
+        dept.language = req.body.language;
+    }
+    if (req.body.name !== undefined) {
+        const name = text(req.body.name, 60);
+        if (!name) fail("Write the department's name.");
+        const other = await CoordinationDepartment.findOne({ name, _id: { $ne: dept._id } }).collation({ locale: "en", strength: 2 });
+        if (other) fail(`The ${name} department already exists.`, 409);
+        dept.name = name;
+    }
+    await dept.save();
     res.json({ success: true });
 });
 exports.deleteDepartment = wrap(async (req, res) => {
@@ -338,6 +347,8 @@ exports.getWeek = wrap(async (req, res) => {
         success: true,
         attendees: record.attendees,
         attendeePeople: await attendeePeople(file),
+        lang: record.lang || "en",
+        pageTitle: record.title,
         people: await peopleFor(file),
         fonts: Object.entries(FONTS).map(([key, f]) => ({ key, label: f.label })),
         week: { id: String(week._id), font: week.font || "arial", week: week.week, term: week.term, dueDate: week.dueDate, status: week.status, rev: week.rev, cells: svc.htmlCells(week.cells), cellBy: svc.cellAuthors(week.cellBy), signatures: svc.publicSignatures(week), verifyCode: week.status === "approved" ? week.verifyCode : "", lastEditAt: week.lastEditAt },

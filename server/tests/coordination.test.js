@@ -105,3 +105,32 @@ test("Excel import: the sample files read back correctly, and problems are repor
     const noHeadings = await writeXlsxFile([[{ value: "x", type: String }]]).toBuffer();
     await assert.rejects(imp.readRows(noHeadings, "topic"), /heading row/);
 });
+
+test("Urdu records: Urdu departments, right-to-left Word and PDF, and Urdu Word files import back", async () => {
+    const { languageOf } = require("../src/services/coordLang");
+    assert.equal(languageOf({ name: "Urdu" }), "ur");
+    assert.equal(languageOf({ name: "Islamiyat" }), "ur");
+    assert.equal(languageOf({ name: "Tarjuma tul Quran" }), "ur");
+    assert.equal(languageOf({ name: "Physics" }), "en");
+    assert.equal(languageOf({ name: "Urdu", language: "en" }), "en", "the department's own choice wins");
+    const cells = Object.fromEntries(keys.map((k) => [k, []]));
+    Object.assign(cells, {
+        week: fromHtml("پہلا : 10 نومبر تا 14 نومبر"), className: fromHtml("نہم"), sections: fromHtml("6"), subject: fromHtml("اُردو"), periods: fromHtml("4"),
+        topic: fromHtml("پیام لطیف، بلند خوانی"), "tue.subTopics": fromHtml("پرچہ جات پر تبادلہ خیال"), "tue.methods": fromHtml("تقریری اور باہمی تبادلہ خیال"),
+        "wed.resources": fromHtml("بورڈ، مارکر، ویڈیو لنک https://youtu.be/abc"), extraHelp: fromHtml("ہونہار طلبہ کے ساتھ نشست بندی"), teacher: fromHtml("شاہد طارق"), submitDate: fromHtml("6 نومبر"),
+    });
+    const record = { ...base, lang: "ur", title: "ہفتہ وار مضمونی رابطہ اجلاس ریکارڈ 2026-2027 (جماعت نہم – دہم)", footerText: "", caption: "", cells, attendees: ["Section Head", "شاہد طارق"], attendeeSignatures: [null, null] };
+    const { buffer, sizes } = await renderCoordinationPdf([record]);
+    assert.equal(pages(buffer), 1);
+    assert.equal(sizes[0].overflow, false);
+    const docx = await renderCoordinationDocx([record], { sizes });
+    const xml = await (await require("jszip").loadAsync(docx)).file("word/document.xml").async("string");
+    assert.match(xml, /<w:bidi\/>/, "paragraphs are right to left");
+    assert.match(xml, /<w:bidiVisual\/>/, "tables are right to left");
+    assert.match(xml, /Jameel Noori Nastaleeq/);
+    const [week] = await readCoordinationDocx(docx);
+    for (const [key, text] of [["tue.subTopics", "پرچہ جات پر تبادلہ خیال"], ["tue.methods", "تقریری اور باہمی تبادلہ خیال"], ["subject", "اُردو"], ["periods", "4"], ["teacher", "شاہد طارق"], ["className", "نہم"], ["extraHelp", "ہونہار طلبہ کے ساتھ نشست بندی"]]) {
+        assert.equal(plainText(week.cells[key]).replace(/\s+/g, " ").trim(), text, key);
+    }
+    assert.equal(week.week, 1, "پہلا is week 1");
+});

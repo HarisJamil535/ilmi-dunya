@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const QRCode = require("qrcode");
 const { readImage } = require("./mediaStore");
 const { fadeImage } = require("./watermark");
@@ -7,6 +8,7 @@ const Admin = require("../models/Admin");
 const { fileTitle, departmentNameOf } = require("./coordSubjects");
 const { displayName } = require("./coordPeople");
 const { tintSignature } = require("./signatureImage");
+const { languageOf, urduClass, urduSubject, URDU_TITLE } = require("./coordLang");
 const inked = (image, ink, weight) => (image ? tintSignature(image, ink, weight) : null);
 
 // The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
@@ -55,7 +57,11 @@ async function buildRecords(file, weeks, settings) {
     const session = file.session;
     const people = await attendeePeople(file);
     const departmentAttendees = people && people.map((p) => p.name);
-    const title = fileTitle(file, await departmentNameOf(file));
+    const departmentId = file.department?._id || file.department;
+    const department = departmentId ? await mongoose.model("CoordinationDepartment").findById(departmentId).select("name language").lean().catch(() => null) : null;
+    const lang = languageOf(department);
+    const title = fileTitle(file, department?.name || await departmentNameOf(file));
+    if (lang === "ur") { title.className = urduClass(title.className); title.subject = urduSubject(title.subject); }
     const records = [];
     for (const [index, week] of weeks.entries()) {
         const cells = flatCells(week.cells);
@@ -70,9 +76,10 @@ async function buildRecords(file, weeks, settings) {
             font: week.font || "arial",
             attendees: departmentAttendees || [1, 2, 3, 4].map((n) => plainText(cells[`attendee${n}`])),
             status: week.status,
-            title: (settings.title || "").replace("{session}", session),
-            footerText: (settings.footerText || "").replace("{session}", session),
-            caption: settings.caption || "",
+            lang,
+            title: (lang === "ur" ? URDU_TITLE : settings.title || "").replace("{session}", session),
+            footerText: lang === "ur" ? "" : (settings.footerText || "").replace("{session}", session),
+            caption: lang === "ur" ? "" : settings.caption || "",
             watermarkOpacity: settings.watermarkOpacity,
             pageNumber: index + 1,
             pageCount: weeks.length,
