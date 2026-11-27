@@ -152,6 +152,6 @@ export default function CoordinationFile() {
     {dialog === "delete" && <DownloadDialog mode="delete" fileId={file.id} title={`${file.subject.name} ${file.subject.className}`} weeks={data.weeks} onClose={() => setDialog("")} onDeleted={load} />}
     {deleting && <ConfirmModal isOpen tone="danger" title={`Delete week ${deleting.week}?`} description="Its content, comments and history will be deleted for everyone. This cannot be undone." confirmLabel="Delete week" onConfirm={() => removeWeek(deleting)} onClose={() => setDeleting(null)} />}
     {dialog === "download" && <DownloadDialog fileId={file.id} title={`${file.subject.name} ${file.subject.className}`} weeks={data.weeks} onClose={() => setDialog("")} />}
-    {dialog === "signature" && <SignatureDialog onClose={() => setDialog("")} />}
+    {dialog === "signature" && <SignatureDialog ink={file.caps.signSectionHead ? "pink" : "blue"} onClose={() => setDialog("")} />}
   </div>;
 }

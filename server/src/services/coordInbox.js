@@ -27,7 +27,7 @@ async function inboxFor(admin) {
         const t = fileTitle(f, depts.get(String(f.department)) || "");
         return [String(f._id), { caps, role: roleIn(f, admin), label: `${t.subject}${t.className ? ` · ${t.className} class` : ""}`, session: f.session }];
     }));
-    const weeks = await CoordinationWeek.find({ file: { $in: files.map((f) => f._id) } }).select("file week status dueDate cells lastEditAt updatedBy").lean();
+    const weeks = await CoordinationWeek.find({ file: { $in: files.map((f) => f._id) } }).select("file week status dueDate cells lastEditAt updatedBy signatures").lean();
     const touched = new Set((await CoordinationActivity.distinct("week", { by: admin._id, week: { $in: weeks.map((w) => w._id) } })).map(String));
     const now = Date.now();
     const tasks = [];
@@ -41,6 +41,9 @@ async function inboxFor(admin) {
         const done = days.reduce((s, d) => s + d.done, 0), total = days.reduce((s, d) => s + d.total, 0);
         const due = w.dueDate ? new Date(w.dueDate).getTime() : null;
         const base = { weekId: String(w._id), fileId: key, week: w.week, file: info.label, session: info.session, dueDate: w.dueDate || null, overdue: Boolean(due && due < now), percent: Math.round((done / total) * 100), lastEditAt: w.lastEditAt };
+        // Department members sign beside their name in the attendee list (optional, until the week is approved).
+        const signedByMe = (w.signatures?.members || []).some((m) => String(m.admin) === String(admin._id)) || String(w.signatures?.coordinator?.admin || "") === String(admin._id);
+        if (info.caps.signMember && !signedByMe && (w.status === "submitted" || done > 0)) tasks.push({ ...base, kind: "attend" });
         if (w.status === "submitted") {
             if (info.caps.signSectionHead || info.caps.signPrincipal) tasks.push({ ...base, kind: "approve" });
             continue;
@@ -69,7 +72,7 @@ async function inboxFor(admin) {
         const w = weekOf.get(String(c.week)); const info = fileInfo.get(String(w.file));
         tasks.push({ kind: "reply", weekId: String(w._id), fileId: String(w.file), week: w.week, file: info.label, commentId: String(c._id), cell: c.cell || "", text: String(lastReply?.text || c.text).slice(0, 140), by: [c.author?.salutation, c.author?.name].filter(Boolean).join(" ") || "Someone", at: lastReply?.at || c.createdAt });
     }
-    const rank = { approve: 0, submit: 1, reply: 2, fill: 3, start: 4 };
+    const rank = { approve: 0, submit: 1, reply: 2, attend: 3, fill: 4, start: 5 };
     tasks.sort((a, b) => (b.overdue ? 1 : 0) - (a.overdue ? 1 : 0) || rank[a.kind] - rank[b.kind] || (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity) || (a.week || 0) - (b.week || 0));
     const counts = {}; for (const t of tasks) counts[t.kind] = (counts[t.kind] || 0) + 1;
     return { tasks: tasks.slice(0, 40), counts };

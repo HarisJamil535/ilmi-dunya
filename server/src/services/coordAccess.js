@@ -35,6 +35,7 @@ function capsFor(role, admin) {
         signCoordinator: has("coordinator"),
         signSectionHead: has("sectionHead"),
         signPrincipal: has("principal"),
+        signMember: has("editor", "coordinator"),
         reopen: manager || has("coordinator", "sectionHead"),
         manage: manager,
         // The Subject Coordinator, the Section Head and the Principal can delete one week or many.

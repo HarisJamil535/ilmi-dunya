@@ -46,4 +46,22 @@ function cleanSignature(buffer) {
     return PNG.sync.write(out);
 }
 
-module.exports = { cleanSignature };
+// Signatures are stored once and printed in the signer's ink: department members (Subject Coordinator,
+// teachers, Principal) in blue, the Section Head in pink. Only the colour changes; the pen shape stays.
+const INKS = { blue: [29, 78, 216], pink: [219, 39, 119], navy: [16, 24, 64] };
+const inkFor = (slot) => (slot === "sectionHead" ? "pink" : "blue");
+const tinted = new Map();
+function tintSignature(buffer, ink = "blue") {
+    const rgb = INKS[ink] || INKS.blue;
+    const key = `${ink}:${buffer.length}:${buffer.subarray(-64).toString("base64")}`;
+    if (tinted.has(key)) return tinted.get(key);
+    let png;
+    try { png = PNG.sync.read(buffer); } catch { return buffer; }
+    for (let i = 0; i < png.data.length; i += 4) { png.data[i] = rgb[0]; png.data[i + 1] = rgb[1]; png.data[i + 2] = rgb[2]; }
+    const out = PNG.sync.write(png);
+    if (tinted.size > 300) tinted.delete(tinted.keys().next().value);
+    tinted.set(key, out);
+    return out;
+}
+
+module.exports = { cleanSignature, tintSignature, inkFor, INKS };

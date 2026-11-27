@@ -6,15 +6,28 @@ const { fromText } = require("./coordRichText");
 const Admin = require("../models/Admin");
 const { fileTitle, departmentNameOf } = require("./coordSubjects");
 const { displayName } = require("./coordPeople");
+const { tintSignature } = require("./signatureImage");
+const inked = (image, ink) => (image ? tintSignature(image, ink) : null);
 
 // The meeting's attendees: the Section Head, then the department's teachers, then its Subject Coordinator
 // (as in the school's form: "1. Section Head  2. Ms. Ammara  3. Ms. Tahniyat"). Files without a department
 // fall back to the names typed in the week.
-async function attendeesOf(file) {
+async function attendeePeople(file) {
     if (!file.department) return null;
     const staff = await Admin.find({ coordDepartment: file.department?._id || file.department, coordTitle: { $in: ["teacher", "coordinator"] }, status: "active" }).select("name salutation coordTitle createdAt").sort({ createdAt: 1 }).lean();
     staff.sort((a, b) => Number(a.coordTitle === "coordinator") - Number(b.coordTitle === "coordinator"));
-    return ["Section Head", ...staff.map(displayName)];
+    return [{ id: "", name: "Section Head", slot: "sectionHead" }, ...staff.map((p) => ({ id: String(p._id), name: displayName(p), slot: p.coordTitle === "coordinator" ? "coordinator" : "member" }))];
+}
+async function attendeesOf(file) { const people = await attendeePeople(file); return people && people.map((p) => p.name); }
+
+// The signature beside each attendee: the Section Head's approval signature, the coordinator's submission
+// signature (or their attendance signature), and each teacher's attendance signature.
+function attendeeSignature(person, sig) {
+    if (person.slot === "sectionHead") return sig.sectionHead?.imageUrl ? { ...sig.sectionHead, ink: "pink" } : null;
+    const own = (sig.members || []).find((m) => String(m.admin) === person.id);
+    if (own?.imageUrl) return { ...own, ink: "blue" };
+    if (person.slot === "coordinator" && String(sig.coordinator?.admin || "") === person.id && sig.coordinator.imageUrl) return { ...sig.coordinator, ink: "blue" };
+    return null;
 }
 
 // Prepares one week for printing: fills in what the system already knows (week, class, subject,
@@ -40,7 +53,8 @@ async function buildRecords(file, weeks, settings) {
     let watermark = null;
     try { watermark = original ? fadeImage(original, Math.max(0.03, Math.min(0.4, settings.watermarkOpacity || 0.12))) : null; } catch { watermark = null; }
     const session = file.session;
-    const departmentAttendees = await attendeesOf(file);
+    const people = await attendeePeople(file);
+    const departmentAttendees = people && people.map((p) => p.name);
     const title = fileTitle(file, await departmentNameOf(file));
     const records = [];
     for (const [index, week] of weeks.entries()) {
@@ -63,11 +77,12 @@ async function buildRecords(file, weeks, settings) {
             pageNumber: index + 1,
             pageCount: weeks.length,
             verifyUrl: approved ? `${siteOrigin()}/verify/coordination/${week.verifyCode}` : "",
+            attendeeSignatures: people ? await Promise.all(people.map(async (p) => { const s = attendeeSignature(p, sig); const image = s && await picture(s.imageUrl); return image ? { image: tintSignature(image, s.ink), at: s.at } : null; })) : [],
             assets: {
                 watermark,
-                coordinator: sig.coordinator?.imageUrl ? { image: await picture(sig.coordinator.imageUrl), at: sig.coordinator.at } : null,
-                sectionHead: sig.sectionHead?.imageUrl ? { image: await picture(sig.sectionHead.imageUrl), at: sig.sectionHead.at } : null,
-                principal: sig.principal?.imageUrl ? { image: await picture(sig.principal.imageUrl), at: sig.principal.at } : null,
+                coordinator: sig.coordinator?.imageUrl ? { image: inked(await picture(sig.coordinator.imageUrl), "blue"), at: sig.coordinator.at } : null,
+                sectionHead: sig.sectionHead?.imageUrl ? { image: inked(await picture(sig.sectionHead.imageUrl), "pink"), at: sig.sectionHead.at } : null,
+                principal: sig.principal?.imageUrl ? { image: inked(await picture(sig.principal.imageUrl), "blue"), at: sig.principal.at } : null,
                 qr: approved && file.showQr ? await QRCode.toBuffer(`${siteOrigin()}/verify/coordination/${week.verifyCode}`, { type: "png", margin: 0, width: 240, errorCorrectionLevel: "M" }) : null,
             },
         });
@@ -75,4 +90,4 @@ async function buildRecords(file, weeks, settings) {
     return records;
 }
 
-module.exports = { buildRecords, classLabel, attendeesOf };
+module.exports = { buildRecords, classLabel, attendeesOf, attendeePeople, attendeeSignature };

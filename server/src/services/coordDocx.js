@@ -98,7 +98,12 @@ function weekBlocks(record, size, assets, first) {
     const attendeeLines = [];
     for (let i = 0; i < names.length; i += 4) {
         attendeeLines.push(new Paragraph({ spacing: lineSpacing(size), indent: { left: 300 }, tabStops: [1, 2, 3].map((n) => ({ type: TabStopType.LEFT, position: quarter * n })),
-            children: names.slice(i, i + 4).flatMap((name, j) => [...(j > 0 ? [new TextRun({ text: "\t", font: FONT })] : []), ...leadRun(`${i + j + 1}. ${name}`, size)]) }));
+            children: names.slice(i, i + 4).flatMap((name, j) => {
+                // Department attendees sign beside their name (blank line until they do).
+                const sig = record.attendeeSignatures?.length ? record.attendeeSignatures[i + j] : undefined;
+                const mark = sig === undefined ? [] : sig?.image ? [new TextRun({ text: " ", font: FONT }), image(sig.image, 80, 18)].filter(Boolean) : [new TextRun({ text: "  ____________", font: FONT, color: "9CA3AF", size: size * 2 })];
+                return [...(j > 0 ? [new TextRun({ text: "\t", font: FONT })] : []), ...leadRun(`${i + j + 1}. ${name}`, size), ...mark];
+            }) }));
     }
     rows.push(new TableRow({ children: [cell([
         ...paragraphs(c.teacher, size, { lead: leadRun("Teacher Responsible for Preparing lesson Plan: ", size) }),

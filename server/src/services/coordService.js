@@ -141,6 +141,10 @@ async function replaceCells(week, admin, flat, note) {
     return week;
 }
 
+// The stored signature shown in the signer's ink (blue for members, pink for the Section Head).
+const { inkFor } = require("./signatureImage");
+const inkUrl = (url, ink) => { const m = /^\/api\/media\/images\/([a-f\d]{24})$/.exec(url || ""); return m ? `/api/media/signatures/${m[1]}/${ink}.png` : url; };
+
 const fingerprintOf = (week) => crypto.createHash("sha256").update(JSON.stringify(flatCells(week.cells))).digest("hex");
 
 function signatureOf(admin) {
@@ -167,14 +171,24 @@ async function changeStatus({ weekId, admin, action }) {
         week.status = "approved";
         week.verifyCode = week.verifyCode || crypto.randomBytes(9).toString("base64url");
         week.fingerprint = fingerprintOf(week);
+    } else if (action === "attend" || action === "unattend") {
+        // A department member signs (or removes their signature) beside their name in the attendee list.
+        if (!caps.signMember) fail("Only members of this department can sign the attendance.", 403);
+        if (week.status === "approved") fail("This week is approved. Reopen it to change signatures.", 409);
+        const current = week.signatures?.toObject?.() || week.signatures || {};
+        const members = (current.members || []).filter((m) => String(m.admin) !== String(admin._id));
+        if (action === "attend") members.push(signatureOf(admin));
+        week.signatures = { ...current, members };
     } else if (action === "resign") {
         // Replaces the person's own signature on this week with their current e-signature (for a signature
         // that came out wrong). The week's status and the other signatures stay as they are.
         const mine = ["coordinator", "sectionHead", "principal"].filter((slot) => String(week.signatures?.[slot]?.admin || "") === String(admin._id));
-        if (!mine.length) fail("You have not signed this week yet.", 409);
-        const fresh = signatureOf(admin);
         const current = week.signatures?.toObject?.() || week.signatures || {};
-        week.signatures = { ...current, ...Object.fromEntries(mine.map((slot) => [slot, { ...fresh, at: current[slot]?.at || fresh.at }])) };
+        const memberAt = (current.members || []).findIndex((m) => String(m.admin) === String(admin._id));
+        if (!mine.length && memberAt < 0) fail("You have not signed this week yet.", 409);
+        const fresh = signatureOf(admin);
+        const members = (current.members || []).map((m, i) => (i === memberAt ? { ...fresh, at: m.at || fresh.at } : m));
+        week.signatures = { ...current, ...Object.fromEntries(mine.map((slot) => [slot, { ...fresh, at: current[slot]?.at || fresh.at }])), ...(memberAt >= 0 ? { members } : {}) };
     } else if (action === "reopen") {
         if (!caps.reopen) fail("You cannot reopen this week.", 403);
         if (week.status === "draft") fail("This week is already open for editing.", 409);
@@ -184,16 +198,16 @@ async function changeStatus({ weekId, admin, action }) {
     } else fail("Unknown action.");
     week.markModified("signatures");
     await week.save();
-    await snapshot(week, admin, { resign: "Signature updated", submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
-    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened", resign: "updated their signature" }[action]);
+    await snapshot(week, admin, { attend: "Signed the attendance", unattend: "Removed their attendance signature", resign: "Signature updated", submit: "Submitted and signed by the Subject Coordinator", approve: caps.signPrincipal ? "Approved and signed by the Principal" : "Approved and signed by the Section Head", reopen: "Reopened for changes (signatures removed)" }[action]);
+    await logActivity(week, admin, { submit: "submitted", approve: "approved", reopen: "reopened", resign: "updated their signature", attend: "signed the attendance", unattend: "removed their attendance signature" }[action]);
     hub.emit(week._id, "status", { status: week.status, signatures: publicSignatures(week), by: displayName(admin) });
     return { week, file };
 }
 
 const publicSignatures = (week) => {
     const s = week.signatures || {};
-    const one = (x) => (x && x.admin ? { name: x.name, imageUrl: x.imageUrl, at: x.at, admin: String(x.admin) } : null);
-    return { coordinator: one(s.coordinator), sectionHead: one(s.sectionHead), principal: one(s.principal) };
+    const one = (x, slot) => (x && x.admin ? { name: x.name, imageUrl: inkUrl(x.imageUrl, inkFor(slot)), at: x.at, admin: String(x.admin), ink: inkFor(slot) } : null);
+    return { coordinator: one(s.coordinator, "coordinator"), sectionHead: one(s.sectionHead, "sectionHead"), principal: one(s.principal, "principal"), members: (s.members || []).map((m) => one(m, "member")).filter(Boolean) };
 };
 
 module.exports = { fail, getCell, flatCells, htmlCells, nestCells, settings, accessWeek, accessFile, saveCell, replaceCells, changeStatus, snapshot, logActivity, publicActivity, publicSignatures, fingerprintOf, plainText };

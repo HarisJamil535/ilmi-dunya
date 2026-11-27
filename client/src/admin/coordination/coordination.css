@@ -465,3 +465,58 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .cr-sign-mine:hover span, .cr-sign-mine:focus-visible span { opacity: 1; }
 @media (hover: none) { .cr-sign-mine span { opacity: 1; } }
 @media print { .cr-sign-mine span { display: none; } }
+
+/* ----- E-signature dialog ----- */
+.sig-current { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; border: 1px solid #e2e8f0; background: #f8fafc; }
+.sig-current img { height: 48px; max-width: 45%; object-fit: contain; }
+.sig-current > span { flex: 1; font-size: 12px; font-weight: 800; color: #475569; }
+.sig-current small { display: block; font-weight: 700; color: var(--ink); }
+.sig-link { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 10px; border-radius: 10px; font-size: 12px; font-weight: 800; color: #475569; white-space: nowrap; }
+.sig-link:hover:not(:disabled) { background: #f1f5f9; }
+.sig-link:disabled { opacity: .45; }
+.sig-link.is-danger { color: #e11d48; }
+.sig-link.is-danger:hover:not(:disabled) { background: #fff1f2; }
+.sig-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.sig-tabs, .sig-weights { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: #f1f5f9; }
+.sig-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 9px; font-size: 13px; font-weight: 800; color: #475569; }
+.sig-tabs button[aria-selected="true"], .sig-weights button[aria-checked="true"] { background: #fff; color: #1e1b4b; box-shadow: 0 1px 4px rgba(15, 23, 42, .12); }
+.sig-weights button { display: grid; place-items: center; gap: 3px; min-width: 52px; min-height: 38px; padding: 4px 6px; border-radius: 9px; }
+.sig-weights i { display: block; width: 26px; border-radius: 99px; background: var(--ink); }
+.sig-weights span { font-size: 10px; font-weight: 800; color: #64748b; }
+.sig-pad { position: relative; height: 190px; border-radius: 18px; border: 2px dashed #cbd5e1; background: #fff; overflow: hidden; }
+.sig-pad canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.sig-pad.is-photo { display: grid; place-items: center; padding: 10px; background: #fff repeating-conic-gradient(#f8fafc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.sig-pad.is-photo canvas { width: auto; height: auto; max-width: 100%; max-height: 166px; cursor: default; }
+.sig-hint { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: 15px; font-weight: 700; color: #cbd5e1; pointer-events: none; }
+.sig-baseline { position: absolute; left: 8%; right: 8%; bottom: 34px; border-bottom: 1.5px solid #e2e8f0; pointer-events: none; }
+.sig-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 190px; padding: 16px; border-radius: 18px; border: 2px dashed #cbd5e1; background: #f8fafc; text-align: center; font-size: 14px; font-weight: 800; color: #334155; cursor: pointer; }
+.sig-drop:hover { border-color: #a78bfa; }
+.sig-drop span { max-width: 300px; font-size: 12px; font-weight: 600; color: #64748b; }
+@media (max-width: 480px) {
+  .sig-toolbar { flex-direction: column; align-items: stretch; }
+  .sig-tabs button, .sig-weights button { flex: 1; justify-content: center; }
+  .sig-pad { height: 210px; }
+  .sig-current { flex-wrap: wrap; }
+}
+
+/* ----- Attendees sign beside their names ----- */
+.cr-attendees.is-signing { gap: 2px 10px; }
+.cr-att { display: flex; align-items: flex-end; gap: 6px; min-height: 2.4em; }
+.cr-att-name { flex: 0 1 56%; min-width: 0; }
+.cr-att-line { position: relative; flex: 1; align-self: stretch; min-height: 2.2em; border-bottom: 0.6px solid #9ca3af; }
+.cr-att-line > img { position: absolute; left: 50%; bottom: 1px; max-width: 100%; max-height: 100%; transform: translateX(-50%); }
+.cr-att-line .cr-sign-here { position: absolute; inset: 2px 0; width: auto; min-height: 0; font-size: .75em; }
+.cr-att-line .cr-sign-mine img { max-width: 100%; }
+.cf-attendee-list { display: grid; gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.cf-attendee-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; }
+.cf-attendee-list li.is-signed { border-color: #bfdbfe; background: #f8fbff; }
+.cf-att-num { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%; background: #f1f5f9; font-size: 12px; font-weight: 800; color: #475569; }
+.cf-att-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #0f172a; overflow-wrap: anywhere; }
+.cf-att-name em { font-style: normal; font-weight: 600; color: #64748b; }
+.cf-att-sig { display: flex; align-items: center; justify-content: center; flex: 0 0 34%; max-width: 140px; height: 34px; }
+.cf-att-sig img { max-width: 100%; max-height: 34px; object-fit: contain; }
+.cf-att-sig i { font-size: 12px; color: #94a3b8; }
+.cf-att-btn { flex: none; min-height: 38px; padding: 0 14px; border-radius: 11px; font-size: 13px; font-weight: 800; color: #4338ca; background: #eef2ff; }
+.cf-att-btn.is-sign { color: #fff; background: #1d4ed8; box-shadow: 0 6px 14px -8px #1d4ed8; }
+@media (max-width: 420px) { .cf-attendee-list li { flex-wrap: wrap; } .cf-att-sig { order: 3; flex: 1 1 60%; max-width: none; justify-content: flex-start; padding-left: 36px; } .cf-att-btn { order: 4; } }
+@media print { .cr-att-line .cr-sign-here, .cr-sign-mine span { display: none; } }

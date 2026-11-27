@@ -9,13 +9,14 @@ import { api, messageOf, timeAgo } from "./coordApi";
 const KIND = {
   approve: { icon: ClipboardCheck, tone: "is-blue", label: "Approve & sign" },
   submit: { icon: Send, tone: "is-violet", label: "Submit & sign" },
+  attend: { icon: PenLine, tone: "is-blue", label: "Sign" },
   reply: { icon: AtSign, tone: "is-pink", label: "Reply" },
   fill: { icon: PenLine, tone: "is-amber", label: "Continue" },
   start: { icon: CalendarPlus, tone: "is-green", label: "Start week" },
 };
 const due = (d) => d ? new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "";
 
-export default function InboxPanel({ hasSignature, onSigned }) {
+export default function InboxPanel({ hasSignature, ink = "blue", onSigned }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState("");
@@ -67,6 +68,7 @@ export default function InboxPanel({ hasSignature, onSigned }) {
               <p className="coord-task-title">{{
                 approve: `Week ${t.week} is waiting for your approval`,
                 submit: `Week ${t.week} is ${t.percent}% filled — submit when ready`,
+                attend: `Sign the attendance for Week ${t.week}`,
                 reply: `${t.by} mentioned you`,
                 fill: t.mine ? `Continue Week ${t.week} (${t.percent}% filled)` : `Add your part to Week ${t.week}`,
                 start: `Start Week ${t.week}`,
@@ -81,7 +83,7 @@ export default function InboxPanel({ hasSignature, onSigned }) {
               {t.kind === "start" ? <>
                 {t.copyFrom && <button type="button" className="coord-task-btn" disabled={Boolean(busy)} onClick={() => start(t, true)}>{busy === `start:${t.fileId}` ? "Starting…" : "Copy last week"}</button>}
                 <button type="button" className="coord-task-btn is-ghost" disabled={Boolean(busy)} onClick={() => start(t, false)}>Blank</button>
-              </> : t.kind === "approve" || t.kind === "submit" ? <>
+              </> : t.kind === "approve" || t.kind === "submit" || t.kind === "attend" ? <>
                 <button type="button" className="coord-task-btn is-ghost" onClick={() => open(t)}>Review</button>
                 <button type="button" className="coord-task-btn" disabled={busy === t.weekId} onClick={() => sendStatus(t)}>{busy === t.weekId ? "Signing…" : k.label}</button>
               </> : <button type="button" className="coord-task-btn" onClick={() => open(t, t.kind === "fill" ? t.nextCell : t.cell)}>{k.label}</button>}
@@ -91,6 +93,6 @@ export default function InboxPanel({ hasSignature, onSigned }) {
       </ul>}
     {tasks.length > 6 && <button type="button" className="coord-inbox-more" onClick={() => setShowAll(!showAll)}>{showAll ? "Show fewer" : `Show all ${tasks.length}`}</button>}
     {error && <p role="alert" className="mt-2 text-sm font-bold text-rose-600">{error}</p>}
-    {sign && <SignatureDialog onClose={() => setSign(null)} onSaved={(url) => { const t = sign; setSign(null); if (url) { onSigned?.(); sendStatus(t, true); } }} />}
+    {sign && <SignatureDialog ink={ink} signLabel={sign.kind === "attend" ? "sign the attendance" : sign.kind === "submit" ? "submit this week" : "sign this week"} onClose={() => setSign(null)} onSaved={(url) => { const t = sign; setSign(null); if (url) { onSigned?.(); sendStatus(t, true); } }} />}
   </section>;
 }
