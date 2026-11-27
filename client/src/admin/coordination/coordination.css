@@ -537,3 +537,11 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .cr-cell.is-fillable .cr-edit:focus { outline: 2px solid #6366f1; outline-offset: -2px; background: #fff; }
 .cf-field .cr-cell.is-fillable .cr-edit:empty { min-height: 44px; }
 @media print { .cr-cell.is-fillable .cr-edit:empty { background: none; outline: none; } .cr-cell.is-fillable .cr-edit:empty::before { content: none; } }
+
+/* Every table cell that holds a box you can type in shows the text cursor across its whole area. */
+.cr-table td:has(.cr-edit[contenteditable="true"]) { cursor: text; }
+.cr-table td:has(.cr-edit[contenteditable="true"]:focus) { background: rgba(99, 102, 241, .05); }
+/* Each day box fills its whole table cell, so a tap anywhere in the cell lands in that box
+   (phones otherwise "snap" a tap to the nearest box with text, often the wrong one). */
+.cr-table tr.cr-day > td > .cr-cell:only-child { display: flex; flex-direction: column; height: 100%; }
+.cr-table tr.cr-day > td > .cr-cell:only-child > .cr-edit { flex: 1 1 auto; }
