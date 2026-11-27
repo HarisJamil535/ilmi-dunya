@@ -184,7 +184,7 @@ function WeekEditorView({ weekId }) {
   };
 
   const act = async (action, justSigned = false) => {
-    if (["submit", "approve", "resign", "attend"].includes(action) && !justSigned && !data.me.hasSignature) { setDialog(`sign:${action}`); return; }
+    if (["submit", "approve", "resign", "attend"].includes(action) && !justSigned) { setDialog(`sign:${action}`); return; }
     setBusy(action);
     try {
       // Anything still being typed is saved first.

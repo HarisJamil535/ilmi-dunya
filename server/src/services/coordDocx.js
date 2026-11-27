@@ -92,16 +92,32 @@ function weekBlocks(record, size, assets, first) {
         }));
     }
     rows.push(new TableRow({ children: [cell(paragraphs(c.extraHelp, size, { lead: leadRun("Strategies for Learners requiring extra assistance: ", size, { italics: true }) }), TABLE_W, { columnSpan: span })] }));
-    const quarter = Math.round((TABLE_W - 440) / 4);
-    // Any number of attendees, four to a line.
+    // Attendees on one line (up to six); longer lists are split into even lines.
     const names = record.attendees?.length ? record.attendees : ["", "", "", ""];
     const attendeeLines = [];
-    for (let i = 0; i < names.length; i += 4) {
-        attendeeLines.push(new Paragraph({ spacing: lineSpacing(size), indent: { left: 300 }, tabStops: [1, 2, 3].map((n) => ({ type: TabStopType.LEFT, position: quarter * n })),
-            children: names.slice(i, i + 4).flatMap((name, j) => {
+    const per = names.length <= 4 ? 4 : names.length <= 6 ? names.length : Math.ceil(names.length / Math.ceil(names.length / 6));
+    const step = Math.round((TABLE_W - 440) / per);
+    const signing = Boolean(record.attendeeSignatures?.length);
+    for (let i = 0; i < names.length; i += per) {
+        // Five or more people with signatures: a borderless row of cells, the name with the signature under it.
+        if (signing && per > 4) {
+            const colW = Math.floor((TABLE_W - 440) / per);
+            attendeeLines.push(new Table({ width: { size: colW * per, type: WidthType.DXA }, columnWidths: Array(per).fill(colW), indent: { size: 300, type: WidthType.DXA }, borders: { ...NO_BORDERS, insideHorizontal: NONE, insideVertical: NONE }, rows: [new TableRow({ children: Array.from({ length: per }, (_, j) => {
+                const name = names[i + j];
+                const sig = record.attendeeSignatures[i + j];
+                const pic = sig?.image ? image(sig.image, Math.round(colW / 20) - 16, 22) : null;
+                return new TableCell({ borders: NO_BORDERS, width: { size: colW, type: WidthType.DXA }, margins: { left: 40, right: 80 }, children: name === undefined ? [new Paragraph({ children: [] })] : [
+                    new Paragraph({ spacing: lineSpacing(size), children: leadRun(`${i + j + 1}. ${name}`, size) }),
+                    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "9CA3AF", space: 1 } }, children: pic ? [pic] : [new TextRun({ text: " ", font: FONT, size: 30 })] }),
+                ] });
+            }) })] }));
+            continue;
+        }
+        attendeeLines.push(new Paragraph({ spacing: lineSpacing(size), indent: { left: 300 }, tabStops: Array.from({ length: per - 1 }, (_, n) => ({ type: TabStopType.LEFT, position: step * (n + 1) })),
+            children: names.slice(i, i + per).flatMap((name, j) => {
                 // Department attendees sign beside their name (blank line until they do).
                 const sig = record.attendeeSignatures?.length ? record.attendeeSignatures[i + j] : undefined;
-                const mark = sig === undefined ? [] : sig?.image ? [new TextRun({ text: " ", font: FONT }), image(sig.image, 80, 18)].filter(Boolean) : [new TextRun({ text: "  ____________", font: FONT, color: "9CA3AF", size: size * 2 })];
+                const mark = sig === undefined ? [] : sig?.image ? [new TextRun({ text: " ", font: FONT }), image(sig.image, per > 4 ? 56 : 80, 18)].filter(Boolean) : [new TextRun({ text: per > 4 ? "  ________" : "  ____________", font: FONT, color: "9CA3AF", size: size * 2 })];
                 return [...(j > 0 ? [new TextRun({ text: "\t", font: FONT })] : []), ...leadRun(`${i + j + 1}. ${name}`, size), ...mark];
             }) }));
     }

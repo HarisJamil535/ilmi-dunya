@@ -42,6 +42,7 @@ router.post("/settings/watermark", picture.single("image"), c.uploadWatermark);
 router.get("/me/signature", c.getSignature);
 router.post("/me/signature", picture.single("image"), c.uploadSignature);
 router.delete("/me/signature", c.removeSignature);
+router.patch("/me/signature", c.signatureWeight);
 
 router.get("/files/:id", c.getFile);
 router.patch("/files/:id", c.updateFile);

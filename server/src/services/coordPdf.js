@@ -130,10 +130,14 @@ function plan(doc, record, size) {
     // Department attendees sign beside their name: the name takes the left part of its column and a
     // signature line the right part, so the layout is the same before and after people sign.
     const signing = Boolean(record.attendeeSignatures?.length);
-    const nameW = signing ? ATTENDEE_W(width) * NAME_SHARE : ATTENDEE_W(width);
+    const per = perLine(names.length);
+    // Up to four people: the signature sits beside each name. Five or more: under each name, so the
+    // whole list still fits on one line.
+    const stacked = signing && per > 4;
+    const nameW = signing && !stacked ? ATTENDEE_W(width, per) * NAME_SHARE : ATTENDEE_W(width, per);
     const attendees = names.map((name, i) => block([{ list: "", align: "left", runs: [{ t: `${i + 1}. ` }, ...(name ? [{ t: name }] : [])] }], nameW));
     const attendeeRows = [];
-    for (let i = 0; i < attendees.length; i += 4) attendeeRows.push(Math.max(signing ? size * SIGN_LINES : 0, ...attendees.slice(i, i + 4).map((a) => a.h - PAD.y * 2)));
+    for (let i = 0; i < attendees.length; i += per) attendeeRows.push(stacked ? Math.max(...attendees.slice(i, i + per).map((a) => a.h - PAD.y * 2)) + size * SIGN_LINES : Math.max(signing ? size * SIGN_LINES : 0, ...attendees.slice(i, i + per).map((a) => a.h - PAD.y * 2)));
     const attendeesH = attendeeRows.reduce((a, b) => a + b, 0) + PAD.y * 2;
     const rowPeople = { h: teacher.h + attendeesTitle.h + attendeesH - PAD.y * 4 };
     const leftW = cols.slice(0, 3).reduce((a, b) => a + b, 0);
@@ -145,7 +149,9 @@ function plan(doc, record, size) {
     return { width, cols, rowSubject, rowBrought, headers, headerH, days, rowExtra, teacher, attendeesTitle, attendees, attendeeRows, attendeesH, rowPeople, leftW, dateA, dateB, rowDates, fixed, daysH: days.reduce((a, d) => a + d.h, 0) };
 }
 
-const ATTENDEE_W = (width) => (width - 18) / 4;
+// All attendees on one line (up to six); a longer list is split into even lines.
+const perLine = (n) => (n <= 4 ? 4 : n <= 6 ? n : Math.ceil(n / Math.ceil(n / 6)));
+const ATTENDEE_W = (width, per = 4) => (width - 18) / per;
 const NAME_SHARE = 0.56; // of an attendee's column; the rest holds their signature
 const SIGN_LINES = 2.4; // an attendee row is at least this many text sizes tall when people sign
 // Space above and below the table (title, header line, signatures, caption, footer).
@@ -231,16 +237,20 @@ function drawWeek(doc, record, assets) {
     yy = drawLines(doc, p.attendeesTitle.lines, x0 + PAD.x, yy, width - PAD.x * 2, size);
     let rowY = yy;
     p.attendeeRows.forEach((h, row) => {
-        p.attendees.slice(row * 4, row * 4 + 4).forEach((a, i) => {
-            const colX = x0 + PAD.x + 18 + i * ATTENDEE_W(width);
-            const index = row * 4 + i;
-            if (!record.attendeeSignatures?.length) return drawLines(doc, a.lines, colX, rowY, ATTENDEE_W(width) - PAD.x * 2, size);
+        const per = perLine(p.attendees.length), colW = ATTENDEE_W(width, per);
+        p.attendees.slice(row * per, row * per + per).forEach((a, i) => {
+            const colX = x0 + PAD.x + 18 + i * colW;
+            const index = row * per + i;
+            if (!record.attendeeSignatures?.length) return drawLines(doc, a.lines, colX, rowY, colW - PAD.x * 2, size);
             const textH = a.h - PAD.y * 2;
-            drawLines(doc, a.lines, colX, rowY + Math.max(0, h - textH), ATTENDEE_W(width) * NAME_SHARE - PAD.x, size);
-            const sx = colX + ATTENDEE_W(width) * NAME_SHARE, sw = ATTENDEE_W(width) * (1 - NAME_SHARE) - PAD.x * 2;
+            const stacked = per > 4;
+            if (stacked) drawLines(doc, a.lines, colX, rowY, colW - PAD.x, size);
+            else drawLines(doc, a.lines, colX, rowY + Math.max(0, h - textH), colW * NAME_SHARE - PAD.x, size);
+            const sx = stacked ? colX + 8 : colX + colW * NAME_SHARE, sw = stacked ? colW - PAD.x * 2 - 16 : colW * (1 - NAME_SHARE) - PAD.x * 2;
             doc.save().lineWidth(0.4).strokeColor("#9ca3af").moveTo(sx, rowY + h).lineTo(sx + sw, rowY + h).stroke().restore();
             const sig = record.attendeeSignatures[index];
-            if (sig?.image) { try { doc.image(sig.image, sx, rowY + 1, { fit: [sw, h - 1], align: "center", valign: "bottom" }); } catch { /* skip */ } }
+            const top = stacked ? rowY + h - size * SIGN_LINES : rowY;
+            if (sig?.image) { try { doc.image(sig.image, sx, top + 1, { fit: [sw, rowY + h - top - 1], align: "center", valign: "bottom" }); } catch { /* skip */ } }
         });
         rowY += h;
     });

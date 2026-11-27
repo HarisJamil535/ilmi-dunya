@@ -16,7 +16,7 @@ const KIND = {
 };
 const due = (d) => d ? new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "";
 
-export default function InboxPanel({ hasSignature, ink = "blue", onSigned }) {
+export default function InboxPanel({ ink = "blue", onSigned }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState("");
@@ -32,7 +32,7 @@ export default function InboxPanel({ hasSignature, ink = "blue", onSigned }) {
     navigate(`/admin/coordination/week/${t.weekId}${q ? `?${q}` : ""}`);
   };
   const sendStatus = async (t, signed = false) => {
-    if (!hasSignature && !signed) { setSign(t); return; }
+    if (!signed) { setSign(t); return; } // the signature box opens first: check it, pick the thickness
     setBusy(t.weekId); setError("");
     try { await api.post(`/weeks/${t.weekId}/${t.kind}`); await load(); }
     catch (e) { if (e?.response?.status === 409 && /e-signature/i.test(messageOf(e))) setSign(t); else setError(messageOf(e)); }

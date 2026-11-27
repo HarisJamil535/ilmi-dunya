@@ -612,12 +612,20 @@ exports.deleteComment = wrap(async (req, res) => {
 });
 
 // ----- My signature -----
-exports.getSignature = wrap(async (req, res) => { res.json({ success: true, signatureUrl: req.admin.signatureUrl || "" }); });
+exports.getSignature = wrap(async (req, res) => { res.json({ success: true, signatureUrl: req.admin.signatureUrl || "", weight: req.admin.signatureWeight || "normal" }); });
+// Thickness of one's signature, used for every signature they make from now on.
+exports.signatureWeight = wrap(async (req, res) => {
+    const weight = String(req.body.weight || "");
+    if (!["thin", "normal", "bold", "heavy"].includes(weight)) fail("Choose a line thickness.");
+    await Admin.updateOne({ _id: req.admin._id }, { signatureWeight: weight });
+    res.json({ success: true, weight });
+});
 exports.uploadSignature = wrap(async (req, res) => {
     if (!req.file) fail("Choose or draw your signature.");
     const png = cleanSignature(req.file.buffer);
     const url = await storeImage(png, "signature");
-    await Admin.updateOne({ _id: req.admin._id }, { signatureUrl: url });
+    // A new picture already has the thickness it was drawn with.
+    await Admin.updateOne({ _id: req.admin._id }, { signatureUrl: url, signatureWeight: "normal" });
     res.json({ success: true, signatureUrl: url });
 });
 exports.removeSignature = wrap(async (req, res) => {

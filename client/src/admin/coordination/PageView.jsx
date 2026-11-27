@@ -29,7 +29,8 @@ function attendeeAction(person, sig, att) {
 // Attendees come from the department (Section Head, then its staff); files without a department keep typed names.
 function Attendees({ attendees, cellBox, signatures, att }) {
   if (!attendees) return <div className="cr-attendees">{[1, 2, 3, 4].map((n) => <div key={n} className="cr-inline"><span>{n}.</span>{cellBox(n)}</div>)}</div>;
-  return <div className="cr-attendees is-signing">{attendees.map((person, i) => {
+  const per = attendees.length <= 4 ? 4 : attendees.length <= 6 ? attendees.length : Math.ceil(attendees.length / Math.ceil(attendees.length / 6));
+  return <div className={`cr-attendees is-signing ${per > 4 ? "is-stacked" : ""}`} style={{ gridTemplateColumns: `repeat(${per}, minmax(0, 1fr))` }}>{attendees.map((person, i) => {
     const sig = attendeeSig(person, signatures);
     const action = attendeeAction(person, sig, att);
     return <div key={`${person.id || person.slot}-${i}`} className="cr-att">

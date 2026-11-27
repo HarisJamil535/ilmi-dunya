@@ -520,3 +520,8 @@ html.dark .coord-classpick.is-on { background: color-mix(in srgb, var(--brand-pr
 .cf-att-btn.is-sign { color: #fff; background: #1d4ed8; box-shadow: 0 6px 14px -8px #1d4ed8; }
 @media (max-width: 420px) { .cf-attendee-list li { flex-wrap: wrap; } .cf-att-sig { order: 3; flex: 1 1 60%; max-width: none; justify-content: flex-start; padding-left: 36px; } .cf-att-btn { order: 4; } }
 @media print { .cr-att-line .cr-sign-here, .cr-sign-mine span { display: none; } }
+
+/* Five or more attendees: one line of names, each signature under its name (as printed). */
+.cr-attendees.is-stacked .cr-att { flex-direction: column; align-items: stretch; gap: 1px; }
+.cr-attendees.is-stacked .cr-att-name { flex: none; }
+.cr-attendees.is-stacked .cr-att-line { margin: 0 6px; }
