@@ -11,7 +11,7 @@ export function Dialog({ title, subtitle, onClose, footer, children, wide = fals
       <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
     </div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">{children}</div>
-    {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 p-4">{footer}</div>}
+    {footer && <div className="coord-dialog-foot flex flex-wrap justify-end gap-2 border-t border-slate-100 p-4">{footer}</div>}
   </div></ModalViewport>;
 }
 

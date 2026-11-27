@@ -57,6 +57,18 @@ function ImportWeekDialog({ weekId, onClose, onDone }) {
   </Dialog>;
 }
 
+// Removing one's own signature from a week, with what that changes for the week.
+function ConfirmRemove({ week, me, busy, onClose, onConfirm }) {
+  const s = week.signatures || {};
+  const effect = s.coordinator?.admin === me && week.status !== "draft" ? "The week goes back to draft so it can be changed, and any approval signatures are removed too. It will need to be submitted and approved again."
+    : (s.sectionHead?.admin === me || s.principal?.admin === me) && week.status === "approved" && !((s.sectionHead?.admin && s.sectionHead.admin !== me) || (s.principal?.admin && s.principal.admin !== me)) ? "The week goes back to waiting for approval."
+    : "Only your signature is removed; the rest of the week stays as it is.";
+  return <Dialog title="Remove your signature?" subtitle={effect} onClose={onClose} busy={busy}
+    footer={<><AdminActionButton variant="secondary" onClick={onClose}>Keep it</AdminActionButton><AdminActionButton variant="delete" icon={RotateCcw} loading={busy} onClick={onConfirm}>Remove my signature</AdminActionButton></>}>
+    <p className="text-sm text-slate-600">You can sign again at any time while the week is open.</p>
+  </Dialog>;
+}
+
 export default function WeekEditor() {
   const { weekId } = useParams();
   return <WeekEditorView key={weekId} weekId={weekId} />;
@@ -208,7 +220,7 @@ function WeekEditorView({ weekId }) {
       ownAction.current = Date.now();
       await api.post(`/weeks/${weekId}/${action}`);
       if (action === "approve") setSeal(true);
-      toast({ attend: "Signed. Your signature is beside your name now.", unattend: "Your signature was removed from this week.", resign: "Your signature on this week is updated.", submit: "Submitted and signed. The Section Head can now approve it.", approve: "Signed. Your signature is on the record now.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
+      toast({ unsign: "Your signature was removed from this week.", attend: "Signed. Your signature is beside your name now.", unattend: "Your signature was removed from this week.", resign: "Your signature on this week is updated.", submit: "Submitted and signed. The Section Head can now approve it.", approve: "Signed. Your signature is on the record now.", reopen: "Reopened for changes. Signatures were removed." }[action], "success");
       await load();
     } catch (e) {
       if (e?.response?.status === 409 && /e-signature/i.test(messageOf(e)) && action !== "reopen") setDialog(`sign:${action}`);
@@ -255,9 +267,9 @@ function WeekEditorView({ weekId }) {
         <Link to={`/admin/coordination/${file.id}`} className="ce-icon" aria-label="Back to the file"><ArrowLeft className="h-5 w-5" /></Link>
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-slate-500">{file.subject.name} · {file.subject.className} · {file.session}</p>
-          <div className="flex items-center gap-2"><h1 className="text-lg font-black text-slate-900">Week {week.week}{week.term ? <span className="font-bold text-slate-500"> · {week.term}</span> : null}</h1><StatusChip status={week.status} /></div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><h1 className="text-lg font-black leading-tight text-slate-900"><span className="whitespace-nowrap">Week {week.week}</span>{week.term ? <span className="whitespace-nowrap font-bold text-slate-500"> · {week.term}</span> : null}</h1><StatusChip status={week.status} /></div>
         </div>
-        <div className="ml-1 hidden items-center sm:flex">
+        <div className="ml-auto flex shrink-0 items-center sm:ml-1">
           <button type="button" disabled={!prev} onClick={() => navigate(`/admin/coordination/week/${prev.id}`)} className="ce-icon" aria-label="Previous week"><ChevronLeft className="h-5 w-5" /></button>
           <button type="button" disabled={!next} onClick={() => navigate(`/admin/coordination/week/${next.id}`)} className="ce-icon" aria-label="Next week"><ChevronRight className="h-5 w-5" /></button>
         </div>
@@ -331,7 +343,8 @@ function WeekEditorView({ weekId }) {
 
     {seal && <ApprovedSeal onDone={() => setSeal(false)} />}
     {dialog === "import" && <ImportWeekDialog weekId={weekId} onClose={() => setDialog("")} onDone={load} />}
-    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog signLabel={{ submit: "submit this week", approve: "sign this week", resign: "update it on this week", attend: "sign the attendance" }[dialog.startsWith("sign:") ? dialog.slice(5) : signAction] || ""} ink={caps.signSectionHead ? "pink" : "blue"} onRemove={dialog === "sign:resign" && myAttendance && week.status !== "approved" ? () => { setDialog(""); act("unattend"); } : null} onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : signAction; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
+    {(dialog === "signature" || dialog.startsWith("sign:")) && <SignatureDialog signLabel={{ submit: "submit this week", approve: "sign this week", resign: "update it on this week", attend: "sign the attendance" }[dialog.startsWith("sign:") ? dialog.slice(5) : signAction] || ""} ink={caps.signSectionHead ? "pink" : "blue"} onRemove={dialog === "sign:resign" && (signedByMe || myAttendance) ? () => setDialog("unsign") : null} onClose={() => setDialog("")} onSaved={(url) => { const after = dialog.startsWith("sign:") ? dialog.slice(5) : signAction; setData((d) => ({ ...d, me: { ...d.me, hasSignature: Boolean(url), signatureUrl: url } })); setDialog(""); if (url && after) setTimeout(() => act(after, true), 50); }} />}
+    {dialog === "unsign" && <ConfirmRemove week={week} me={data.me.id} busy={busy === "unsign"} onClose={() => setDialog("")} onConfirm={() => { setDialog(""); act("unsign"); }} />}
     {dialog === "reopen" && <Dialog title="Reopen this week?" subtitle="Both signatures are removed and the week becomes editable again. It will need to be submitted and approved again." onClose={() => setDialog("")}
       footer={<><AdminActionButton variant="secondary" onClick={() => setDialog("")}>Cancel</AdminActionButton><AdminActionButton icon={RotateCcw} onClick={() => { setDialog(""); act("reopen"); }}>Reopen</AdminActionButton></>}>
       <p className="text-sm text-slate-600">Tip: add a comment or change request first so the team knows what to change.</p>
