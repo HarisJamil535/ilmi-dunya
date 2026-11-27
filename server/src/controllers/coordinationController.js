@@ -453,24 +453,47 @@ exports.importIntoWeek = wrap(async (req, res) => {
     res.json({ success: true, imported: Object.keys(chosen.cells).length, foundWeeks: found.map((w) => w.week), notes: chosen.notes });
 });
 
+// One Word file with every week, or many Word files (one per week, or a few weeks each), in one go.
+// A week's number comes from the "Week:" line in the file, else from the file name ("week_16.docx"),
+// else it follows the previous week. Each file is reported on its own, so one bad file stops nothing.
+const weekFromName = (name) => Number(/w(?:ee)?k[\s_.-]*0*(\d{1,2})(?!\d)/i.exec(name || "")?.[1]) || null;
 exports.importIntoFile = wrap(async (req, res) => {
     const { file, caps } = await svc.accessFile(id(req.params.id), req.admin);
     if (!caps.edit) fail("You cannot add weeks to this file.", 403);
-    if (!req.file) fail("Choose a Word (.docx) file.");
-    const found = await readCoordinationDocx(req.file.buffer);
+    const uploads = [...(req.files?.file || []), ...(req.files?.files || [])];
+    if (!uploads.length) fail(req.skippedFiles?.length ? "These are not Word (.docx) files. In Word, use Save As > Word Document (.docx)." : "Choose one or more Word (.docx) files.");
     const replace = req.body.replace === "true";
-    const results = [];
+    // Read every file first, then put the weeks in order.
+    const items = [];
+    const results = (req.skippedFiles || []).map((name) => ({ source: name, result: "Not a Word (.docx) file. Open it in Word and use Save As > Word Document (.docx).", error: true }));
+    for (const upload of uploads) {
+        const name = text(Buffer.from(upload.originalname, "latin1").toString("utf8"), 80) || "a Word file";
+        try {
+            const found = await readCoordinationDocx(upload.buffer);
+            const fromName = found.length === 1 ? weekFromName(name) : null;
+            found.forEach((item, i) => items.push({ ...item, week: item.week || (i === 0 ? fromName : null), source: name, order: items.length }));
+        } catch (error) {
+            results.push({ source: name, result: error.status ? error.message : "This file could not be read." , error: true });
+        }
+    }
+    items.sort((a, b) => (a.week || Infinity) - (b.week || Infinity) || a.order - b.order);
     let fallback = Number(req.body.startWeek) || 1;
-    for (const item of found) {
+    const used = new Set();
+    for (const item of items) {
         const number = item.week || fallback;
         fallback = number + 1;
+        if (number < 1 || number > 60) { results.push({ week: number, source: item.source, result: "skipped (week number must be 1 to 60)" }); continue; }
+        if (used.has(number)) { results.push({ week: number, source: item.source, result: "skipped (this week is in more than one file)" }); continue; }
+        used.add(number);
         let week = await CoordinationWeek.findOne({ file: file._id, week: number });
-        if (week && (!replace || week.status !== "draft")) { results.push({ week: number, result: week.status !== "draft" ? "skipped (already submitted or approved)" : "skipped (already exists)" }); continue; }
+        if (week && (!replace || week.status !== "draft")) { results.push({ week: number, source: item.source, result: week.status !== "draft" ? "skipped (already submitted or approved)" : "skipped (already exists)" }); continue; }
         if (!week) week = await CoordinationWeek.create({ file: file._id, week: number, cells: {}, updatedBy: req.admin._id, lastEditAt: new Date() });
-        await svc.replaceCells(week, req.admin, item.cells, `Imported from ${text(req.file.originalname, 80) || "a Word file"}`);
-        results.push({ week: number, result: "imported", id: String(week._id) });
+        await svc.replaceCells(week, req.admin, item.cells, `Imported from ${item.source}`);
+        results.push({ week: number, source: item.source, result: "imported", id: String(week._id) });
     }
-    res.json({ success: true, results });
+    hub.changed(file._id);
+    results.sort((a, b) => (a.week || 0) - (b.week || 0));
+    res.json({ success: true, results, imported: results.filter((r) => r.result === "imported").length });
 });
 
 // ----- Export -----

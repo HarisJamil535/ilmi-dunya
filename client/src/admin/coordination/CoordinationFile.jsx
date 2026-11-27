@@ -42,27 +42,50 @@ function NewWeekDialog({ file, weeks, onClose, onCreated }) {
   </Dialog>;
 }
 
+// Import from Word: one file with every week, or many files at once (one per week), chosen or dropped together.
 function ImportDialog({ file, onClose, onDone }) {
-  const [picked, setPicked] = useState(null);
+  const [picked, setPicked] = useState([]);
   const [replace, setReplace] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const add = (list) => {
+    const files = [...(list || [])];
+    const words = files.filter((f) => /\.docx$/i.test(f.name));
+    setError(words.length < files.length ? `${files.length - words.length} file(s) were not Word (.docx) files and were left out. In Word, use Save As > Word Document (.docx).` : "");
+    setPicked((current) => {
+      const seen = new Set(current.map((f) => `${f.name}:${f.size}`));
+      return [...current, ...words.filter((f) => !seen.has(`${f.name}:${f.size}`))].slice(0, 60);
+    });
+  };
   const run = async () => {
     setBusy(true); setError("");
     try {
-      const data = new FormData(); data.append("file", picked); data.append("replace", String(replace));
-      const d = await api.post(`/files/${file.id}/import`, data, { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 });
+      const data = new FormData(); picked.forEach((f) => data.append("files", f)); data.append("replace", String(replace));
+      const d = await api.post(`/files/${file.id}/import`, data, { headers: { "Content-Type": "multipart/form-data" }, timeout: 300000 });
       setResult(d.results); onDone();
     } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
   };
-  return <Dialog title="Import from Word" subtitle="Upload a ready coordination file (.docx). Every week table in it becomes a week here, with its formatting." onClose={onClose} busy={busy}
-    footer={result ? <AdminActionButton onClick={onClose}>Done</AdminActionButton> : <><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FileUp} loading={busy} disabled={!picked} onClick={run}>Import</AdminActionButton></>}>
-    {result ? <ul className="space-y-2">{result.map((r) => <li key={r.week} className="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm"><CheckCircle2 className={`h-4 w-4 ${r.result === "imported" ? "text-emerald-600" : "text-slate-400"}`} /><b>Week {r.week}</b><span className="text-slate-600">{r.result}</span></li>)}</ul> : <>
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-bold text-slate-600 hover:border-primary-muted">
-        <FileUp className="h-7 w-7 text-primary" />{picked ? picked.name : "Choose a Word file (.docx)"}<span className="text-xs font-medium text-slate-500">Whole term or a single week. Up to 10 MB.</span>
-        <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(e) => setPicked(e.target.files?.[0] || null)} />
+  const total = picked.reduce((sum, f) => sum + f.size, 0);
+  const imported = result ? result.filter((r) => r.result === "imported").length : 0;
+  return <Dialog title="Import from Word" subtitle="Upload one Word file with all the weeks, or select many files at once (one per week). Every week table becomes a week here, with its formatting." onClose={onClose} busy={busy}
+    footer={result ? <AdminActionButton onClick={onClose}>Done</AdminActionButton> : <><AdminActionButton variant="secondary" onClick={onClose} disabled={busy}>Cancel</AdminActionButton><AdminActionButton icon={FileUp} loading={busy} disabled={!picked.length} onClick={run}>{busy ? "Importing…" : picked.length > 1 ? `Import ${picked.length} files` : "Import"}</AdminActionButton></>}>
+    {result ? <>
+      <p className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{imported} week{imported === 1 ? "" : "s"} imported{result.length > imported ? ` · ${result.length - imported} not imported (see below)` : ""}</p>
+      <ul className="max-h-80 space-y-2 overflow-y-auto">{result.map((r, i) => <li key={`${r.week}-${r.source}-${i}`} className={`flex items-start gap-2 rounded-xl p-3 text-sm ${r.error ? "bg-rose-50" : "bg-slate-50"}`}><CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${r.result === "imported" ? "text-emerald-600" : r.error ? "text-rose-500" : "text-slate-400"}`} /><span className="min-w-0">{r.week ? <b>Week {r.week} </b> : null}<span className="text-slate-600">{r.result}</span>{r.source && <span className="block truncate text-xs text-slate-400">{r.source}</span>}</span></li>)}</ul>
+    </> : <>
+      <label onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); add(e.dataTransfer.files); }}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-7 text-center text-sm font-bold text-slate-600 transition ${dragging ? "border-primary bg-primary-soft" : "border-slate-300 bg-slate-50 hover:border-primary-muted"}`}>
+        <FileUp className="h-7 w-7 text-primary" />{picked.length ? "Add more Word files" : "Choose Word files (.docx), or drop them here"}
+        <span className="text-xs font-medium text-slate-500">One file with the whole term, or many files at once (select them together). Up to 60 files, 10 MB each.</span>
+        <input type="file" multiple accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
       </label>
+      {picked.length > 0 && <div className="rounded-2xl border border-slate-200">
+        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><span>{picked.length} file{picked.length === 1 ? "" : "s"} · {(total / 1048576).toFixed(1)} MB</span><button type="button" onClick={() => setPicked([])} className="text-rose-600 hover:underline">Remove all</button></div>
+        <ul className="max-h-48 overflow-y-auto">{picked.map((f, i) => <li key={`${f.name}-${f.size}`} className="flex items-center gap-2 border-t border-slate-50 px-3 py-2 text-sm first:border-t-0"><FileText className="h-4 w-4 shrink-0 text-sky-600" /><span className="min-w-0 flex-1 truncate">{f.name}</span><button type="button" aria-label={`Remove ${f.name}`} onClick={() => setPicked((all) => all.filter((_, j) => j !== i))} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button></li>)}</ul>
+      </div>}
+      <p className="text-xs text-slate-500">Week numbers come from each file's "Week:" line, or from the file name (for example <b>week_16.docx</b>).</p>
       <label className="flex items-start gap-3 text-sm text-slate-700"><input type="checkbox" className="mt-1 accent-[var(--brand-primary)]" checked={replace} onChange={(e) => setReplace(e.target.checked)} /><span><b>Replace weeks that already exist</b><br /><span className="text-xs text-slate-500">Only draft weeks are replaced; the old content stays in each week's history. Submitted and approved weeks are never touched.</span></span></label>
     </>}
     {error && <p role="alert" className="text-sm font-bold text-rose-600">{error}</p>}
