@@ -63,7 +63,11 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
   const T = textFor(lang);
   const upd = (slot) => (meId && signatures[slot]?.admin === meId ? onUpdate : null);
   const wrap = useRef(null);
+  const page = useRef(null);
   const [scale, setScale] = useState(1);
+  // The page is A4 (794 px tall) but grows when its text needs more room (Urdu Nastaleeq is taller), so
+  // nothing is ever cut off; the area around it follows the page's real height.
+  const [pageH, setPageH] = useState(794);
   useLayoutEffect(() => {
     const el = wrap.current; if (!el) return undefined;
     const fit = () => setScale(zoom === "fit" ? Math.min(1.25, el.clientWidth / 1123) : Number(zoom));
@@ -71,10 +75,17 @@ export function PageView({ cell, settings, signatures, fontPt, zoom = "fit", att
     const observer = new ResizeObserver(fit); observer.observe(el);
     return () => observer.disconnect();
   }, [zoom]);
+  useLayoutEffect(() => {
+    const el = page.current; if (!el) return undefined;
+    const measure = () => setPageH(Math.max(794, el.offsetHeight));
+    measure();
+    const observer = new ResizeObserver(measure); observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const c = (key, extra) => <RichCell {...cell(key)} {...extra} />;
-  return <div ref={wrap} className={`cr-stage ${zoom !== "fit" ? "is-zoomed" : ""}`} style={{ height: 794 * scale + (zoom !== "fit" ? 14 : 0) }}>
-    <div className="cr-sizer" style={{ width: 1123 * scale, height: 794 * scale }}>
-    <div className={`cr-page ${T.rtl ? "is-rtl pf-urdu" : `pf-${font}`}`} dir={T.rtl ? "rtl" : "ltr"} lang={T.rtl ? "ur" : "en"} style={{ transform: `scale(${scale})`, "--fs": `${(fontPt || 9) * 1.3333}px` }}>
+  return <div ref={wrap} className={`cr-stage ${zoom !== "fit" ? "is-zoomed" : ""}`} style={{ height: pageH * scale + (zoom !== "fit" ? 14 : 0) }}>
+    <div className="cr-sizer" style={{ width: 1123 * scale, height: pageH * scale }}>
+    <div ref={page} className={`cr-page ${T.rtl ? "is-rtl pf-urdu" : `pf-${font}`}`} dir={T.rtl ? "rtl" : "ltr"} lang={T.rtl ? "ur" : "en"} style={{ transform: `scale(${scale})`, "--fs": `${(fontPt || 9) * 1.3333}px` }}>
       {settings.watermarkUrl && <img className="cr-watermark" src={settings.watermarkUrl} alt="" style={{ opacity: Math.min(0.5, (settings.watermarkOpacity || 0.12) * 2.2) }} />}
       <h2 className="cr-title">{title || settings.title}</h2>
       <div className="cr-topline">
