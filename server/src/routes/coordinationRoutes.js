@@ -9,6 +9,12 @@ const docx = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 
     if (!/\.docx$/i.test(file.originalname || "")) return cb(Object.assign(new Error("Upload a Word file (.docx). Old .doc files: open in Word and Save As .docx."), { status: 400 }));
     cb(null, true);
 } });
+// Several files at once: a file that is not .docx is set aside and reported, the others still import.
+const docxMany = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 60 }, fileFilter: (req, file, cb) => {
+    if (/\.docx$/i.test(file.originalname || "")) return cb(null, true);
+    (req.skippedFiles ||= []).push(Buffer.from(file.originalname || "file", "latin1").toString("utf8").slice(0, 80));
+    cb(null, false);
+} });
 const picture = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
     if (!["image/png", "image/jpeg"].includes(file.mimetype)) return cb(Object.assign(new Error("Use a PNG or JPG picture."), { status: 400 }));
     cb(null, true);
@@ -50,7 +56,7 @@ router.delete("/files/:id", c.deleteFile);
 router.post("/files/:id/weeks", c.createWeek);
 router.delete("/files/:id/weeks", c.deleteWeeks);
 router.get("/files/:id/copy-sources", c.copySources);
-router.post("/files/:id/import", docx.single("file"), c.importIntoFile);
+router.post("/files/:id/import", docxMany.fields([{ name: "file", maxCount: 1 }, { name: "files", maxCount: 60 }]), c.importIntoFile);
 router.get("/files/:id/export", c.exportFile);
 
 router.get("/weeks/:id", c.getWeek);
