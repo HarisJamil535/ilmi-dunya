@@ -280,7 +280,7 @@ function WeekEditorView({ weekId }) {
         <span className="ce-saved">{saving === "saving" ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : saving === "offline" ? <span className="text-rose-600">Not saved — check connection</span> : <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />Saved</>}</span>
         <div className="relative">
           <AdminActionButton variant="secondary" icon={Download} loading={busy === "pdf" || busy === "docx"} onClick={() => setMenu(!menu)} className="!min-h-9">Download</AdminActionButton>
-          {menu && <div className="ce-menu"><button type="button" onClick={() => get("docx")}><FileText className="h-4 w-4" />Word (.docx)</button><button type="button" onClick={() => get("pdf")}><Download className="h-4 w-4" />PDF</button></div>}
+          {menu && <div className="ce-menu"><button type="button" onClick={() => get("docx")}><FileText className="h-4 w-4" /><span className="text-left">Word (.docx){comments.length > 0 && <small className="block text-[11px] font-semibold text-slate-500">with {comments.length} remark{comments.length === 1 ? "" : "s"} as comments</small>}</span></button><button type="button" onClick={() => get("pdf")}><Download className="h-4 w-4" />PDF</button></div>}
         </div>
         {caps.signCoordinator && week.status === "draft" && <AdminActionButton icon={Send} loading={busy === "submit"} onClick={() => act("submit")} className="!min-h-9">Submit &amp; sign</AdminActionButton>}
         {caps.signSectionHead && week.status !== "approved" && <AdminActionButton icon={ShieldCheck} loading={busy === "approve"} onClick={() => act("approve")} className="!min-h-9">Approve &amp; sign</AdminActionButton>}

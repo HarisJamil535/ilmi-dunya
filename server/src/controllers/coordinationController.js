@@ -520,6 +520,17 @@ async function exportWeeks(res, file, weeks, format, name) {
         return;
     }
     const watermark = records[0]?.assets?.watermark || null;
+    // The week's remarks go into the Word file as comments (speech bubbles), each named with its writer's role.
+    const notes = await CoordinationComment.find({ week: { $in: weeks.map((w) => w._id) } }).sort({ createdAt: 1 }).lean();
+    const writers = await Admin.find({ _id: { $in: [...new Set(notes.map((n) => String(n.author || "")).filter(Boolean))] } }).select("role permissions coordTitle coordDepartment").lean();
+    const roleOf = new Map(writers.map((w) => [String(w._id), roleIn(file, w)]));
+    weeks.forEach((week, i) => {
+        if (!records[i]) return;
+        records[i].comments = notes.filter((n) => String(n.week) === String(week._id)).map((n) => ({
+            cell: n.cell || "", kind: n.kind, text: n.text, authorName: n.authorName, role: roleOf.get(String(n.author || "")) || null,
+            at: n.createdAt, resolved: n.resolved, resolvedByName: n.resolvedByName, replies: (n.replies || []).map((r) => ({ authorName: r.authorName, text: r.text })),
+        }));
+    });
     const docx = await renderCoordinationDocx(records, { sizes: pdf.sizes, watermark, title: name });
     res.set({ "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": `attachment; filename="${safe}.docx"`, "Cache-Control": "no-store" }).send(docx);
 }
