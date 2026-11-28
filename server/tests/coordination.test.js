@@ -178,3 +178,39 @@ test("terms: each term has its own file, and older files count as the 1st term",
     const unique = CoordinationFile.schema.indexes().find(([, o]) => o.unique);
     assert.deepEqual(Object.keys(unique[0]), ["department", "classLevel", "session", "term"]);
 });
+
+test("Word import: a day grid nested inside the outer table, 'Topics:', 'Period per week', bare attendee numbers and links", async () => {
+    const JSZip = require("jszip");
+    const p = (text) => `<w:p><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
+    const link = (before, url) => `<w:p><w:r><w:t xml:space="preserve">${before}</w:t></w:r><w:hyperlink r:id="rId9"><w:r><w:t>${url}</w:t></w:r></w:hyperlink></w:p>`;
+    const tc = (...ps) => `<w:tc>${ps.join("")}</w:tc>`;
+    const tr = (...tcs) => `<w:tr>${tcs.join("")}</w:tr>`;
+    const tbl = (...trs) => `<w:tbl>${trs.join("")}</w:tbl>`;
+    const grid = tbl(
+        tr(tc(p("Day/ Period")), tc(p("Sub-Topics")), tc(p("Methodology*")), tc(p("Resources")), tc(p("AFL Strategies")), tc(p("CW/HW/Online Assignments &amp;Project Work"))),
+        tr(tc(p("Wednesday"), p("Double period")), tc(p("Construction of Triangles")), tc(p("Brainstorming")), tc(link("Text book, video clip ", "https://youtu.be/abc")), tc(p("Hand Signals")), tc(p("C.W: Ex 10.1 Q1"))),
+    );
+    const body = p("Week : 1\tClass: 9th\tNo. of Sections: 5") + tbl(
+        tr(tc(p("Steps")), tc(p("Subject: Mathematics\tTopics: Construction of Triangles Period per week: 4"))),
+        tr(tc(p("1")), tc(p("Topics brought forward ( if any): Previous week task is completed."))),
+        tr(tc(p("2.")), `<w:tc>${grid}<w:p/></w:tc>`),
+        tr(tc(p("3.")), tc(p("Strategies for Learners requiring extra assistance: On spot guidance."))),
+        tr(tc(p("4.")), tc(p("Teacher Responsible for Preparing lesson Plan: Ms Snober Attendees of Coordination Meeting:   1. Section Head\t2  Ms Javeria\t3:   Ms Snober"))),
+    ) + p("Sign: Subject Coordinator : Ms Mussarat khan\tSH sign: ________");
+    const zip = new JSZip();
+    zip.file("word/document.xml", `<?xml version="1.0"?><w:document xmlns:w="w" xmlns:r="r"><w:body>${body}</w:body></w:document>`);
+    const [week] = await readCoordinationDocx(await zip.generateAsync({ type: "nodebuffer" }));
+    const text = (key) => plainText(week.cells[key] || []).replace(/\s+/g, " ").trim();
+    assert.equal(week.week, 1);
+    assert.equal(text("subject"), "Mathematics");
+    assert.equal(text("topic"), "Construction of Triangles");
+    assert.equal(text("periods"), "4");
+    assert.equal(text("broughtForward"), "Previous week task is completed.");
+    assert.equal(text("wed.period"), "Double period");
+    assert.equal(text("wed.subTopics"), "Construction of Triangles");
+    assert.equal(text("wed.resources"), "Text book, video clip https://youtu.be/abc", "a link is read once");
+    assert.equal(text("wed.work"), "C.W: Ex 10.1 Q1");
+    assert.equal(text("extraHelp"), "On spot guidance.");
+    assert.deepEqual(["attendee1", "attendee2", "attendee3"].map(text), ["Section Head", "Ms Javeria", "Ms Snober"]);
+    assert.equal(text("coordinatorName"), "Ms Mussarat khan");
+});
