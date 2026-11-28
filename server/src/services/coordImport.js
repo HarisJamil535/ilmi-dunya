@@ -43,7 +43,8 @@ function paragraphOf(pXml, lists) {
     const numId = attr(pPr, "w:numId");
     const align = attr(pPr, "w:jc");
     const runs = [];
-    for (const r of [...children(pXml, "w:r"), ...children(pXml, "w:hyperlink").flatMap((h) => children(h, "w:r"))]) {
+    // Runs in reading order; runs inside a link (<w:hyperlink>) are already among them, so they are read once.
+    for (const r of children(pXml, "w:r")) {
         const rPr = /<w:rPr>[\s\S]*?<\/w:rPr>/.exec(r)?.[0] || "";
         let text = "";
         for (const m of r.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\/>|<w:br\/>/g)) text += m[1] !== undefined ? decode(m[1]) : m[0] === "<w:tab/>" ? " " : "\n";
@@ -137,10 +138,22 @@ const dayPattern = (day) => new RegExp(`^\\s*(?:${DAYS.find(([k]) => k === day)[
 const URDU_ORDINALS = ["پہلا", "دوسرا", "تیسرا", "چوتھا", "پانچواں", "چھٹا", "ساتواں", "آٹھواں", "نواں", "دسواں", "گیارہواں", "بارہواں", "تیرہواں", "چودہواں", "پندرہواں", "سولہواں", "سترہواں", "اٹھارہواں", "انیسواں", "بیسواں"];
 const URDU_DIGITS = (t) => String(t || "").replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
 
+// Rows of a table, with a table nested inside a cell (some forms put the Monday–Friday grid inside the
+// outer "Steps" table) taking that row's place, so its own heading and day rows are read as usual.
+function tableRows(tblXml) {
+    const rows = [];
+    for (const tr of children(tblXml, "w:tr")) {
+        const nested = children(tr, "w:tc").flatMap((tc) => children(tc.replace(/^<w:tc[ >]/, "<x ").replace(/<\/w:tc>$/, ""), "w:tbl"));
+        if (nested.length) { for (const table of nested) rows.push(...tableRows(table)); continue; }
+        rows.push(children(tr, "w:tc"));
+    }
+    return rows;
+}
+
 function parseTable(tblXml, lists, before) {
     const cells = {};
     const notes = [];
-    const rows = children(tblXml, "w:tr").map((tr) => children(tr, "w:tc").map((tc) => ({ xml: tc, paragraphs: cellParagraphs(tc, lists), span: span(tc) })));
+    const rows = tableRows(tblXml).map((tcs) => tcs.map((tc) => ({ xml: tc, paragraphs: cellParagraphs(tc, lists), span: span(tc) })));
     let columnMap = null;
     let nextDay = 0;
     for (const row of rows) {
@@ -149,10 +162,10 @@ function parseTable(tblXml, lists, before) {
         if (!rowText.trim()) continue;
         if (/^\s*(steps?|ste\s*ps)\b/i.test(rowText) && row.length > 1 && /subject/i.test(rowText)) { /* older format: "Steps | Subject: ..." */ }
         if (/subject\s*:/i.test(rowText)) {
-            cells.subject = singleLine(beforeLabel(afterLabel(all, /subject\s*:/i), /topic\s*:|chapter|periods per week/i));
-            const topic = afterLabel(all, /topic\s*:/i);
-            cells.topic = singleLine(beforeLabel(topic.length ? topic : afterLabel(all, /(?=chapter\s*\d)/i), /periods per week/i));
-            cells.periods = singleLine(afterLabel(all, /periods per week\s*:?/i));
+            cells.subject = singleLine(beforeLabel(afterLabel(all, /subject\s*:/i), /topics?\s*:|chapter|periods? per week/i));
+            const topic = afterLabel(all, /topics?\s*:/i);
+            cells.topic = singleLine(beforeLabel(topic.length ? topic : afterLabel(all, /(?=chapter\s*\d)/i), /periods? per week/i));
+            cells.periods = singleLine(afterLabel(all, /periods? per week\s*:?/i));
             continue;
         }
         if (/مضمون\s*:/.test(rowText)) {
@@ -181,7 +194,7 @@ function parseTable(tblXml, lists, before) {
             continue;
         }
         if (/دستخط/.test(rowText) && !columnMap) continue;
-        if (/brought forward|review of previous/i.test(rowText)) { cells.broughtForward = afterLabel(all, /(brought forward \(if any\)|brought forward|completion plan, if any\))\s*:?/i); continue; }
+        if (/brought forward|review of previous/i.test(rowText)) { cells.broughtForward = afterLabel(all, /(brought forward\s*\(\s*if any\s*\)|brought forward|completion plan, if any\))\s*:?/i); continue; }
         // A heading row: most cells name a known column.
         const keys = row.map((c) => columnKey(textOf(c.paragraphs)));
         if (keys.filter(Boolean).length >= 3 && row.every((c) => textOf(c.paragraphs).length < 60)) {
@@ -196,9 +209,9 @@ function parseTable(tblXml, lists, before) {
             const attendees = textOf(afterLabel(all, /attendees of coordination meeting\s*:?/i));
             // "1. Section Head  2. Mr. Haris  3. Ms. Ammara  4." — each name goes to its own number.
             // Word's automatic numbering is not part of the text: a name before the first typed number is attendee 1.
-            const lead = attendees.slice(0, Math.max(0, attendees.search(/(?:^|\s)[1-4]\s*[.)]/))).replace(/_+/g, "").trim();
+            const lead = attendees.slice(0, Math.max(0, attendees.search(/(?:^|\s)[1-4](?:\s*[.):]|\s)/))).replace(/_+/g, "").trim();
             if (lead) cells.attendee1 = singleLine([{ runs: [{ t: lead }] }]);
-            for (const m of attendees.matchAll(/(?:^|\s)([1-4])\s*[.)]\s*(.*?)(?=\s+[1-4]\s*[.)]|$)/g)) {
+            for (const m of attendees.matchAll(/(?:^|\s)([1-4])(?:\s*[.):]\s*|\s+)(.*?)(?=\s+[1-4](?:\s*[.):]|\s)|$)/g)) {
                 const name = m[2].replace(/_+/g, "").trim();
                 if (name) cells[`attendee${m[1]}`] = singleLine([{ runs: [{ t: name }] }]);
             }
