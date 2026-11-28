@@ -14,7 +14,7 @@ const { cleanSignature } = require("../services/signatureImage");
 const { storeImage } = require("../services/mediaStore");
 const { labelOf, KEYS } = require("../services/coordTemplate");
 const hub = require("../services/coordHub");
-const { attachNames, fileTitle, departmentNameOf } = require("../services/coordSubjects");
+const { attachNames, fileTitle, departmentNameOf, termName } = require("../services/coordSubjects");
 
 const { fail } = svc;
 const id = (value) => (mongoose.isValidObjectId(value) ? String(value) : fail("Not found.", 404));
@@ -55,7 +55,7 @@ function fileSummary(file, admin, weeks = [], directory = null, departments = ne
     const departmentId = file.department ? String(file.department?._id || file.department) : "";
     const members = directory ? (directory.byDepartment.get(departmentId) || []).filter((p) => p.status === "active") : [];
     return {
-        id: String(file._id), session: file.session, sections: file.sections, showQr: file.showQr,
+        id: String(file._id), session: file.session, term: file.term === 2 ? 2 : 1, termName: termName(file), sections: file.sections, showQr: file.showQr,
         department: { id: departmentId, name: departments.get(departmentId) || file.department?.name || "" },
         classLevel: title.classLevel || "",
         subject: { id: String(subject._id || ""), name: title.subject, className: title.className, classLabel: title.className, board: subject.board?.name || "", group: subject.group?.name || "" },
@@ -207,7 +207,7 @@ exports.removeStaff = wrap(async (req, res) => {
 
 // ----- Files -----
 exports.listFiles = wrap(async (req, res) => {
-    const [files, directory, names] = await Promise.all([populateFile(CoordinationFile.find(fileFilter(req.admin)).sort({ session: -1, updatedAt: -1 })).lean(), staffDirectory(), departmentNames()]);
+    const [files, directory, names] = await Promise.all([populateFile(CoordinationFile.find(fileFilter(req.admin)).sort({ session: -1, term: 1, updatedAt: -1 })).lean(), staffDirectory(), departmentNames()]);
     const weeks = await CoordinationWeek.find({ file: { $in: files.map((f) => f._id) } }).select("file status dueDate").lean();
     const byFile = new Map();
     for (const w of weeks) { const key = String(w.file); if (!byFile.has(key)) byFile.set(key, []); byFile.get(key).push(w); }
@@ -222,8 +222,9 @@ exports.createFile = wrap(async (req, res) => {
     if (!CLASS_LEVELS.includes(classLevel)) fail("Choose the class: 9th or 10th.");
     const session = text(req.body.session, 9);
     if (!SESSION.test(session)) fail("Write the session like 2026-2027.");
-    if (await CoordinationFile.exists({ department: departmentId, classLevel, session })) fail(`This department already has a ${classLevel}th class file for ${session}.`, 409);
-    const file = await CoordinationFile.create({ department: departmentId, classLevel, session, sections: text(req.body.sections, 20), createdBy: req.admin._id });
+    const term = Number(req.body.term) === 2 ? 2 : 1;
+    if (await CoordinationFile.exists({ department: departmentId, classLevel, session, term: term === 1 ? { $in: [1, null] } : 2 })) fail(`This department already has a ${classLevel}th class ${termName({ term })} file for ${session}.`, 409);
+    const file = await CoordinationFile.create({ department: departmentId, classLevel, session, term, sections: text(req.body.sections, 20), createdBy: req.admin._id });
     res.status(201).json({ success: true, id: String(file._id) });
 });
 
@@ -234,6 +235,12 @@ exports.updateFile = wrap(async (req, res) => {
     if (!caps.manage && !(caps.signCoordinator || caps.signSectionHead)) fail("Only the Subject Coordinator, the Section Head or the super admin can change this file.", 403);
     if (req.body.sections !== undefined) file.sections = text(req.body.sections, 20);
     if (req.body.showQr !== undefined) file.showQr = Boolean(req.body.showQr);
+    // A file made for the wrong term can be switched, unless the other term's file already exists.
+    if (req.body.term !== undefined) {
+        const term = Number(req.body.term) === 2 ? 2 : 1;
+        if (term !== (file.term || 1) && await CoordinationFile.exists({ _id: { $ne: file._id }, department: file.department, classLevel: file.classLevel, subject: file.subject, session: file.session, term: term === 1 ? { $in: [1, null] } : 2 })) fail(`The ${termName({ term })} file for this class already exists.`, 409);
+        file.term = term;
+    }
     if (req.body.departmentId !== undefined) {
         if (!caps.manage) fail("Only the super admin can move a file to another department.", 403);
         const departmentId = id(req.body.departmentId);
@@ -276,9 +283,12 @@ exports.getFile = wrap(async (req, res) => {
     const weeks = await CoordinationWeek.find({ file: file._id }).select("week term dueDate status lastEditAt updatedBy signatures rev").populate("updatedBy", "name").sort({ week: 1 }).lean();
     const openComments = await CoordinationComment.aggregate([{ $match: { week: { $in: weeks.map((w) => w._id) }, resolved: false } }, { $group: { _id: "$week", n: { $sum: 1 } } }]);
     const commentCount = new Map(openComments.map((c) => [String(c._id), c.n]));
+    // The same class's file for the other term (1st <-> 2nd), to switch between them.
+    const otherTerm = (file.term || 1) === 1 ? 2 : 1;
+    const sibling = file.classLevel ? await CoordinationFile.findOne({ department: file.department, classLevel: file.classLevel, session: file.session, term: otherTerm === 1 ? { $in: [1, null] } : 2 }).select("_id").lean() : null;
     res.json({
         success: true,
-        file: { ...fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, weeks, directory, names), role, caps },
+        file: { ...fileSummary({ ...file.toObject(), subject: file.subject }, req.admin, weeks, directory, names), role, caps, otherTerm: { term: otherTerm, name: termName({ term: otherTerm }), id: sibling ? String(sibling._id) : "" } },
         weeks: weeks.map((w) => ({ id: String(w._id), week: w.week, term: w.term, dueDate: w.dueDate, status: w.status, lastEditAt: w.lastEditAt, lastEditBy: w.updatedBy?.name || "", openComments: commentCount.get(String(w._id)) || 0, signed: { coordinator: Boolean(w.signatures?.coordinator?.admin), sectionHead: Boolean(w.signatures?.sectionHead?.admin) } })),
     });
 });
@@ -301,7 +311,7 @@ exports.createWeek = wrap(async (req, res) => {
         for (const key of ["week", "submitDate", "distributeDate", "coordinatorName", "sectionHeadName"]) delete flat[key];
         cells = svc.nestCells(flat);
     }
-    const week = await CoordinationWeek.create({ file: file._id, week: number, term: text(req.body.term, 30), dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined, cells, updatedBy: req.admin._id, lastEditAt: new Date() });
+    const week = await CoordinationWeek.create({ file: file._id, week: number, term: termName(file), dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined, cells, updatedBy: req.admin._id, lastEditAt: new Date() });
     await svc.logActivity(week, req.admin, "created", "", req.body.copyFrom ? "Started from a copy of another week" : "");
     hub.changed(file._id);
     res.status(201).json({ success: true, id: String(week._id) });
@@ -328,8 +338,9 @@ exports.copySources = wrap(async (req, res) => {
     const files = await CoordinationFile.find(file.classLevel ? { department: file.department, classLevel: file.classLevel } : { subject: file.subject?._id }).lean();
     const allowed = files.filter((f) => roleIn(f, req.admin));
     const weeks = await CoordinationWeek.find({ file: { $in: allowed.map((f) => f._id) } }).select("file week term status").sort({ week: 1 }).lean();
+    const fileTerm = new Map(allowed.map((f) => [String(f._id), termName(f)]));
     const session = new Map(allowed.map((f) => [String(f._id), f.session]));
-    res.json({ success: true, weeks: weeks.map((w) => ({ id: String(w._id), label: `${session.get(String(w.file))} · Week ${w.week}${w.term ? ` (${w.term})` : ""}`, session: session.get(String(w.file)), week: w.week })) });
+    res.json({ success: true, weeks: weeks.map((w) => ({ id: String(w._id), label: `${session.get(String(w.file))} · ${fileTerm.get(String(w.file))} · Week ${w.week}`, session: session.get(String(w.file)), week: w.week })) });
 });
 
 exports.getWeek = wrap(async (req, res) => {
@@ -426,7 +437,7 @@ async function askCoordinatorToSign(weekId, admin) {
     const key = `${week._id}`;
     if (!reminded.has(key) || Date.now() - reminded.get(key) > 10 * 60 * 1000) {
         reminded.set(key, Date.now());
-        const body = `${names.map((n) => `@${n}`).join(" ")} please add your signature on Week ${week.week} (Submit & sign) so it can be approved.`;
+        const body = `${names.map((n) => `@${n}`).join(" ")} please add your signature on Week ${week.week} of the ${termName(file)} (Submit & sign) so it can be approved.`;
         const comment = await CoordinationComment.create({ week: week._id, cell: "", kind: "change", text: body, mentions: coordinators.map((p) => p._id), author: admin._id, authorName: displayName(admin) });
         await svc.logActivity(week, admin, "requested a change", "", body.slice(0, 120));
         hub.emit(week._id, "comment", publicComment(comment));
@@ -442,7 +453,7 @@ exports.status = wrap(async (req, res) => {
     hub.changed(file._id);
     // Tell the people who act next.
     const who = displayName(req.admin);
-    const label = `${fileTitle(file, await departmentNameOf(file)).subject} ${fileTitle(file, "").className} · Week ${week.week}`;
+    const label = `${fileTitle(file, await departmentNameOf(file)).subject} ${fileTitle(file, "").className} · ${termName(file)} · Week ${week.week}`;
     const staff = await Admin.find({ status: "active", coordTitle: { $in: ["coordinator", "sectionHead", "principal", "teacher"] } }).select("coordTitle coordDepartment").lean();
     const inDept = (p) => String(p.coordDepartment || "") === String(file.department || "");
     if (req.params.action === "submit") await notify(staff.filter((p) => ["sectionHead", "principal"].includes(p.coordTitle)).map((p) => p._id), { kind: "submitted", from: req.admin._id, byName: who, title: `${who} submitted ${label} for approval`, week: week._id });
@@ -520,6 +531,17 @@ async function exportWeeks(res, file, weeks, format, name) {
         return;
     }
     const watermark = records[0]?.assets?.watermark || null;
+    // The week's remarks go into the Word file as comments (speech bubbles), each named with its writer's role.
+    const notes = await CoordinationComment.find({ week: { $in: weeks.map((w) => w._id) } }).sort({ createdAt: 1 }).lean();
+    const writers = await Admin.find({ _id: { $in: [...new Set(notes.map((n) => String(n.author || "")).filter(Boolean))] } }).select("role permissions coordTitle coordDepartment").lean();
+    const roleOf = new Map(writers.map((w) => [String(w._id), roleIn(file, w)]));
+    weeks.forEach((week, i) => {
+        if (!records[i]) return;
+        records[i].comments = notes.filter((n) => String(n.week) === String(week._id)).map((n) => ({
+            cell: n.cell || "", kind: n.kind, text: n.text, authorName: n.authorName, role: roleOf.get(String(n.author || "")) || null,
+            at: n.createdAt, resolved: n.resolved, resolvedByName: n.resolvedByName, replies: (n.replies || []).map((r) => ({ authorName: r.authorName, text: r.text })),
+        }));
+    });
     const docx = await renderCoordinationDocx(records, { sizes: pdf.sizes, watermark, title: name });
     res.set({ "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": `attachment; filename="${safe}.docx"`, "Cache-Control": "no-store" }).send(docx);
 }
@@ -528,7 +550,7 @@ exports.exportWeek = wrap(async (req, res) => {
     const { week, file } = await svc.accessWeek(id(req.params.id), req.admin);
     const format = req.query.format === "pdf" ? "pdf" : "docx";
     const t = fileTitle(file, await departmentNameOf(file));
-    await exportWeeks(res, file, [week], format, `${t.subject} ${t.className} Week ${week.week} Coordination`);
+    await exportWeeks(res, file, [week], format, `${t.subject} ${t.className} ${termName(file)} Week ${week.week} Coordination`);
 });
 
 exports.exportFile = wrap(async (req, res) => {
@@ -547,7 +569,7 @@ exports.exportFile = wrap(async (req, res) => {
     const nums = weeks.map((w) => w.week);
     const contiguous = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
     const range = nums.length === 1 ? ` Week ${nums[0]}` : !nums.length ? "" : contiguous ? ` Weeks ${nums[0]}-${nums[nums.length - 1]}` : nums.length <= 6 ? ` Weeks ${nums.join(", ")}` : ` ${nums.length} weeks`;
-    await exportWeeks(res, file, weeks, format, `${t.subject} ${t.className} Coordination ${file.session}${range}`);
+    await exportWeeks(res, file, weeks, format, `${t.subject} ${t.className} Coordination ${file.session} ${termName(file)}${range}`);
 });
 
 // ----- History -----
@@ -580,7 +602,7 @@ exports.restoreVersion = wrap(async (req, res) => {
 
 // ----- Comments -----
 const publicComment = (c) => ({ id: String(c._id), cell: c.cell, cellLabel: c.cell ? labelOf(c.cell) : "", kind: c.kind, text: c.text, mentions: (c.mentions || []).map(String), author: String(c.author), authorName: c.authorName, resolved: c.resolved, resolvedByName: c.resolvedByName || "", at: c.createdAt, replies: (c.replies || []).map((r) => ({ id: String(r._id), author: String(r.author), authorName: r.authorName, text: r.text, mentions: (r.mentions || []).map(String), at: r.at })) });
-const weekLabel = (file, week) => `Week ${week.week}`;
+const weekLabel = (file, week) => `${termName(file)} · Week ${week.week}`;
 
 exports.addComment = wrap(async (req, res) => {
     const { week, caps, file } = await svc.accessWeek(id(req.params.id), req.admin);

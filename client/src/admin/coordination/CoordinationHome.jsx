@@ -25,7 +25,7 @@ const toast = (message, type = "success") => window.dispatchEvent(new CustomEven
 
 function NewFileDialog({ overview, onClose, onCreated }) {
   const mine = overview.me.title === "coordinator" ? overview.me.department : "";
-  const [form, setForm] = useState({ departmentId: mine || (overview.departments.length === 1 ? overview.departments[0].id : ""), classLevel: "", session: thisSession(), sections: "" });
+  const [form, setForm] = useState({ departmentId: mine || (overview.departments.length === 1 ? overview.departments[0].id : ""), classLevel: "", session: thisSession(), term: 1, sections: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const create = async () => {
@@ -33,7 +33,7 @@ function NewFileDialog({ overview, onClose, onCreated }) {
     try { const d = await api.post("/files", form); onCreated(d.id); } catch (e) { setError(messageOf(e)); setBusy(false); }
   };
   const dept = overview.departments.find((d) => d.id === form.departmentId);
-  return <Dialog title="New coordination file" subtitle="Each department keeps one file per class for the session. Each week is one page." onClose={onClose} busy={busy}
+  return <Dialog title="New coordination file" subtitle="Each department keeps one file per class for each term. Each term's weeks start from week 1, and each week is one page." onClose={onClose} busy={busy}
     footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={FilePlus2} loading={busy} disabled={!form.departmentId || !form.classLevel || !/^\d{4}-\d{4}$/.test(form.session)} onClick={create}>Create file</AdminActionButton></>}>
     {overview.departments.length === 0 ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Add a department first (Departments &amp; staff).</p>
       : mine ? <div className="rounded-xl border border-slate-200 p-3"><p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Department</p><p className="mt-1 text-base font-black" style={{ color: deptColour(dept?.id) }}>{dept?.name}</p></div>
@@ -42,6 +42,12 @@ function NewFileDialog({ overview, onClose, onCreated }) {
       <div className="grid grid-cols-2 gap-3">{[["9", "9th"], ["10", "10th"]].map(([value, label]) => <label key={value} className={`coord-classpick ${form.classLevel === value ? "is-on" : ""}`}>
         <input type="radio" name="classLevel" className="sr-only" checked={form.classLevel === value} onChange={() => setForm({ ...form, classLevel: value })} />
         <b>{label}</b><span>{dept ? `${dept.name} ${label}` : `Class ${label}`}</span>
+      </label>)}</div>
+    </fieldset>
+    <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Term</legend>
+      <div className="grid grid-cols-2 gap-3">{[[1, "1st Term"], [2, "2nd Term"]].map(([value, label]) => <label key={value} className={`coord-classpick is-term ${form.term === value ? "is-on" : ""}`}>
+        <input type="radio" name="term" className="sr-only" checked={form.term === value} onChange={() => setForm({ ...form, term: value })} />
+        <b>{label}</b><span>Starts from week 1</span>
       </label>)}</div>
     </fieldset>
     <div className="grid gap-3 sm:grid-cols-2">
@@ -224,7 +230,7 @@ function FileCard({ f, departments, onMove, onDelete, onDownload, index = 0 }) {
     <Link to={`/admin/coordination/${f.id}`} className="coord-card-main">
       <div className="flex items-center gap-4">
         <span className="coord-classbig"><b>{f.subject.className || "–"}</b><small>class</small></span>
-        <div className="min-w-0 flex-1"><h3 className="truncate">{f.subject.name}</h3><p>{f.session}{f.sections ? ` · ${f.sections} sections` : ""}</p></div>
+        <div className="min-w-0 flex-1"><h3 className="truncate">{f.subject.name}</h3><p><span className="coord-termtag">{f.termName}</span>{f.session}{f.sections ? ` · ${f.sections} sections` : ""}</p></div>
         <span className="coord-ring" style={{ "--pct": pct }} aria-label={`${pct}% approved`}><b>{pct}%</b></span>
       </div>
       <div className="flex flex-wrap gap-1.5">

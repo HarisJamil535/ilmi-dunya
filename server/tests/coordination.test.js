@@ -134,3 +134,47 @@ test("Urdu records: Urdu departments, right-to-left Word and PDF, and Urdu Word 
     }
     assert.equal(week.week, 1, "پہلا is week 1");
 });
+
+test("Word export: remarks become Word comments on their box, the rest on the coordinator's signature line", async () => {
+    const JSZip = require("jszip");
+    const cells = Object.fromEntries(keys.map((k) => [k, []]));
+    Object.assign(cells, { subject: fromHtml("Chemistry"), "mon.subTopics": fromHtml("Periods and groups") });
+    const comments = [
+        { cell: "", kind: "comment", text: "Well organised plan.", authorName: "Ms. Asmeena", role: "sectionHead", at: new Date("2026-11-20") },
+        { cell: "mon.subTopics", kind: "change", text: "Add page numbers", authorName: "Ms. Asmeena", role: "sectionHead", resolved: true, resolvedByName: "Ms. Tabassum", replies: [{ authorName: "Ms. Tabassum", text: "Done" }] },
+        { cell: "wed.resources", kind: "question", text: "Which video?", authorName: "Ms. Tabassum", role: "coordinator" },
+    ];
+    const docx = await renderCoordinationDocx([{ ...base, cells, attendees: [], comments }, { ...base, cells, attendees: [], comments: [comments[0]] }]);
+    const zip = await JSZip.loadAsync(docx);
+    const notes = await zip.file("word/comments.xml").async("string");
+    const doc = await zip.file("word/document.xml").async("string");
+    assert.equal((notes.match(/<w:comment /g) || []).length, 4, "every remark of every week");
+    assert.match(notes, /w:author="Section Head — Ms. Asmeena"/);
+    assert.match(notes, /w:author="Coordinator — Ms. Tabassum"/);
+    assert.match(notes, /Change requested: /);
+    assert.match(notes, /Resolved by Ms. Tabassum/);
+    assert.match(notes, /Ms. Tabassum: /, "replies are inside the comment");
+    for (const id of [0, 1, 2, 3]) {
+        for (const tag of ["commentRangeStart", "commentRangeEnd", "commentReference"]) assert.match(doc, new RegExp(`<w:${tag} w:id="${id}"/>`), `${tag} ${id}`);
+    }
+    // The remark on Monday's sub-topics surrounds that box's text.
+    assert.match(doc, /<w:commentRangeStart w:id="1"\/>.*Periods and groups.*<w:commentRangeEnd w:id="1"\/>/s);
+    // Comments do not get in the way of importing the file back.
+    const [week] = await readCoordinationDocx(docx);
+    assert.equal(plainText(week.cells["mon.subTopics"]).trim(), "Periods and groups");
+    const plain = await renderCoordinationDocx([{ ...base, cells, attendees: [] }]);
+    const empty = await (await JSZip.loadAsync(plain)).file("word/comments.xml")?.async("string");
+    assert.doesNotMatch(empty || "", /<w:comment /, "no remarks, no comments");
+});
+
+test("terms: each term has its own file, and older files count as the 1st term", () => {
+    const { termName } = require("../src/services/coordSubjects");
+    const { CoordinationFile } = require("../src/models/Coordination");
+    assert.equal(termName({}), "1st Term");
+    assert.equal(termName({ term: 1 }), "1st Term");
+    assert.equal(termName({ term: 2 }), "2nd Term");
+    assert.equal(new CoordinationFile({ session: "2026-2027" }).term, 1);
+    assert.ok(new CoordinationFile({ session: "2026-2027", term: 3 }).validateSync()?.errors?.term, "only 1st or 2nd term");
+    const unique = CoordinationFile.schema.indexes().find(([, o]) => o.unique);
+    assert.deepEqual(Object.keys(unique[0]), ["department", "classLevel", "session", "term"]);
+});

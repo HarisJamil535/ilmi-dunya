@@ -1,4 +1,4 @@
-const { LineRuleType, Document, Packer, Paragraph: BaseParagraph, TextRun: BaseTextRun, Table: BaseTable, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ImageRun, TabStopType, PageOrientation, VerticalAlign, HeightRule, Header, Footer, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionAlign, PageNumber, ShadingType } = require("docx");
+const { LineRuleType, Document, Packer, Paragraph: BaseParagraph, TextRun: BaseTextRun, Table: BaseTable, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, ImageRun, TabStopType, PageOrientation, VerticalAlign, HeightRule, Header, Footer, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionAlign, PageNumber, ShadingType, CommentRangeStart, CommentRangeEnd, CommentReference } = require("docx");
 const { DAYS, COLUMNS, WIDTHS } = require("./coordTemplate");
 const { FONTS, fontKey, URDU_FONT } = require("./coordFonts");
 const { printLabels, dayName, columnName, isRtlText } = require("./coordLang");
@@ -47,6 +47,33 @@ class Table extends BaseTable {
 }
 const LINE_UR = 1.85;
 
+// Remarks (the week's comments) become real Word comments: a speech bubble in the margin that opens the
+// remark. A remark about one box is anchored to that box; the rest sit on the coordinator's signature line.
+let NOTES = new Map(); // box key -> comment ids still to anchor on the week being built
+let NOTE_LIST = []; // every comment in the document
+const takeNotes = (key) => { const ids = NOTES.get(key) || []; NOTES.delete(key); return ids; };
+const opening = (ids) => ids.map((id) => new CommentRangeStart(id));
+const closing = (ids) => ids.flatMap((id) => [new CommentRangeEnd(id), new BaseTextRun({ children: [new CommentReference(id)] })]);
+const withNotes = (ids, children) => (ids.length ? [...opening(ids), ...children, ...closing(ids)] : children);
+const ROLE_NAMES = { coordinator: "Coordinator", sectionHead: "Section Head", principal: "Principal", editor: "Teacher", manager: "Coordination manager" };
+const KIND_NAMES = { question: "Question: ", change: "Change requested: " };
+const initialsOf = (name) => String(name || "").replace(/^(mr|mrs|ms|miss|dr|sir)\.?\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+function noteParagraph(parts, extra = {}) {
+    const rtl = parts.some((p) => isRtlText(p.text || ""));
+    return new BaseParagraph({ bidirectional: rtl || undefined, spacing: { before: 0, after: 60 }, ...extra, children: parts.filter((p) => p.text).map((p) => new BaseTextRun({ size: 18, ...p, ...(isRtlText(p.text) ? { rightToLeft: true, font: { ascii: "Arial", hAnsi: "Arial", cs: URDU_FONT.word } } : {}) })) });
+}
+function commentEntry(id, note) {
+    const name = note.authorName || "Member";
+    const role = ROLE_NAMES[note.role];
+    const lines = String(note.text || "").split(/\r?\n/).filter((line) => line.trim());
+    const children = (lines.length ? lines : [""]).map((line, i) => noteParagraph([{ text: i === 0 ? KIND_NAMES[note.kind] || "" : "", bold: true }, { text: line }]));
+    for (const reply of note.replies || []) {
+        children.push(noteParagraph([{ text: `\u21b3 ${reply.authorName || "Member"}: `, bold: true }, { text: String(reply.text || "").replace(/\s*\n\s*/g, " ") }], { indent: { left: 160 } }));
+    }
+    if (note.resolved) children.push(noteParagraph([{ text: `\u2713 Resolved${note.resolvedByName ? ` by ${note.resolvedByName}` : ""}`, italics: true, color: "15803D" }]));
+    return { id, author: role ? `${role} \u2014 ${name}` : name, initials: initialsOf(name), date: note.at ? new Date(note.at) : new Date(), children };
+}
+
 // The same record as coordPdf, as an editable Word file: A4 landscape, one page per week, in the week's font.
 // The text size chosen for the PDF (the size that makes the week fit on one page) is used here too.
 let FONT = "Arial"; // set for each week before its page is built
@@ -87,18 +114,20 @@ function runsOf(runs, size, base = {}) {
 const spacing = { before: 0, after: 0, line: 240 };
 // Exact line height, the same as the PDF layout (1.18 × text size), so Word breaks the page the same way.
 const lineSpacing = (pt) => ({ before: 0, after: 0, line: Math.round(pt * 1.18 * 20), lineRule: LineRuleType.EXACT });
-function paragraphs(list, size, { lead = null, align } = {}) {
+function paragraphs(list, size, { lead = null, align, key } = {}) {
     const out = [];
     let number = 0;
+    const ids = key ? takeNotes(key) : [];
+    const count = (list || []).length;
     (list || []).forEach((p, index) => {
         number = p.list === "ol" ? number + 1 : 0;
         const marker = p.list === "ul" ? "•\t" : p.list === "ol" ? `${number}.\t` : "";
         const indent = p.list ? { left: 220, hanging: 220 } : undefined;
-        const children = [...(index === 0 && lead ? lead : []), ...(marker ? [new TextRun({ text: marker, font: FONT, size: half(size) })] : []), ...runsOf(p.runs, size)];
+        const children = [...(index === 0 ? opening(ids) : []), ...(index === 0 && lead ? lead : []), ...(marker ? [new TextRun({ text: marker, font: FONT, size: half(size) })] : []), ...runsOf(p.runs, size), ...(index === count - 1 ? closing(ids) : [])];
         const biggest = Math.max(1, ...(p.runs || []).map((r) => SCALE[r.z] || 1));
         out.push(new Paragraph({ children, spacing: lineSpacing(size * biggest), indent, tabStops: p.list ? [{ type: TabStopType.LEFT, position: 220 }] : undefined, alignment: { center: AlignmentType.CENTER, right: AlignmentType.RIGHT }[align || p.align] || AlignmentType.LEFT }));
     });
-    if (!out.length) out.push(new Paragraph({ children: lead || [], spacing: lineSpacing(size), alignment: align === "center" ? AlignmentType.CENTER : AlignmentType.LEFT }));
+    if (!out.length) out.push(new Paragraph({ children: withNotes(ids, lead || []), spacing: lineSpacing(size), alignment: align === "center" ? AlignmentType.CENTER : AlignmentType.LEFT }));
     return out;
 }
 const leadRun = (text, size, style = {}) => textRuns({ text, font: FONT, size: half(size), ...style });
@@ -114,7 +143,7 @@ function weekBlocks(record, size, assets, first) {
     blocks.push(new Paragraph({ pageBreakBefore: !first, alignment: AlignmentType.CENTER, spacing: { before: 0, after: 120 }, children: textRuns({ text: record.title, font: FONT, size: RTL ? 26 : 22, bold: true, underline: {} }) }));
     const field = (label, value) => [...textRuns({ text: `${label} `, font: FONT, size: 17, bold: true }), ...textRuns({ text: value ? ` ${value}   ` : "            ", font: FONT, size: 17, underline: {} })];
     blocks.push(new Paragraph({ spacing: { before: 0, after: 100 }, indent: { left: 360 }, tabStops: [{ type: TabStopType.CENTER, position: Math.round(TABLE_W / 2) }, { type: TabStopType.RIGHT, position: TABLE_W - 200 }],
-        children: [...field(L.week, plain("week")), new TextRun({ text: "\t", font: FONT }), ...field(L.className, plain("className")), new TextRun({ text: "\t", font: FONT }), ...field(L.sections, plain("sections"))] }));
+        children: [...withNotes(takeNotes("week"), field(L.week, plain("week"))), new TextRun({ text: "\t", font: FONT }), ...withNotes(takeNotes("className"), field(L.className, plain("className"))), new TextRun({ text: "\t", font: FONT }), ...withNotes(takeNotes("sections"), field(L.sections, plain("sections")))] }));
 
     const span = WIDTHS.length;
     const leftW = WIDTHS.slice(0, 3).reduce((a, b) => a + b, 0);
@@ -124,12 +153,12 @@ function weekBlocks(record, size, assets, first) {
     rows.push(new TableRow({ children: [new TableCell({
         columnSpan: span, borders: ALL, width: { size: TABLE_W, type: WidthType.DXA }, margins: { top: 40, bottom: 40, left: 70, right: 70 },
         children: [
-            new Paragraph({ spacing, tabStops: [{ type: TabStopType.LEFT, position: subjectW }], children: [...leadRun(`${L.subject} `, size, { bold: true }), ...runsOf(c.subject[0]?.runs, size, { u: true }), new TextRun({ text: "\t", font: FONT }), ...leadRun(`${L.topic} `, size, { bold: true }), ...runsOf(c.topic[0]?.runs, size)] }),
+            new Paragraph({ spacing, tabStops: [{ type: TabStopType.LEFT, position: subjectW }], children: [...leadRun(`${L.subject} `, size, { bold: true }), ...withNotes(takeNotes("subject"), runsOf(c.subject[0]?.runs, size, { u: true })), new TextRun({ text: "\t", font: FONT }), ...leadRun(`${L.topic} `, size, { bold: true }), ...withNotes(takeNotes("topic"), runsOf(c.topic[0]?.runs, size))] }),
             ...(c.topic.length > 1 ? paragraphs(c.topic.slice(1), size) : []),
-            new Paragraph({ spacing, children: [...leadRun(`${L.periods} `, size, { bold: true }), ...runsOf(c.periods[0]?.runs, size)] }),
+            new Paragraph({ spacing, children: [...leadRun(`${L.periods} `, size, { bold: true }), ...withNotes(takeNotes("periods"), runsOf(c.periods[0]?.runs, size))] }),
         ],
     })] }));
-    rows.push(new TableRow({ children: [cell(paragraphs(c.broughtForward, size, { lead: leadRun(`${L.broughtForward} `, size) }), TABLE_W, { columnSpan: span })] }));
+    rows.push(new TableRow({ children: [cell(paragraphs(c.broughtForward, size, { key: "broughtForward", lead: leadRun(`${L.broughtForward} `, size) }), TABLE_W, { columnSpan: span })] }));
     rows.push(new TableRow({ tableHeader: false, children: COLUMNS.map(([column], i) => cell([new Paragraph({ spacing, alignment: AlignmentType.CENTER, children: leadRun(columnName(lang, column), size, { bold: true }) })], WIDTHS[i], { verticalAlign: VerticalAlign.CENTER })) }));
     for (const [index, [key]] of DAYS.entries()) {
         const name = dayName(lang, key);
@@ -137,10 +166,15 @@ function weekBlocks(record, size, assets, first) {
         const measured = record.dayHeights?.[index];
         rows.push(new TableRow({
             height: { value: measured ? Math.round(measured * 20 * 0.95) : 700, rule: HeightRule.ATLEAST }, cantSplit: true,
-            children: COLUMNS.map(([column], i) => cell(i === 0 ? [new Paragraph({ spacing, children: leadRun(name, size) }), ...paragraphs(c[`${key}.period`], size).filter((_, j, all) => all.length && c[`${key}.period`].length)] : paragraphs(c[`${key}.${column}`], size), WIDTHS[i])),
+            children: COLUMNS.map(([column], i) => {
+                if (i !== 0) return cell(paragraphs(c[`${key}.${column}`], size, { key: `${key}.${column}` }), WIDTHS[i]);
+                const period = `${key}.period`;
+                const filled = c[period].length > 0;
+                return cell([new Paragraph({ spacing, children: filled ? leadRun(name, size) : withNotes(takeNotes(period), leadRun(name, size)) }), ...(filled ? paragraphs(c[period], size, { key: period }) : [])], WIDTHS[i]);
+            }),
         }));
     }
-    rows.push(new TableRow({ children: [cell(paragraphs(c.extraHelp, size, { lead: leadRun(`${L.extraHelp} `, size, { italics: !RTL }) }), TABLE_W, { columnSpan: span })] }));
+    rows.push(new TableRow({ children: [cell(paragraphs(c.extraHelp, size, { key: "extraHelp", lead: leadRun(`${L.extraHelp} `, size, { italics: !RTL }) }), TABLE_W, { columnSpan: span })] }));
     // Attendees on one line (up to six); longer lists are split into even lines.
     const names = record.attendees?.length ? record.attendees : ["", "", "", ""];
     const attendeeLines = [];
@@ -171,21 +205,23 @@ function weekBlocks(record, size, assets, first) {
             }) }));
     }
     rows.push(new TableRow({ children: [cell([
-        ...paragraphs(c.teacher, size, { lead: leadRun(`${L.teacher} `, size) }),
+        ...paragraphs(c.teacher, size, { key: "teacher", lead: leadRun(`${L.teacher} `, size) }),
         new Paragraph({ spacing: lineSpacing(size), children: leadRun(L.attendees, size) }),
         ...attendeeLines,
     ], TABLE_W, { columnSpan: span })] }));
     rows.push(new TableRow({ children: [
-        cell(paragraphs(c.submitDate, size, { lead: leadRun(`${L.submitDate} `, size) }), leftW, { columnSpan: 3 }),
-        cell(paragraphs(c.distributeDate, size, { lead: leadRun(`${L.distributeDate} `, size) }), TABLE_W - leftW, { columnSpan: 3 }),
+        cell(paragraphs(c.submitDate, size, { key: "submitDate", lead: leadRun(`${L.submitDate} `, size) }), leftW, { columnSpan: 3 }),
+        cell(paragraphs(c.distributeDate, size, { key: "distributeDate", lead: leadRun(`${L.distributeDate} `, size) }), TABLE_W - leftW, { columnSpan: 3 }),
     ] }));
     blocks.push(new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: WIDTHS, rows, layout: "fixed" }));
 
     // Signatures: only the e-signature on the line, about two lines of text tall so the layout stays put.
-    const sigCell = (label, sig, k = 1) => {
+    const general = [...NOTES.values()].flat().sort((a, b) => a - b);
+    NOTES.clear();
+    const sigCell = (label, sig, k = 1, ids = []) => {
         const pic = sig?.image ? image(sig.image, Math.round(150 * k), 28) : null;
         return [
-            new TableCell({ borders: NO_BORDERS, width: { size: Math.round(2600 * k), type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.RIGHT, spacing, children: leadRun(label, 8.5) })] }),
+            new TableCell({ borders: NO_BORDERS, width: { size: Math.round(2600 * k), type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.RIGHT, spacing, children: withNotes(ids, leadRun(label, 8.5)) })] }),
             new TableCell({ borders: { ...NO_BORDERS, bottom: LINE }, width: { size: Math.round(3000 * k), type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: pic ? [pic] : [] })] }),
             new TableCell({ borders: NO_BORDERS, width: { size: Math.round(1500 * k), type: WidthType.DXA }, children: [new Paragraph({ children: [] })] }),
         ];
@@ -194,7 +230,7 @@ function weekBlocks(record, size, assets, first) {
     const signers = [[L.signCoordinator, assets.coordinator], [L.signSectionHead, assets.sectionHead], ...(assets.principal ? [[L.signPrincipal, assets.principal]] : [])];
     const scale = signers.length === 3 ? 14200 / 21300 : 1;
     blocks.push(new Table({ width: { size: 14200, type: WidthType.DXA }, columnWidths: signers.flatMap(() => [2600, 3000, 1500].map((w) => Math.round(w * scale))), borders: { ...NO_BORDERS, insideHorizontal: NONE, insideVertical: NONE }, rows: [
-        new TableRow({ height: { value: 520, rule: HeightRule.ATLEAST }, children: signers.flatMap(([label, sig]) => sigCell(label, sig, scale)) }),
+        new TableRow({ height: { value: 520, rule: HeightRule.ATLEAST }, children: signers.flatMap(([label, sig], i) => sigCell(label, sig, scale, i === 0 ? general : [])) }),
     ] }));
     if (record.caption) blocks.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 0 }, children: [new TextRun({ text: record.caption, font: FONT, size: 17, italics: true, underline: {} })] }));
     return blocks;
@@ -228,8 +264,15 @@ function footerFor(record, qr) {
 // The watermark picture must already be faded (see fadeImage), because Word has no simple opacity setting
 // for pictures written this way.
 async function renderCoordinationDocx(records, { sizes = [], watermark = null, title = "Coordination record" } = {}) {
+    NOTE_LIST = [];
     const sections = records.map((record, i) => {
         const size = sizes[i]?.size || 9;
+        NOTES = new Map();
+        for (const note of record.comments || []) {
+            const id = NOTE_LIST.length;
+            NOTE_LIST.push(commentEntry(id, note));
+            NOTES.set(note.cell || "", [...(NOTES.get(note.cell || "") || []), id]);
+        }
         lang = record.lang === "ur" ? "ur" : "en";
         RTL = lang === "ur";
         L = printLabels(lang);
@@ -241,7 +284,7 @@ async function renderCoordinationDocx(records, { sizes = [], watermark = null, t
             children: weekBlocks({ ...record, dayHeights: sizes[i]?.dayHeights }, size, record.assets || {}, true),
         };
     });
-    const doc = new Document({ creator: "IlmiDunya", title, styles: { default: { document: { run: { font: FONTS[fontKey(records[0]?.font)].word, size: 18 } } } }, sections: sections.length ? sections : [{ children: [new Paragraph("")] }] });
+    const doc = new Document({ creator: "IlmiDunya", title, ...(NOTE_LIST.length ? { comments: { children: NOTE_LIST } } : {}), styles: { default: { document: { run: { font: FONTS[fontKey(records[0]?.font)].word, size: 18 } } } }, sections: sections.length ? sections : [{ children: [new Paragraph("")] }] });
     void ShadingType;
     return Packer.toBuffer(doc);
 }
