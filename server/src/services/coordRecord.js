@@ -5,7 +5,8 @@ const { fadeImage } = require("./watermark");
 const { flatCells, plainText } = require("./coordService");
 const { fromText } = require("./coordRichText");
 const Admin = require("../models/Admin");
-const { fileTitle, departmentNameOf } = require("./coordSubjects");
+const { fileTitle, departmentNameOf, termName } = require("./coordSubjects");
+const URDU_TERMS = { "1st Term": "پہلی ٹرم", "2nd Term": "دوسری ٹرم", "First Term": "پہلی ٹرم", "Second Term": "دوسری ٹرم" };
 const { displayName } = require("./coordPeople");
 const { tintSignature } = require("./signatureImage");
 const { languageOf, urduClass, urduSubject, URDU_TITLE } = require("./coordLang");
@@ -66,7 +67,8 @@ async function buildRecords(file, weeks, settings) {
     for (const [index, week] of weeks.entries()) {
         const cells = flatCells(week.cells);
         const sig = week.signatures || {};
-        cells.week = fill(cells.week, `${week.week}${week.term ? ` (${week.term})` : ""}`);
+        const term = week.term || termName(file);
+        cells.week = fill(cells.week, `${week.week} (${lang === "ur" ? URDU_TERMS[term] || term : term})`);
         cells.className = fill(cells.className, title.className);
         cells.sections = fill(cells.sections, file.sections);
         cells.subject = fill(cells.subject, title.subject);

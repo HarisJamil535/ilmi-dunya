@@ -266,7 +266,7 @@ function WeekEditorView({ weekId }) {
       <div className="flex min-w-0 items-center gap-2">
         <Link to={`/admin/coordination/${file.id}`} className="ce-icon" aria-label="Back to the file"><ArrowLeft className="h-5 w-5" /></Link>
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-500">{file.subject.name} · {file.subject.className} · {file.session}</p>
+          <p className="truncate text-xs font-bold text-slate-500">{file.subject.name} · {file.subject.className} · {file.termName} · {file.session}</p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><h1 className="text-lg font-black leading-tight text-slate-900"><span className="whitespace-nowrap">Week {week.week}</span>{week.term ? <span className="whitespace-nowrap font-bold text-slate-500"> · {week.term}</span> : null}</h1><StatusChip status={week.status} /></div>
         </div>
         <div className="ml-auto flex shrink-0 items-center sm:ml-1">

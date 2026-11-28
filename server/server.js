@@ -189,6 +189,9 @@ const initializeDatabase = async () => {
             // Coordination files used to be unique per site subject; they are now unique per department and class.
             const { CoordinationFile } = require('./src/models/Coordination');
             await CoordinationFile.collection.dropIndex('subject_1_session_1').catch(() => {});
+            // Files are now one per term: files made before terms existed are the 1st term's.
+            await CoordinationFile.collection.dropIndex('department_1_classLevel_1_session_1').catch(() => {});
+            await CoordinationFile.updateMany({ term: { $exists: false } }, { $set: { term: 1 } }).catch(() => {});
             await CoordinationFile.createIndexes().catch((error) => process.stderr.write(`coordination indexes: ${error.message}\n`));
         }).catch(error => { databaseReady = undefined; throw error; });
     }

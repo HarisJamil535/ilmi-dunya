@@ -25,13 +25,15 @@ const fileSchema = new mongoose.Schema({
     classLevel: { type: String, enum: CLASS_LEVELS, default: undefined },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "CoordinationDepartment", index: true, default: null },
     session: { type: String, required: true, trim: true, match: /^\d{4}-\d{4}$/ },
+    // Each term has its own file, and its weeks are numbered from 1 again.
+    term: { type: Number, enum: [1, 2], default: 1 },
     sections: { type: String, default: "", maxlength: 20 },
     showQr: { type: Boolean, default: true },
     members: { type: [memberSchema], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
 }, { timestamps: true });
-// One file per department, class and session.
-fileSchema.index({ department: 1, classLevel: 1, session: 1 }, { unique: true, partialFilterExpression: { classLevel: { $exists: true } } });
+// One file per department, class, session and term.
+fileSchema.index({ department: 1, classLevel: 1, session: 1, term: 1 }, { unique: true, partialFilterExpression: { classLevel: { $exists: true } } });
 
 const signatureSchema = new mongoose.Schema({
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },

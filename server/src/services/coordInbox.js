@@ -2,7 +2,7 @@ const { CoordinationFile, CoordinationWeek, CoordinationComment, CoordinationAct
 const { DAYS, COLUMNS } = require("./coordTemplate");
 const { roleIn, capsFor, fileFilter } = require("./coordAccess");
 const { plainText } = require("./coordRichText");
-const { attachNames, fileTitle } = require("./coordSubjects");
+const { attachNames, fileTitle, termName } = require("./coordSubjects");
 const { CoordinationDepartment } = require("../models/Coordination");
 
 // "Waiting on me": everything a person should do next in Coordination, most urgent first.
@@ -25,7 +25,7 @@ async function inboxFor(admin) {
     const fileInfo = new Map(files.map((f) => {
         const caps = capsFor(roleIn(f, admin), admin);
         const t = fileTitle(f, depts.get(String(f.department)) || "");
-        return [String(f._id), { caps, role: roleIn(f, admin), label: `${t.subject}${t.className ? ` · ${t.className} class` : ""}`, session: f.session }];
+        return [String(f._id), { caps, role: roleIn(f, admin), label: `${t.subject}${t.className ? ` · ${t.className} class` : ""} · ${termName(f)}`, session: f.session }];
     }));
     const weeks = await CoordinationWeek.find({ file: { $in: files.map((f) => f._id) } }).select("file week status dueDate cells lastEditAt updatedBy signatures").lean();
     const touched = new Set((await CoordinationActivity.distinct("week", { by: admin._id, week: { $in: weeks.map((w) => w._id) } })).map(String));

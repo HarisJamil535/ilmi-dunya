@@ -166,3 +166,15 @@ test("Word export: remarks become Word comments on their box, the rest on the co
     const empty = await (await JSZip.loadAsync(plain)).file("word/comments.xml")?.async("string");
     assert.doesNotMatch(empty || "", /<w:comment /, "no remarks, no comments");
 });
+
+test("terms: each term has its own file, and older files count as the 1st term", () => {
+    const { termName } = require("../src/services/coordSubjects");
+    const { CoordinationFile } = require("../src/models/Coordination");
+    assert.equal(termName({}), "1st Term");
+    assert.equal(termName({ term: 1 }), "1st Term");
+    assert.equal(termName({ term: 2 }), "2nd Term");
+    assert.equal(new CoordinationFile({ session: "2026-2027" }).term, 1);
+    assert.ok(new CoordinationFile({ session: "2026-2027", term: 3 }).validateSync()?.errors?.term, "only 1st or 2nd term");
+    const unique = CoordinationFile.schema.indexes().find(([, o]) => o.unique);
+    assert.deepEqual(Object.keys(unique[0]), ["department", "classLevel", "session", "term"]);
+});

@@ -12,9 +12,33 @@ import { useLiveRefresh } from "./useCoordEvent";
 import { ROLE_LABEL, api, messageOf, roleTheme, timeAgo } from "./coordApi";
 import "./coordination.css";
 
+// 1st Term | 2nd Term: each term is its own file (weeks start from 1 again). Opens the other term's file,
+// or starts it with the same department, class, session and sections.
+function TermSwitch({ file, navigate }) {
+  const [busy, setBusy] = useState(false);
+  if (!file.classLevel || !file.otherTerm) return null;
+  const canStart = file.caps.manage || ["coordinator", "sectionHead"].includes(file.role);
+  const start = async () => {
+    setBusy(true);
+    try {
+      const d = await api.post("/files", { departmentId: file.department.id, classLevel: file.classLevel, session: file.session, term: file.otherTerm.term, sections: file.sections });
+      navigate(`/admin/coordination/${d.id}`);
+    } catch (e) { window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type: "error", message: messageOf(e) } })); }
+    setBusy(false);
+  };
+  const tabs = [1, 2].map((term) => {
+    const name = term === 1 ? "1st Term" : "2nd Term";
+    if (term === file.term) return <span key={term} className="is-on" aria-current="page">{name}</span>;
+    if (file.otherTerm.id) return <Link key={term} to={`/admin/coordination/${file.otherTerm.id}`}>{name}</Link>;
+    if (canStart) return <button key={term} type="button" disabled={busy} onClick={start}><Plus className="h-3.5 w-3.5" />{busy ? "Starting…" : `Start ${name}`}</button>;
+    return <span key={term} className="is-off" title={`The ${name} file has not been started yet`}>{name}</span>;
+  });
+  return <nav className="coord-terms" aria-label="Term">{tabs}</nav>;
+}
+
 function NewWeekDialog({ file, weeks, onClose, onCreated }) {
   const next = (weeks.reduce((max, w) => Math.max(max, w.week), 0) || 0) + 1;
-  const [form, setForm] = useState({ week: String(Math.min(60, next)), term: weeks.at(-1)?.term || "", dueDate: "", start: weeks.length ? "previous" : "blank", copyFrom: "" });
+  const [form, setForm] = useState({ week: String(Math.min(60, next)), dueDate: "", start: weeks.length ? "previous" : "blank", copyFrom: "" });
   const [sources, setSources] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -22,15 +46,14 @@ function NewWeekDialog({ file, weeks, onClose, onCreated }) {
   const create = async () => {
     setBusy(true); setError("");
     const copyFrom = form.start === "previous" ? weeks.at(-1)?.id : form.start === "other" ? form.copyFrom : "";
-    try { const d = await api.post(`/files/${file.id}/weeks`, { week: Number(form.week), term: form.term, dueDate: form.dueDate || undefined, copyFrom: copyFrom || undefined }); onCreated(d.id); }
+    try { const d = await api.post(`/files/${file.id}/weeks`, { week: Number(form.week), dueDate: form.dueDate || undefined, copyFrom: copyFrom || undefined }); onCreated(d.id); }
     catch (e) { setError(messageOf(e)); setBusy(false); }
   };
   const starts = [["blank", "Blank page"], ...(weeks.length ? [["previous", `Copy of week ${weeks.at(-1).week}`]] : []), ["other", "Copy another week (also earlier sessions)"]];
   return <Dialog title="Add a week" onClose={onClose} busy={busy}
     footer={<><AdminActionButton variant="secondary" onClick={onClose}>Cancel</AdminActionButton><AdminActionButton icon={Plus} loading={busy} disabled={!form.week || (form.start === "other" && !form.copyFrom)} onClick={create}>Add week</AdminActionButton></>}>
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Week number"><input className={inputClass} type="number" min="1" max="60" value={form.week} onChange={(e) => setForm({ ...form, week: e.target.value })} /></Field>
-      <Field label="Term (optional)"><input className={inputClass} maxLength={30} value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} placeholder="1st Term" /></Field>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Week number" hint={`${file.termName}: weeks start from 1`}><input className={inputClass} type="number" min="1" max="60" value={form.week} onChange={(e) => setForm({ ...form, week: e.target.value })} /></Field>
       <Field label="Due date (optional)"><input className={inputClass} type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></Field>
     </div>
     <fieldset><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Start from</legend>
@@ -122,8 +145,9 @@ export default function CoordinationFile() {
     <AnnouncementCenter left={<Link to="/admin/coordination" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary"><ArrowLeft className="h-4 w-4" />All coordination files</Link>} />
     <header className="coord-hero is-vivid" style={{ "--dept": roleTheme(file.role) }}>
       <div className="min-w-0">
-        <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session}</p>
+        <p className="coord-eyebrow">{file.department.name || "No department"} · {file.session} · {file.termName}</p>
         <h1 className="flex flex-wrap items-center gap-3">{file.subject.name}<span className="coord-class">{file.subject.className || "–"}</span></h1>
+        <TermSwitch file={file} navigate={navigate} />
         <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-white/80">You are</span><RoleBadge role={file.role} />{file.role === "principal" && <span className="text-sm text-white/80">view and download</span>}</div>
         <div className="coord-stats">
           <span><b>{counts.total}</b>weeks</span><span className="is-green"><b>{counts.approved}</b>approved</span><span className="is-blue"><b>{counts.submitted}</b>awaiting</span><span className="is-amber"><b>{counts.draft}</b>drafts</span>{counts.overdue > 0 && <span className="is-red"><b>{counts.overdue}</b>overdue</span>}

@@ -24,6 +24,8 @@ module.exports = { attachNames };
 
 // What a file is called: new files are "<Department> · 9th"; older ones use the site subject and its class.
 const ordinal = (n) => (n === "9" ? "9th" : n === "10" ? "10th" : n ? `${n}th` : "");
+const TERM_NAMES = { 1: "1st Term", 2: "2nd Term" };
+const termName = (file) => TERM_NAMES[file?.term] || TERM_NAMES[1];
 function fileTitle(file, departmentName = "") {
     if (file?.classLevel) return { subject: departmentName || "Subject", className: ordinal(file.classLevel), classLevel: file.classLevel };
     const raw = String(file?.subject?.class?.name || "").replace(/^class\s*/i, "").trim();
@@ -35,5 +37,6 @@ async function departmentNameOf(file) {
     return (await mongoose.model("CoordinationDepartment").findById(id).select("name").lean())?.name || "";
 }
 module.exports.fileTitle = fileTitle;
+module.exports.termName = termName;
 module.exports.departmentNameOf = departmentNameOf;
 module.exports.ordinal = ordinal;
